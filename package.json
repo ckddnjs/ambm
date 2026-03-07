@@ -1,6 +1,8 @@
 {
-  "name": "ambadminton",
+  "name": "AM-badminton",
   "version": "1.0.0",
+  "description": "새벽민턴 스코어 관리시스템",
+  "type": "module",
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0"
   }
