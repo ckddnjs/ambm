@@ -213,35 +213,30 @@ body.ready{visibility:visible}
 
 /* ── LIGHT MODE ── */
 body.light-mode {
-  /* ── Warm Cream 라이트 테마 ── */
-  /* 배경: 순백보다 따뜻한 아이보리 계열 → 카드/배경 구분 명확 */
-  --bg:#F5F3EE;          /* 아이보리 베이지 배경 */
-  --bg2:#EBE9E2;         /* 크림 (입력칸, 세컨더리 배경) */
-  --bg3:#D9D6CC;         /* 베이지 그레이 (탭, 칩) */
-  --surface:#FFFFFF;     /* 카드 순백 → 배경과 명확한 구분 */
-  --surface2:#FAF9F6;    /* 카드 내부 서브 배경 */
+  /* ── Cool Blue 라이트 테마 ── */
+  --bg:#F0F4FA;
+  --bg2:#E3EAF5;
+  --bg3:#D0DAF0;
+  --surface:#FFFFFF;
+  --surface2:#F5F8FF;
 
-  /* 테두리: 기존보다 더 진하게 → 카드 경계 선명 */
-  --border:rgba(0,0,0,0.13);
-  --border-strong:rgba(0,140,100,0.35);
+  --border:rgba(41,121,255,0.15);
+  --border-strong:rgba(21,101,192,0.35);
 
-  /* 텍스트: 따뜻한 잉크 계열 */
-  --text:#1C1917;        /* 웜 블랙 (거의 검정) */
-  --text-muted:#57534E;  /* 따뜻한 중간 갈색 → 기존 #4A5568보다 더 따뜻하고 진함 */
-  --text-dim:#A8A29E;    /* 비활성 텍스트 */
+  --text:#0D1B2E;
+  --text-muted:#4A5A7A;
+  --text-dim:#8A9BBF;
 
-  /* primary: 흰 배경에서 WCAG AA 대비 통과하는 진한 민트 */
   --primary:#1565C0;
   --primary-dark:#0D47A1;
   --primary-darker:#082962;
   --primary-light:#2979FF;
-  --border-strong:rgba(21,101,192,0.30);
 
-  --shadow:0 2px 16px rgba(0,0,0,0.09);
-  --accent:#00B0D8;
-  --accent-rgb:0,176,216;
-  --accent-bg:rgba(0,176,216,0.12);
-  --accent-border:rgba(0,176,216,0.30);
+  --shadow:0 2px 16px rgba(21,101,192,0.10);
+  --accent:#0288D1;
+  --accent-rgb:2,136,209;
+  --accent-bg:rgba(2,136,209,0.10);
+  --accent-border:rgba(2,136,209,0.28);
 }
 
 /* 로그인 배경 */
@@ -256,7 +251,7 @@ body.light-mode .card{
 }
 body.light-mode .stat-card{
   background:var(--bg2);
-  border-color:rgba(0,0,0,0.10);
+  border-color:rgba(41,121,255,0.18);
 }
 
 /* 폼 요소 */
@@ -311,7 +306,7 @@ body.light-mode .sort-pill.active{
 /* 매치카드 */
 body.light-mode .match-card{
   background:var(--surface);
-  border-color:rgba(0,0,0,0.10);
+  border-color:rgba(41,121,255,0.15);
 }
 body.light-mode .match-card.my-match{
   border-color:rgba(21,101,192,0.40);
@@ -326,8 +321,8 @@ body.light-mode .sk-card{
 /* 기타 컴포넌트 */
 body.light-mode .gender-btn{background:#FFFFFF;color:var(--text-muted);border-color:rgba(0,0,0,0.15);}
 body.light-mode .gender-btn.selected{background:rgba(21,101,192,0.08);border-color:var(--primary);color:var(--primary);}
-body.light-mode .header-chip{background:var(--bg2);border-color:rgba(0,0,0,0.10);}
-body.light-mode .btn-icon{background:var(--bg2);border-color:rgba(0,0,0,0.10);}
+body.light-mode .header-chip{background:var(--bg2);border-color:rgba(41,121,255,0.18);}
+body.light-mode .btn-icon{background:var(--bg2);border-color:rgba(41,121,255,0.15);}
 body.light-mode .modal{background:var(--surface);}
 body.light-mode .modal-overlay{background:rgba(0,0,0,0.45);}
 body.light-mode .comm-post{background:var(--surface);border-color:rgba(0,0,0,0.09);}
