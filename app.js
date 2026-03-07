@@ -14,8 +14,8 @@ const sb=createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{redirectTo:APP_URL,autoR
 
 /* ── STATE ── */
 let ME=null, currentPage='', rankTab='all', sortBy='ci', sortDir=1; // sortDir: 1=내림차순, -1=오름차순
-let regMatchType='men', adminTab='pending', editMatchId='';
-let signupGender='', createGender='';
+let regMatchType='doubles', adminTab='pending', editMatchId='';
+
 let _allMatchesCache=[];window._allMatchesCache=_allMatchesCache;
 let commTab='all';
 let _directInputA=false, _directInputB=false;
@@ -67,13 +67,11 @@ async function fadeOutLoading(){
 async function loadProfile(authUser){
   const{data,error}=await sb.from('profiles').select('*').eq('id',authUser.id).single();
   const pn=localStorage.getItem('kakao_pending_name');
-  const pg=localStorage.getItem('kakao_pending_gender')||'';
   if(pn) localStorage.removeItem('kakao_pending_name');
-  if(pg) localStorage.removeItem('kakao_pending_gender');
   if(error?.code==='PGRST116'){
     // 신규 가입: localStorage의 이름·성별 사용
     const name=pn||authUser.user_metadata?.full_name||authUser.user_metadata?.name||authUser.user_metadata?.nickname||authUser.email?.split('@')[0]||'신규회원';
-    const gender=pg||authUser.user_metadata?.gender||'';
+    const gender='';
     const{data:np,error:insErr}=await sb.from('profiles').upsert({
       id:authUser.id,email:authUser.email||'',name,role:'user',status:'pending',
       provider:authUser.app_metadata?.provider||'email',
@@ -84,24 +82,9 @@ async function loadProfile(authUser){
     addLog(`신규 가입: ${name}`);
   } else if(data){
     ME=data;
-    // 기존 유저인데 성별 누락 시 localStorage 값으로 보완
-    if(!data.gender&&pg){
-      await sb.from('profiles').update({gender:pg}).eq('id',authUser.id);
-      ME={...data,gender:pg};
-    }
   }
 }
 
-function selectSignupGender(g){
-  signupGender=g;
-  document.getElementById('sg-male').classList.toggle('selected',g==='male');
-  document.getElementById('sg-female').classList.toggle('selected',g==='female');
-}
-function selectCreateGender(g){
-  createGender=g;
-  document.getElementById('nu-male').classList.toggle('selected',g==='male');
-  document.getElementById('nu-female').classList.toggle('selected',g==='female');
-}
 
 /* ── AUTH ── */
 async function kakaoLoginDirect(){
@@ -114,15 +97,8 @@ function kakaoSignup(){
   m=document.createElement('div');m.id='modal-kakao-name';m.className='modal-overlay center open';
   m.innerHTML=`<div class="modal center-modal" style="max-width:360px;">
     <div class="modal-title">🏸 카카오로 가입</div>
-    <div style="font-size:.86rem;color:var(--text-muted);margin-bottom:14px;line-height:1.6;">이름과 성별을 입력 후 카카오 로그인을 진행합니다.</div>
+    <div style="font-size:.86rem;color:var(--text-muted);margin-bottom:14px;line-height:1.6;">이름을 입력 후 카카오 로그인을 진행합니다.</div>
     <div class="form-group"><label class="form-label">이름 *</label><input class="form-input" type="text" id="kakao-name-input" placeholder="실명" oninput="this.value=this.value.replace(/[0-9]/g,'')"></div>
-    <div class="form-group">
-      <label class="form-label">성별 *</label>
-      <div class="gender-row">
-        <button class="gender-btn" id="kk-male" onclick="selectKakaoGender('male')">👨 남성</button>
-        <button class="gender-btn" id="kk-female" onclick="selectKakaoGender('female')">👩 여성</button>
-      </div>
-    </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="document.getElementById('modal-kakao-name').remove()">취소</button>
       <button class="btn btn-primary" onclick="proceedKakaoSignup()">다음 →</button>
@@ -131,21 +107,13 @@ function kakaoSignup(){
   document.body.appendChild(m);
   setTimeout(()=>document.getElementById('kakao-name-input')?.focus(),100);
 }
-let kakaoGender='';
-function selectKakaoGender(g){
-  kakaoGender=g;
-  document.getElementById('kk-male')?.classList.toggle('selected',g==='male');
-  document.getElementById('kk-female')?.classList.toggle('selected',g==='female');
-}
 async function proceedKakaoSignup(){
   const name=document.getElementById('kakao-name-input')?.value.trim();
   if(!name){toast('이름 입력 필요','error');return;}
-  if(!kakaoGender){toast('성별을 선택하세요','error');return;}
   localStorage.setItem('kakao_pending_name',name);
-  localStorage.setItem('kakao_pending_gender',kakaoGender);
   document.getElementById('modal-kakao-name')?.remove();
   const{error}=await sb.auth.signInWithOAuth({provider:'kakao',options:{redirectTo:APP_URL,scopes:'profile_nickname,account_email',queryParams:{prompt:'select_account'}}});
-  if(error){localStorage.removeItem('kakao_pending_name');localStorage.removeItem('kakao_pending_gender');toast('오류: '+error.message,'error');}
+  if(error){localStorage.removeItem('kakao_pending_name');toast('오류: '+error.message,'error');}
 }
 async function doEmailLogin(){
   const email=document.getElementById('login-email').value.trim();
@@ -166,22 +134,19 @@ async function doEmailSignup(){
   const email=document.getElementById('signup-email').value.trim();
   const pw=document.getElementById('signup-pw').value;
   if(!name){toast('이름 입력','error');return;}
-  if(!signupGender){toast('성별을 선택해주세요','error');return;}
   if(!email){toast('이메일 입력','error');return;}
   if(!pw||pw.length<4){toast('비밀번호 4자 이상 입력','error');return;}
   try {
-    const res=await fetch('/api/admin/signup',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email,password:pw,name,gender:signupGender})
-    });
-    const json=await res.json();
-    if(!res.ok){toast('가입 실패: '+(json.error||res.status),'error');return;}
+    const{data:signupData,error:signupErr}=await sb.auth.signUp({email,password:pw,options:{data:{full_name:name,name}}});
+    if(signupErr){toast('가입 실패: '+signupErr.message,'error');return;}
+    if(signupData?.user){
+      await sb.from('profiles').upsert({
+        id:signupData.user.id,email,name,role:'user',status:'pending',
+        provider:'email',wins:0,losses:0,games:0
+      });
+    }
     toast('가입 신청 완료! 관리자 승인 후 로그인 가능합니다 ✅','success');
     ['signup-name','signup-email','signup-pw'].forEach(id=>document.getElementById(id).value='');
-    signupGender='';
-    document.getElementById('sg-male').classList.remove('selected');
-    document.getElementById('sg-female').classList.remove('selected');
   } catch(e){toast('가입 실패: '+e.message,'error');}
 }
 
@@ -394,9 +359,7 @@ async function renderDashboard(){
 
 
   // 주력 종목 계산
-  const typeGames={men:stats.men?.games||0, women:stats.women?.games||0, mixed:stats.mixed?.games||0};
-  const mainTypeKey=Object.entries(typeGames).sort((a,b)=>b[1]-a[1])[0][0];
-  const mainTypeLabel={men:'남복',women:'여복',mixed:'혼합복식'}[mainTypeKey]||'-';
+  const mainTypeLabel='복식';
 
   // 베스트 파트너 계산 (전체 경기 기준)
   const _partnerMap={};
@@ -537,7 +500,7 @@ async function renderDashboard(){
 }
 
 function computeStats(matches,userId){
-  const cats=['men','women','mixed','total'];
+  const cats=['doubles','total'];
   const s={};cats.forEach(c=>s[c]={games:0,wins:0,losses:0,scored:0,conceded:0});
   matches.forEach(m=>{
     const onA=[m.a1_id,m.a2_id].includes(userId);
@@ -550,7 +513,7 @@ function computeStats(matches,userId){
     s.total.games++;if(won)s.total.wins++;else s.total.losses++;
     s.total.scored+=myScore;s.total.conceded+=opScore;
   });
-  ['men','women','mixed','total'].forEach(c=>{s[c].diff=s[c].scored-s[c].conceded;});
+  ['doubles','total'].forEach(c=>{s[c].diff=s[c].scored-s[c].conceded;});
   return s;
 }
 
@@ -565,9 +528,9 @@ function toggleTypeStats(){
 
 /* ─ 종목별 세부 통계 테이블 ─ */
 function renderMyTypeStats(stats, allM){
-  const sameType=ME?.gender==='female'?'women':'men';
-  const typeLabel={men:'남복',women:'여복',mixed:'혼복'};
-  const typeIcon={men:'🔵',women:'🩷',mixed:'🟡'};
+  const sameType='doubles';
+  const typeLabel={doubles:'복식'};
+  const typeIcon={doubles:'🏸'};
   // CI 순위 계산용 - 전체 랭킹 데이터 재활용
   allM=allM||window._allMatchesCache||[];
   const uStats2={};
@@ -600,8 +563,8 @@ function renderMyTypeStats(stats, allM){
     return myIdx>=0?{rank:myIdx+1,total:list.length}:null;
   };
 
-  const cats=[sameType,'mixed','total'];
-  const catLabel={[sameType]:typeLabel[sameType],mixed:'혼복',total:'합계'};
+  const cats=['doubles','total'];
+  const catLabel={doubles:'복식',total:'합계'};
   const catIcon={[sameType]:typeIcon[sameType],mixed:'🟡',total:'📊'};
 
   let rows='';
@@ -1065,15 +1028,7 @@ function toggleFeedType(type){
   const cur=sel.value;
   sel.value=(cur===type)?'':type; // 같은 거 다시 누르면 전체로
   // 범례 버튼 활성 스타일 갱신
-  ['men','women','mixed'].forEach(t=>{
-    const btn=document.getElementById('legend-'+t);
-    if(!btn) return;
-    const active=sel.value===t;
-    const colors={men:'#4285F4',women:'#E91E8C',mixed:'#F9A825'};
-    btn.style.borderColor=active?colors[t]:'transparent';
-    btn.style.background=active?colors[t]+'22':'transparent';
-    btn.style.color=active?colors[t]:'var(--text-muted)';
-  });
+
   _feedPage=1;
   renderFeed();
 }
@@ -1089,7 +1044,7 @@ function goToFeedByName(name){
 
 function switchRankTab(tab){
   rankTab=tab;
-  document.querySelectorAll('#rank-tabs .sub-tab').forEach((el,i)=>el.classList.toggle('active',['all','men','women','mixed'][i]===tab));
+  document.querySelectorAll('#rank-tabs .sub-tab').forEach((el,i)=>el.classList.toggle('active',['all'][i]===tab));
   renderRankTable(_allMatchesCache);
 }
 function setSort(s){
@@ -1103,12 +1058,11 @@ function setSort(s){
 let partnerTab='all';
 function switchPartnerTab(tab){
   partnerTab=tab;
-  const tabs=['all','same','mixed'];
+  const tabs=['all'];
   document.querySelectorAll('#partner-tabs .sub-tab').forEach((el,i)=>el.classList.toggle('active',tabs[i]===tab));
   renderPartner(_allMatchesCache);
 }
 function updatePartnerTabLabel(){
-  const sameLabel=ME?.gender==='female'?'여복':'남복';
   const el=document.getElementById('partner-tab-same');
   if(el) el.textContent=sameLabel;
 }
@@ -1116,11 +1070,10 @@ function renderPartner(allMatches){
   updatePartnerTabLabel();
   const el=document.getElementById('partner-list');
   if(!el) return;
-  const sameType=ME?.gender==='female'?'women':'men';
+  const sameType='doubles';
   const filtered=allMatches.filter(m=>{
     if(m.status!=='approved') return false;
     if(partnerTab==='same') return m.match_type===sameType;
-    if(partnerTab==='mixed') return m.match_type==='mixed';
     return true;
   });
   const partners={};
@@ -1366,15 +1319,6 @@ async function _renderFeedInner(forceNameQ){
   const el=document.getElementById('feed-list');
   // 범례 버튼 상태 동기화
   const _typeF=document.getElementById('feed-type-filter')?.value||'';
-  ['men','women','mixed'].forEach(t=>{
-    const btn=document.getElementById('legend-'+t);
-    if(!btn) return;
-    const active=_typeF===t;
-    const colors={men:'#4285F4',women:'#E91E8C',mixed:'#F9A825'};
-    btn.style.borderColor=active?colors[t]:'transparent';
-    btn.style.background=active?colors[t]+'22':'transparent';
-    btn.style.color=active?colors[t]:'var(--text-muted)';
-  });
   if(_feedPage===1) el.innerHTML=`<div class="skeleton sk-card"></div>`.repeat(4);
   const typeF=document.getElementById('feed-type-filter')?.value||'';
   const statF=document.getElementById('feed-status-filter')?.value;
@@ -1461,13 +1405,13 @@ function feedDateHeader(dateStr,count){
 function matchCardHTML(m,isAdmin=false){
   const isMe=[m.a1_id,m.a2_id,m.b1_id,m.b2_id].includes(ME?.id);
   const aWin=m.score_a>m.score_b;
-  const tLabel={men:'<span class="type-pill type-men">남복</span>',women:'<span class="type-pill type-women">여복</span>',mixed:'<span class="type-pill type-mixed">혼복</span>'}[m.match_type]||'';
+  const tLabel='<span class="type-pill type-doubles">복식</span>';
 
   // 이름: 가로 나열 (2인이면 / 구분)
   const aNames=[m.a1_name,m.a2_name].filter(Boolean).join(' ');
   const bNames=[m.b1_name,m.b2_name].filter(Boolean).join(' ');
 
-  const typeClass={men:'mc-men',women:'mc-women',mixed:'mc-mixed'}[m.match_type]||'';
+  const typeClass='mc-doubles';
 
   return `<div class="match-card ${isMe?'my-match':''} ${typeClass}" onclick="openMatchDetail('${m.id}',${isAdmin})">
     <div class="match-score-row">
@@ -1502,7 +1446,7 @@ async function openMatchDetail(id,isAdmin=false){
   const approvedAt=m.approved_at?fmtDate(m.approved_at,true):'-';
   document.getElementById('modal-match-title').textContent=`🏸 경기 상세 — ${fmtMatchDate(m.match_date)}`;
   document.getElementById('modal-match-body').innerHTML=`
-    <div class="detail-row"><span class="detail-key">종목</span><span class="detail-val">${{men:'🔵 남복',women:'🩷 여복',mixed:'🟡 혼복'}[m.match_type]}</span></div>
+    <div class="detail-row"><span class="detail-key">종목</span><span class="detail-val">🏸 복식</span></div>
     <div class="detail-row"><span class="detail-key">상태</span><span class="detail-val">${statusBadge(m.status)}</span></div>
     <div class="detail-row"><span class="detail-key">경기일</span><span class="detail-val">${fmtMatchDate(m.match_date)}</span></div>
     <div class="detail-row"><span class="detail-key">등록자</span><span class="detail-val">${m.submitter_name||'-'}</span></div>
@@ -1554,28 +1498,16 @@ async function openRegisterModal(){
 async function renderRegisterPage(){
   const{data:users}=await sb.from('profiles').select('id,name,gender').eq('status','approved').order('name');
   _usersCache=users||[];
-  // 여자 회원이면 여복 탭 먼저
-  if(ME?.gender==='female' && regMatchType==='men'){
-    regMatchType='women';
-    ['men','women','mixed'].forEach(k=>document.getElementById('rt-'+k)?.classList.toggle('active',k==='women'));
-  }
   updateRegisterSelects();
 }
 let _usersCache=[];
 
 function updateRegisterLabels(){
   const t=regMatchType;
-  if(t==='mixed'){
-    document.getElementById('lbl-a1').innerHTML='남자 <span style="color:var(--danger);">*</span>';
-    document.getElementById('lbl-a2').innerHTML='여자';
-    document.getElementById('lbl-b1').innerHTML='남자 <span style="color:var(--danger);">*</span>';
-    document.getElementById('lbl-b2').innerHTML='여자';
-  } else {
-    document.getElementById('lbl-a1').innerHTML='선수 1 <span style="color:var(--danger);">*</span>';
-    document.getElementById('lbl-a2').innerHTML='선수 2';
-    document.getElementById('lbl-b1').innerHTML='선수 1 <span style="color:var(--danger);">*</span>';
-    document.getElementById('lbl-b2').innerHTML='선수 2';
-  }
+  document.getElementById('lbl-a1').innerHTML='선수 1 <span style="color:var(--danger);">*</span>';
+  document.getElementById('lbl-a2').innerHTML='선수 2';
+  document.getElementById('lbl-b1').innerHTML='선수 1 <span style="color:var(--danger);">*</span>';
+  document.getElementById('lbl-b2').innerHTML='선수 2';
 }
 
 function getSelectedIds(excludeId){
@@ -1591,9 +1523,7 @@ function updateRegisterSelects(){
   const menOnly=_usersCache.filter(u=>u.gender==='male');
   const womenOnly=_usersCache.filter(u=>u.gender==='female');
   let poolA1, poolA2, poolB1, poolB2;
-  if(t==='men'){poolA1=poolA2=poolB1=poolB2=menOnly;}
-  else if(t==='women'){poolA1=poolA2=poolB1=poolB2=womenOnly;}
-  else{poolA1=poolB1=menOnly; poolA2=poolB2=womenOnly;}
+
 
   const buildOpts=(pool, selectId, includeNone)=>{
     const selected=getSelectedIds(selectId);
@@ -1631,7 +1561,7 @@ function onGuestInput(inputId){
 
 function setMatchType(t){
   regMatchType=t;
-  ['men','women','mixed'].forEach(k=>document.getElementById('rt-'+k)?.classList.toggle('active',k===t));
+
   updateRegisterSelects();
 }
 
@@ -1682,7 +1612,7 @@ async function submitMatch(){
   addLog(`경기 등록 요청: ${a1name} vs ${b1name}`,ME.id);
   toast('✅ 등록 요청 완료! 관리자 승인 대기 중','success');
   // 폼 초기화
-  regMatchType=ME?.gender==='female'?'women':'men';
+  regMatchType='doubles';
   ['reg-sa','reg-sb','reg-note','reg-match-date','reg-a1','reg-a2','reg-b1','reg-b2'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
@@ -1742,7 +1672,7 @@ async function bulkApprovePending(){
 }
 async function renderAdminAll(){
   const el=document.getElementById('admin-content');
-  el.innerHTML=`<div class="filter-row"><input class="form-input" type="search" id="adm-search" placeholder="검색..." oninput="filterAdminAll()" style="flex:2;"><select class="form-select" id="adm-type-f" onchange="filterAdminAll()"><option value="">전체 종목</option><option value="men">남복</option><option value="women">여복</option><option value="mixed">혼복</option></select><select class="form-select" id="adm-stat-f" onchange="filterAdminAll()"><option value="">전체 상태</option><option value="pending">대기</option><option value="approved">승인</option><option value="rejected">반려</option></select></div><div id="adm-all-list"></div>`;
+  el.innerHTML=`<div class="filter-row"><input class="form-input" type="search" id="adm-search" placeholder="검색..." oninput="filterAdminAll()" style="flex:2;"><select class="form-select" id="adm-type-f" onchange="filterAdminAll()"><option value="">전체 종목</option><option value="doubles">복식</option></select><select class="form-select" id="adm-stat-f" onchange="filterAdminAll()"><option value="">전체 상태</option><option value="pending">대기</option><option value="approved">승인</option><option value="rejected">반려</option></select></div><div id="adm-all-list"></div>`;
   const{data:matches}=await sb.from('matches').select('*').order('created_at',{ascending:false});
   el._allMatches=matches||[];filterAdminAll();
 }
@@ -1820,7 +1750,7 @@ async function openEditMatch(id){
   const mkSel=(fid,selId)=>`<select class="form-select" id="${fid}">${(users||[]).map(u=>`<option value="${u.id}" ${u.id===selId?'selected':''}>${u.name}</option>`).join('')}</select>`;
   const mkSelOpt=(fid,selId)=>`<select class="form-select" id="${fid}"><option value="">없음</option>${(users||[]).map(u=>`<option value="${u.id}" ${u.id===selId?'selected':''}>${u.name}</option>`).join('')}</select>`;
   document.getElementById('modal-edit-body').innerHTML=`
-    <div class="form-group"><label class="form-label">종목</label><select class="form-select" id="em-type"><option value="men" ${m.match_type==='men'?'selected':''}>남복</option><option value="women" ${m.match_type==='women'?'selected':''}>여복</option><option value="mixed" ${m.match_type==='mixed'?'selected':''}>혼복</option></select></div>
+    <div class="form-group"><label class="form-label">종목</label><select class="form-select" id="em-type"><option value="doubles">복식</option></select></div>
     <div class="form-group"><label class="form-label">경기 일자</label><input class="form-input" type="date" id="em-date" value="${m.match_date}"></div>
     <hr class="section-divider">
     <div style="font-size:.86rem;font-weight:700;color:var(--primary);margin-bottom:8px;">A팀</div>
@@ -1890,7 +1820,7 @@ async function saveEditUser(){
   const{data:prev}=await sb.from('profiles').select('name').eq('id',id).single();
   const nameChanged=prev&&prev.name!==name;
 
-  const{error}=await sb.from('profiles').update({name,gender:_editUserGender,status,role,exclude_stats:excludeStats}).eq('id',id);
+  const{error}=await sb.from('profiles').update({name,status,role,exclude_stats:excludeStats}).eq('id',id);
   if(error){toast('저장 실패: '+error.message,'error');return;}
 
   // 이름 변경 시 관련 테이블 일괄 업데이트
@@ -1974,9 +1904,6 @@ async function toggleExcludeStats(uid, currentExclude, name){
 function openCreateUserModal(){
   ['nu-name','nu-email'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('nu-pw').value='4321';document.getElementById('nu-role').value='user';
-  createGender='';
-  document.getElementById('nu-male').classList.remove('selected');
-  document.getElementById('nu-female').classList.remove('selected');
   openModal('modal-create-user');
 }
 async function createUser(){
@@ -1985,7 +1912,6 @@ async function createUser(){
   const pw=document.getElementById('nu-pw').value;
   const role=document.getElementById('nu-role').value;
   if(!name||!email){toast('이름/이메일 입력','error');return;}
-  if(!createGender){toast('성별을 선택하세요','error');return;}
   if(!pw||pw.length<4){toast('비밀번호는 4자 이상','error');return;}
   try {
     const session=await sb.auth.getSession();
@@ -1994,7 +1920,7 @@ async function createUser(){
     const res=await fetch('/api/admin/create-user',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-      body:JSON.stringify({email,password:pw,name,gender:createGender,role})
+      body:JSON.stringify({email,password:pw,name,role})
     });
     const json=await res.json();
     if(!res.ok){
@@ -3669,7 +3595,7 @@ async function updateTournament(id){
 }
 
 /* ── SCOREBOARD ── */
-let _sbA=0, _sbB=0, _sbType='men', _sbFinishOpen=false, _wakeLock=null;
+let _sbA=0, _sbB=0, _sbType='doubles', _sbFinishOpen=false, _wakeLock=null;
 
 async function _requestWakeLock(){
   try{if('wakeLock' in navigator){_wakeLock=await navigator.wakeLock.request('screen');_wakeLock.addEventListener('release',()=>{_wakeLock=null;});}}catch(e){console.warn('WakeLock 실패:',e);}
@@ -3677,7 +3603,7 @@ async function _requestWakeLock(){
 function _releaseWakeLock(){if(_wakeLock){_wakeLock.release().catch(()=>{});_wakeLock=null;}}
 
 function openScoreboard(){
-  _sbA=0; _sbB=0; _sbType='men'; _sbFinishOpen=false;
+  _sbA=0; _sbB=0; _sbType='doubles'; _sbFinishOpen=false;
   document.getElementById('sb-score-a').textContent='0';
   document.getElementById('sb-score-b').textContent='0';
   document.getElementById('sb-finish-panel').style.display='none';
@@ -3729,8 +3655,7 @@ function _sbBuildPlayerSelects(){
   const menPool=(_usersCache||[]).filter(u=>u.gender==='male');
   const womenPool=(_usersCache||[]).filter(u=>u.gender==='female');
   let poolA1,poolA2,poolB1,poolB2;
-  if(t==='men'){poolA1=poolA2=poolB1=poolB2=menPool;}
-  else if(t==='women'){poolA1=poolA2=poolB1=poolB2=womenPool;}
+
   else{poolA1=poolB1=menPool;poolA2=poolB2=womenPool;}
   const prev={a1:document.getElementById('sb-a1')?.value,a2:document.getElementById('sb-a2')?.value,b1:document.getElementById('sb-b1')?.value,b2:document.getElementById('sb-b2')?.value};
   const mkSel=(id,pool,label,req)=>{
@@ -3741,11 +3666,11 @@ function _sbBuildPlayerSelects(){
   };
   document.getElementById('sb-player-selects').innerHTML=`
     <div style="grid-column:span 2;font-size:.78rem;font-weight:700;padding-bottom:4px;border-bottom:1px solid #c0392b;color:#c0392b;">🔴 A팀</div>
-    ${mkSel('sb-a1',poolA1,t==='mixed'?'남자':'선수1',true)}
-    ${mkSel('sb-a2',poolA2,t==='mixed'?'여자':'선수2',false)}
+    ${mkSel('sb-a1',poolA1,'선수1',true)}
+    ${mkSel('sb-a2',poolA2,'선수2',false)}
     <div style="grid-column:span 2;font-size:.78rem;font-weight:700;padding-bottom:4px;border-bottom:1px solid #27ae60;color:#27ae60;margin-top:6px;">🟢 B팀</div>
-    ${mkSel('sb-b1',poolB1,t==='mixed'?'남자':'선수1',true)}
-    ${mkSel('sb-b2',poolB2,t==='mixed'?'여자':'선수2',false)}`;
+    ${mkSel('sb-b1',poolB1,'선수1',true)}
+    ${mkSel('sb-b2',poolB2,'선수2',false)}`;
 }
 
 function closeSbPanel(){
