@@ -2626,6 +2626,18 @@ function bfAddTeam(){
 }
 function bfUpdateTeamOpts(){ /* 중복 방지는 submit 시 체크 */ }
 
+function _calcGroupCount(n){
+  if(n<4) return 1;
+  let best=1,bestScore=999;
+  for(let g=1;g<=n;g++){
+    const base=Math.floor(n/g),extra=n%g;
+    const sizes=Array.from({length:g},(_,i)=>base+(i<extra?1:0));
+    if(Math.min(...sizes)<4) continue; // 3명 이하 절대불가
+    const penalty=sizes.reduce((s,x)=>s+(x<=5?0:x===6?1:3),0);
+    if(penalty<bestScore){bestScore=penalty;best=g;}
+  }
+  return best;
+}
 function toggleBracketForm(){
   const el=document.getElementById('bracket-form-inline');
   if(!el) return;
@@ -2694,7 +2706,7 @@ function bfPreviewAuto(){
   if(n<4){preview.style.display='none';return;}
   // 개인전: 조당 4명, 뱀배열
   const sorted=[..._bfAttendees].sort((a,b)=>b.score-a.score);
-  const groupCount=Math.max(1,Math.floor(n/4));
+  const groupCount=_calcGroupCount(n);
   const groups=Array.from({length:groupCount},()=>[]);
   sorted.forEach((p,i)=>{
     const row=Math.floor(i/groupCount);
@@ -2729,7 +2741,7 @@ async function submitIndividualTournament(){
   if(_bfAttendees.length<4){toast('참석자 4명 이상 선택','error');return;}
   const sorted=[..._bfAttendees].sort((a,b)=>b.score-a.score);
   const n=sorted.length;
-  const groupCount=Math.max(1,Math.floor(n/4));
+  const groupCount=_calcGroupCount(n);
   const groups=Array.from({length:groupCount},(_,gi)=>({
     name:`${String.fromCharCode(65+gi)}조`, players:[], matches:[], standings:[]
   }));
