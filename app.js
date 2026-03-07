@@ -1495,7 +1495,7 @@ async function openRegisterModal(){
 }
 
 async function renderRegisterPage(){
-  const{data:users}=await sb.from('profiles').select('id,name,gender').eq('status','approved').order('name');
+  const{data:users}=await sb.from('profiles').select('id,name').eq('status','approved').order('name');
   _usersCache=users||[];
   updateRegisterSelects();
 }
@@ -2075,7 +2075,7 @@ async function renderComparePage(){
   const el=document.getElementById('page-compare');
   if(!el) return;
   // 유저 목록 로드
-  const{data:users}=await sb.from('profiles').select('id,name,gender').eq('status','approved').order('name');
+  const{data:users}=await sb.from('profiles').select('id,name').eq('status','approved').order('name');
   const allUsers=users||[];
   // _allMatchesCache가 없으면 직접 로드
   if(!_allMatchesCache||_allMatchesCache.length===0){
