@@ -4,10 +4,10 @@
  */
 
 /* ── CONFIG ── */
-const SUPABASE_URL  = 'https://haigpjnljgznhlkcnugz.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhhaWdwam5samd6bmhsa2NudWd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4Mzc3OTYsImV4cCI6MjA4NzQxMzc5Nn0.blD81dlj0Lh4dyhB3Feq_E7fg2q218WhATDxvSedlos';
+const SUPABASE_URL  = 'https://wkclmrbdsinvliaaqjol.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrY2xtcmJkc2ludmxpYWFxam9sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4NjA1MzcsImV4cCI6MjA4ODQzNjUzN30.442P3qAs4NahcXEqZ0tMAlco9bb6qnj2CsREIH21Ltc';
 // SUPABASE_SERVICE 키는 제거됨 → /api/admin/* 서버리스 함수가 처리
-const APP_URL = 'https://ambadminton.vercel.app';
+const APP_URL = 'https://ambm.vercel.app';
 
 const {createClient}=supabase;
 const sb=createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{redirectTo:APP_URL,autoRefreshToken:true,persistSession:true,detectSessionInUrl:true}});
