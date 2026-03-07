@@ -3651,12 +3651,8 @@ function _sbGetSelectedIds(excludeId){
 }
 
 function _sbBuildPlayerSelects(){
-  const t=_sbType;
-  const menPool=(_usersCache||[]).filter(u=>u.gender==='male');
-  const womenPool=(_usersCache||[]).filter(u=>u.gender==='female');
-  let poolA1,poolA2,poolB1,poolB2;
-
-  else{poolA1=poolB1=menPool;poolA2=poolB2=womenPool;}
+  const allSbPool=_usersCache||[];
+  let poolA1=allSbPool,poolA2=allSbPool,poolB1=allSbPool,poolB2=allSbPool;
   const prev={a1:document.getElementById('sb-a1')?.value,a2:document.getElementById('sb-a2')?.value,b1:document.getElementById('sb-b1')?.value,b2:document.getElementById('sb-b2')?.value};
   const mkSel=(id,pool,label,req)=>{
     const selected=_sbGetSelectedIds(id);const cur=prev[id.replace('sb-','')]||'';
