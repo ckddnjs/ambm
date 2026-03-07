@@ -137,14 +137,13 @@ async function doEmailSignup(){
   if(!email){toast('이메일 입력','error');return;}
   if(!pw||pw.length<4){toast('비밀번호 4자 이상 입력','error');return;}
   try {
-    const{data:signupData,error:signupErr}=await sb.auth.signUp({email,password:pw,options:{data:{full_name:name,name}}});
-    if(signupErr){toast('가입 실패: '+signupErr.message,'error');return;}
-    if(signupData?.user){
-      await sb.from('profiles').upsert({
-        id:signupData.user.id,email,name,role:'user',status:'pending',
-        provider:'email',wins:0,losses:0,games:0
-      });
-    }
+    const res=await fetch('/api/admin/signup',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pw,name})
+    });
+    const json=await res.json();
+    if(!res.ok){toast('가입 실패: '+(json.error||res.status),'error');return;}
     toast('가입 신청 완료! 관리자 승인 후 로그인 가능합니다 ✅','success');
     ['signup-name','signup-email','signup-pw'].forEach(id=>document.getElementById(id).value='');
   } catch(e){toast('가입 실패: '+e.message,'error');}
@@ -1520,9 +1519,8 @@ function getSelectedIds(excludeId){
 function updateRegisterSelects(){
   const t=regMatchType;
   updateRegisterLabels();
-  const menOnly=_usersCache.filter(u=>u.gender==='male');
-  const womenOnly=_usersCache.filter(u=>u.gender==='female');
-  let poolA1, poolA2, poolB1, poolB2;
+  const allPool=_usersCache;
+  let poolA1=allPool, poolA2=allPool, poolB1=allPool, poolB2=allPool;
 
 
   const buildOpts=(pool, selectId, includeNone)=>{
