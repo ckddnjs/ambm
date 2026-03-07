@@ -216,8 +216,49 @@
     <div class="page" id="page-tournament">
       <div class="flex-between mb-2">
         <div><div class="page-title">🏆 자체대회</div><div class="page-sub">참석자 기반 토너먼트 자동 생성</div></div>
-        <button id="btn-add-bracket" class="btn btn-primary btn-sm" onclick="openBracketForm()" style="display:none;">+ 토너먼트 만들기</button>
+        <button id="btn-add-bracket" class="btn btn-primary btn-sm" onclick="toggleBracketForm()" style="display:none;">+ 토너먼트 만들기</button>
       </div>
+
+      <!-- 인라인 토너먼트 생성 폼 -->
+      <div id="bracket-form-inline" style="display:none;" class="card mb-3">
+        <div class="card-title">🎯 토너먼트 만들기</div>
+
+        <!-- 종목 선택 -->
+        <div class="form-group mb-2">
+          <label class="form-label">종목</label>
+          <div style="display:flex;gap:8px;">
+            <button id="bf-type-individual" class="btn btn-primary btn-sm" onclick="bfSetType('individual')" style="flex:1;">👤 개인전</button>
+            <button id="bf-type-team" class="btn btn-ghost btn-sm" onclick="bfSetType('team')" style="flex:1;">👥 팀전</button>
+          </div>
+        </div>
+
+        <div class="form-group mb-2"><label class="form-label">대회명 <span class="req">*</span></label><input class="form-input" id="bf-auto-name" placeholder="예) 3월 자체 토너먼트"></div>
+        <div class="form-group mb-2"><label class="form-label">날짜 <span class="req">*</span></label><input class="form-input" type="date" id="bf-auto-date"></div>
+
+        <!-- 참석자 선택 -->
+        <div class="form-group mb-2">
+          <label class="form-label">참석자 선택 <span class="req">*</span></label>
+          <div id="bf-attendee-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:40px;background:var(--bg2);border-radius:10px;padding:10px;"></div>
+        </div>
+
+        <!-- 팀전: 파트너 지정 -->
+        <div id="bf-team-section" style="display:none;">
+          <div class="form-group mb-2">
+            <label class="form-label">팀 등록 (고정 파트너)</label>
+            <div id="bf-teams-wrap" style="display:flex;flex-direction:column;gap:8px;margin-top:6px;"></div>
+            <button onclick="bfAddTeam()" class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%;">+ 팀 추가</button>
+          </div>
+        </div>
+
+        <!-- 미리보기 -->
+        <div id="bf-auto-preview" style="display:none;background:var(--bg2);border-radius:10px;padding:12px;font-size:.85rem;margin-bottom:12px;"></div>
+
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" style="flex:1;" onclick="toggleBracketForm()">취소</button>
+          <button class="btn btn-primary" style="flex:1;" onclick="bfSubmit()">대진표 생성</button>
+        </div>
+      </div>
+
       <div id="tmain-bracket">
         <div id="bracket-list"></div>
       </div>
@@ -282,51 +323,7 @@
 </div>
 
 <!-- 토너먼트 생성 모달 -->
-<div class="modal-overlay" id="modal-bracket-form">
-  <div class="modal" style="max-height:90vh;overflow-y:auto;">
-    <div class="modal-handle"></div>
-    <div class="modal-title">🎯 토너먼트 만들기</div>
-    <!-- 모드 탭 -->
-    <div style="display:flex;gap:6px;margin-bottom:14px;">
-      <button id="bf-tab-auto" onclick="bfSwitchMode('auto')" class="btn btn-primary btn-sm" style="flex:1;">🤖 자동생성</button>
-      <button id="bf-tab-manual" onclick="bfSwitchMode('manual')" class="btn btn-ghost btn-sm" style="flex:1;">✏️ 직접입력</button>
-    </div>
 
-    <!-- 자동생성 모드 -->
-    <div id="bf-mode-auto" style="display:flex;flex-direction:column;gap:12px;padding:4px 0 8px;">
-      <div class="form-group"><label class="form-label">대회명 <span class="req">*</span></label><input class="form-input" id="bf-auto-name" placeholder="예) 3월 자체 토너먼트"></div>
-      <div class="form-group"><label class="form-label">날짜 <span class="req">*</span></label><input class="form-input" type="date" id="bf-auto-date"></div>
-      <div class="form-group">
-        <label class="form-label">참석자 선택 <span class="req">*</span></label>
-        <div id="bf-attendee-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:40px;background:var(--bg3);border-radius:10px;padding:10px;"></div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">팀당 인원</label>
-        <select class="form-select" id="bf-team-size" onchange="bfPreviewAuto()">
-          <option value="2">2인 1팀</option>
-          <option value="1">1인 1팀 (단식)</option>
-        </select>
-      </div>
-      <div id="bf-auto-preview" style="display:none;background:var(--bg3);border-radius:10px;padding:12px;font-size:.85rem;"></div>
-    </div>
-
-    <!-- 직접입력 모드 -->
-    <div id="bf-mode-manual" style="display:none;flex-direction:column;gap:12px;padding:4px 0 8px;">
-      <div class="form-group"><label class="form-label">대회명 <span class="req">*</span></label><input class="form-input" id="bf-name" placeholder="예) 2025 복식 토너먼트"></div>
-      <div class="form-group"><label class="form-label">날짜 <span class="req">*</span></label><input class="form-input" type="date" id="bf-date"></div>
-      <div class="form-group">
-        <label class="form-label">팀 등록 (2인 1팀)</label>
-        <div id="bf-teams-wrap" style="display:flex;flex-direction:column;gap:8px;margin-top:6px;"></div>
-        <button onclick="bfAddTeam()" class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%;">+ 팀 추가</button>
-      </div>
-    </div>
-
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('modal-bracket-form')">취소</button>
-      <button class="btn btn-primary" id="bf-submit-btn" onclick="bfSubmit()">대진표 생성</button>
-    </div>
-  </div>
-</div>
 
 <!-- 토너먼트 상세 모달 -->
 <div class="modal-overlay" id="modal-bracket-detail">
