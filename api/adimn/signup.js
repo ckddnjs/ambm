@@ -1,14 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL  = 'https://wkclmrbdsinvliaaqjol.supabase.co';
+const SUPABASE_URL = 'https://wkclmrbdsinvliaaqjol.supabase.co';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { email, password, name, gender } = req.body;
-  if (!email || !password || !name || !gender) {
+  const { email, password, name } = req.body;
+  if (!email || !password || !name) {
     return res.status(400).json({ error: '필수 항목 누락' });
   }
   if (password.length < 4) {
@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     email,
     password,
     email_confirm: true,
-    user_metadata: { name, gender }
+    user_metadata: { name }
   });
   if (error) {
     return res.status(400).json({ error: error.message });
@@ -43,7 +43,6 @@ export default async function handler(req, res) {
     role: 'user',
     status: 'pending',
     provider: 'email',
-    gender,
     wins: 0, losses: 0, games: 0
   });
   if (pe) {
