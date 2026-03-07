@@ -6,10 +6,10 @@
 <title>새벽민턴 AM BADMINTON</title>
 
 <!-- OG 메타데이터 -->
-<meta property="og:url" content="https://ambadminton.vercel.app/">
+<meta property="og:url" content="https://ambm.vercel.app/">
 <meta property="og:title" content="새벽민턴 AM BADMINTON">
 <meta property="og:type" content="website">
-<meta property="og:image" content="https://yt3.ggpht.com/iaiFfwkhNU-LgUcObv2j-iKc41xu0CuWuiuzJnXQbZYiaSZixbmkwbhsS1rFMqZPRpc-B25S=s600-c-k-c0x00ffffff-no-rj-rp-mo">
+<meta property="og:image" content="https://ambm.vercel.app/og.png">
 <meta property="og:description" content="새벽을 깨우는 배드민턴 클럽">
 <meta name="description" content="새벽을 깨우는 배드민턴 클럽">
 
@@ -17,14 +17,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Black+Han+Sans&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="app.css?v=1772783094">
+  <link rel="stylesheet" href="app.css?v=1772860537">
 </head>
 <body>
 
 <div id="loading-screen">
   <div class="ld-icon">🏸</div>
   <div class="ld-title">AM BADMINTON 🏸</div>
-  <div class="ld-sub">배드민턴 스코어 관리 시스템</div>
+  <div class="ld-sub">AM BADMINTON</div>
   <div class="spinner"></div>
 </div>
 
@@ -39,7 +39,7 @@
     <div class="login-hero">
       <span class="login-emoji">🏸</span>
       <div class="login-title">AM BADMINTON</div>
-      <div class="login-subtitle">배드민턴 스코어 관리 시스템</div>
+      <div class="login-subtitle">AM BADMINTON</div>
     </div>
     <div class="login-card">
       <div class="login-tab-row">
@@ -64,13 +64,6 @@
         </button>
         <div class="form-divider"><span>이메일로 가입</span></div>
         <div class="fl-input"><input type="text" id="signup-name" placeholder=" " oninput="this.value=this.value.replace(/[0-9]/g,'')"><label>이름</label></div>
-        <div class="form-group">
-          <label class="form-label">성별</label>
-          <div class="gender-row">
-            <button class="gender-btn" id="sg-male" onclick="selectSignupGender('male')">👨 남성</button>
-            <button class="gender-btn" id="sg-female" onclick="selectSignupGender('female')">👩 여성</button>
-          </div>
-        </div>
         <div class="fl-input"><input type="email" id="signup-email" placeholder=" "><label>이메일</label></div>
         <div class="fl-input"><input type="password" id="signup-pw" placeholder=" "><label>비밀번호</label></div>
         <!-- 개인정보 동의 -->
@@ -141,21 +134,10 @@
       </div>
       <div class="card">
         <div class="card-title">🤝 베스트 파트너</div>
-        <div class="sub-tabs" id="partner-tabs">
-          <button class="sub-tab active" onclick="switchPartnerTab('all')">전체</button>
-          <button class="sub-tab" id="partner-tab-same" onclick="switchPartnerTab('same')">-복</button>
-          <button class="sub-tab" onclick="switchPartnerTab('mixed')">혼복</button>
-        </div>
         <div id="partner-list"></div>
       </div>
       <div class="card">
         <div class="card-title">🏆 전체 랭킹 <span style="font-size:.68rem;font-weight:400;color:var(--text-muted);">5경기 이상 반영</span></div>
-        <div class="sub-tabs" id="rank-tabs">
-          <button class="sub-tab active" onclick="switchRankTab('all')">전체</button>
-          <button class="sub-tab" onclick="switchRankTab('men')">남복</button>
-          <button class="sub-tab" onclick="switchRankTab('women')">여복</button>
-          <button class="sub-tab" onclick="switchRankTab('mixed')">혼복</button>
-        </div>
         <div class="sort-row">
           <button class="sort-pill active" onclick="setSort('ci')">종합</button>
           <button class="sort-pill" onclick="setSort('winrate')">승률</button>
@@ -190,7 +172,7 @@
       <div class="filter-row">
         <select class="form-select" id="feed-type-filter" onchange="renderFeed()">
           <option value="">전체 종목</option>
-          <option value="men">남복</option><option value="women">여복</option><option value="mixed">혼복</option>
+          <option value="doubles">복식</option>
         </select>
         <select class="form-select" id="feed-status-filter" onchange="renderFeed()">
           <option value="approved">승인 경기</option>
@@ -208,11 +190,6 @@
           <button id="feed-search-clear" onclick="clearFeedSearch()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);font-size:1.1rem;cursor:pointer;line-height:1;">✕</button>
         </div>
         <button onclick="feedMyMatches()" style="white-space:nowrap;background:var(--bg3);border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:0 12px;height:44px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0;">내 경기</button>
-      </div>
-      <div id="feed-legend" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:6px 10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border);">
-        <button onclick="toggleFeedType('men')" id="legend-men" style="display:flex;align-items:center;gap:5px;font-size:.75rem;font-weight:600;color:var(--text-muted);background:transparent;border:1px solid transparent;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:inherit;transition:background .15s,border-color .15s;"><span style="width:3px;height:14px;background:#4285F4;border-radius:2px;display:inline-block;flex-shrink:0;"></span>남복</button>
-        <button onclick="toggleFeedType('women')" id="legend-women" style="display:flex;align-items:center;gap:5px;font-size:.75rem;font-weight:600;color:var(--text-muted);background:transparent;border:1px solid transparent;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:inherit;transition:background .15s,border-color .15s;"><span style="width:3px;height:14px;background:#E91E8C;border-radius:2px;display:inline-block;flex-shrink:0;"></span>여복</button>
-        <button onclick="toggleFeedType('mixed')" id="legend-mixed" style="display:flex;align-items:center;gap:5px;font-size:.75rem;font-weight:600;color:var(--text-muted);background:transparent;border:1px solid transparent;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:inherit;transition:background .15s,border-color .15s;"><span style="width:3px;height:14px;background:#F9A825;border-radius:2px;display:inline-block;flex-shrink:0;"></span>혼복</button>
       </div>
       <div id="feed-list"></div>
     </div>
@@ -290,11 +267,7 @@
     <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:14px;">관리자 승인 후 통계에 반영됩니다</div>
     <div class="form-group">
       <label class="form-label">경기 종목 <span class="req">*</span></label>
-      <div class="sub-tabs" style="background:var(--bg2)">
-        <button class="sub-tab active" id="rt-men" onclick="setMatchType('men')">🔵 남복</button>
-        <button class="sub-tab" id="rt-women" onclick="setMatchType('women')">🩷 여복</button>
-        <button class="sub-tab" id="rt-mixed" onclick="setMatchType('mixed')">🟡 혼복</button>
-      </div>
+      <div class="sub-tabs" style="background:var(--bg2)"><button class="sub-tab active" id="rt-doubles" onclick="setMatchType('doubles')">🏸 복식</button></div>
     </div>
     <div class="form-group">
       <label class="form-label">경기 일자 <span class="req">*</span></label>
@@ -401,13 +374,6 @@
   <div class="modal center-modal">
     <div class="modal-title">➕ 계정 생성</div>
     <div class="form-group"><label class="form-label">이름</label><input class="form-input" type="text" id="nu-name"></div>
-    <div class="form-group">
-      <label class="form-label">성별</label>
-      <div class="gender-row">
-        <button class="gender-btn" id="nu-male" onclick="selectCreateGender('male')">👨 남성</button>
-        <button class="gender-btn" id="nu-female" onclick="selectCreateGender('female')">👩 여성</button>
-      </div>
-    </div>
     <div class="form-group"><label class="form-label">이메일</label><input class="form-input" type="email" id="nu-email"></div>
     <div class="form-group"><label class="form-label">비밀번호</label><input class="form-input" type="password" id="nu-pw" value="4321"></div>
     <div class="form-group"><label class="form-label">역할</label><select class="form-select" id="nu-role"><option value="user">일반</option><option value="writer">작성자</option><option value="admin">관리자</option></select></div>
@@ -427,13 +393,6 @@
     </div>
     <input type="hidden" id="eu-id">
     <div class="form-group"><label class="form-label">이름</label><input class="form-input" type="text" id="eu-name"></div>
-    <div class="form-group">
-      <label class="form-label">성별</label>
-      <div class="gender-row">
-        <button class="gender-btn" id="eu-male" onclick="selectEditGender('male')">👨 남성</button>
-        <button class="gender-btn" id="eu-female" onclick="selectEditGender('female')">👩 여성</button>
-      </div>
-    </div>
     <div class="form-group"><label class="form-label">상태</label>
       <select class="form-select" id="eu-status">
         <option value="approved">승인</option>
@@ -499,7 +458,7 @@
 
 <div id="toast-container"></div>
 
-<script src="app.js?v=1772783094" defer></script>
+<script src="app.js?v=1772860537" defer></script>
 
 <!-- 점수판 모달 -->
 <div id="modal-scoreboard" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;z-index:9000;flex-direction:column;font-family:inherit;user-select:none;">
