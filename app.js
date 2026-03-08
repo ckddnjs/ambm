@@ -115,29 +115,10 @@ async function kakaoLoginDirect(){
   const{error}=await sb.auth.signInWithOAuth({provider:'kakao',options:{redirectTo:APP_URL,scopes:'profile_nickname,account_email',queryParams:{prompt:'select_account'},skipBrowserRedirect:false}});
   if(error) toast('카카오 로그인 오류: '+error.message,'error');
 }
-function kakaoSignup(){
+async function kakaoSignup(){
   if(!document.getElementById('privacy-agree')?.checked){toast('개인정보 수집·이용 동의가 필요합니다','error');return;}
-  let m=document.getElementById('modal-kakao-name');if(m)m.remove();
-  m=document.createElement('div');m.id='modal-kakao-name';m.className='modal-overlay center open';
-  m.innerHTML=`<div class="modal center-modal" style="max-width:360px;">
-    <div class="modal-title">🏸 카카오로 가입</div>
-    <div style="font-size:.86rem;color:var(--text-muted);margin-bottom:14px;line-height:1.6;">이름을 입력 후 카카오 로그인을 진행합니다.</div>
-    <div class="form-group"><label class="form-label">이름 *</label><input class="form-input" type="text" id="kakao-name-input" placeholder="실명" oninput="this.value=this.value.replace(/[0-9]/g,'')"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="document.getElementById('modal-kakao-name').remove()">취소</button>
-      <button class="btn btn-primary" onclick="proceedKakaoSignup()">다음 →</button>
-    </div>
-  </div>`;
-  document.body.appendChild(m);
-  setTimeout(()=>document.getElementById('kakao-name-input')?.focus(),100);
-}
-async function proceedKakaoSignup(){
-  const name=document.getElementById('kakao-name-input')?.value.trim();
-  if(!name){toast('이름 입력 필요','error');return;}
-  localStorage.setItem('kakao_pending_name',name);
-  document.getElementById('modal-kakao-name')?.remove();
   const{error}=await sb.auth.signInWithOAuth({provider:'kakao',options:{redirectTo:APP_URL,scopes:'profile_nickname,account_email',queryParams:{prompt:'select_account'}}});
-  if(error){localStorage.removeItem('kakao_pending_name');toast('오류: '+error.message,'error');}
+  if(error) toast('오류: '+error.message,'error');
 }
 async function doEmailLogin(){
   const email=document.getElementById('login-email').value.trim();
@@ -3557,6 +3538,23 @@ function bfRenderArrangement(){
   const wrap=document.getElementById('bf-arrange-wrap');
   if(!wrap) return;
 
+  // 팀장전: step2 팀장 섹션 표시 및 셀렉트 동기화
+  const step2Cap=document.getElementById('bf-step2-captain-section');
+  if(step2Cap) step2Cap.style.display=(_bfType==='team')?'block':'none';
+  if(_bfType==='team'){
+    // step1 팀장값 → step2 셀렉트로 동기화 (또는 기존 배분의 팀장 유지)
+    const capA1=document.getElementById('bf-captain-a')?.value||_bfArrangement?.teamA?.find(p=>p.captain)?.id||'';
+    const capB1=document.getElementById('bf-captain-b')?.value||_bfArrangement?.teamB?.find(p=>p.captain)?.id||'';
+    const opts='<option value="">선택</option>'+_bfAttendees.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+    const ca2=document.getElementById('bf-captain-a2');
+    const cb2=document.getElementById('bf-captain-b2');
+    if(ca2){ca2.innerHTML=opts; if(capA1) ca2.value=capA1;}
+    if(cb2){cb2.innerHTML=opts; if(capB1) cb2.value=capB1;}
+    // step2 셀렉트값을 step1으로도 반영
+    if(ca2?.value&&document.getElementById('bf-captain-a')) document.getElementById('bf-captain-a').value=ca2.value;
+    if(cb2?.value&&document.getElementById('bf-captain-b')) document.getElementById('bf-captain-b').value=cb2.value;
+  }
+
   if(_bfType==='individual'){
     _bfArrangement=_bfAutoArrange();
   } else if(_bfType==='duo'){
@@ -3629,10 +3627,69 @@ function _bfDuoArrange(){
   return {groups};
 }
 
+function _bfRenderTeamArrangeUI(wrap){
+  const {teamA,teamB}=_bfArrangement;
+  const all=_bfAttendees;
+  const renderMember=(p,team,idx)=>{
+    const isCap=p.captain;
+    const otherTeam=team==='A'?'B':'A';
+    const otherList=team==='A'?teamB:teamA;
+    // 교체 옵션: 상대팀 비팀장 선수들
+    const swapOpts=otherList.filter(o=>!o.captain).map((o,oi)=>`<option value="${oi}">${o.name}(${otherTeam}팀)</option>`).join('');
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;display:flex;align-items:center;gap:6px;">
+      <span style="font-size:.8rem;${isCap?'color:var(--primary);font-weight:700;':''}flex:1;">${isCap?'⭐':''} ${p.name}</span>
+      ${!isCap?`<select onchange="bfTeamMemberSwap(this,'${team}',${idx})" style="font-size:.72rem;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:2px 5px;color:var(--text-muted);max-width:100px;">
+        <option value="">↔ 교체</option>${swapOpts}
+      </select>
+      <select onchange="bfTeamMemberMove(this,'${team}',${idx})" style="font-size:.72rem;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:2px 5px;color:var(--text-muted);max-width:80px;">
+        <option value="">이동</option>
+        <option value="${otherTeam}">${otherTeam}팀으로</option>
+      </select>`:'<span style="font-size:.72rem;color:var(--primary);padding:2px 6px;">팀장</span>'}
+    </div>`;
+  };
+  let html=`<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px;">🤖 실력 균형을 고려해 배분했습니다. ↔ 교체로 선수를 조정할 수 있습니다.</div>`;
+  html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">`;
+  html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;">
+    <div style="font-weight:700;font-size:.85rem;color:var(--info);margin-bottom:8px;">🔵 A팀 <span style="font-weight:400;font-size:.75rem;color:var(--text-muted);">(${teamA.length}명)</span></div>
+    <div style="display:flex;flex-direction:column;gap:5px;">${teamA.map((p,i)=>renderMember(p,'A',i)).join('')}</div>
+  </div>`;
+  html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;">
+    <div style="font-weight:700;font-size:.85rem;color:var(--danger);margin-bottom:8px;">🔴 B팀 <span style="font-weight:400;font-size:.75rem;color:var(--text-muted);">(${teamB.length}명)</span></div>
+    <div style="display:flex;flex-direction:column;gap:5px;">${teamB.map((p,i)=>renderMember(p,'B',i)).join('')}</div>
+  </div>`;
+  html+=`</div>`;
+  wrap.innerHTML=html;
+}
+
+function bfTeamMemberSwap(sel,fromTeam,fromIdx){
+  const val=sel.value; if(val==='') return;
+  const toIdx=parseInt(val);
+  const teamA=_bfArrangement.teamA, teamB=_bfArrangement.teamB;
+  const fromList=fromTeam==='A'?teamA:teamB;
+  const toList=fromTeam==='A'?teamB:teamA;
+  [fromList[fromIdx],toList[toIdx]]=[toList[toIdx],fromList[fromIdx]];
+  _bfRenderTeamArrangeUI(document.getElementById('bf-arrange-wrap'));
+}
+
+function bfTeamMemberMove(sel,fromTeam,fromIdx){
+  const val=sel.value; if(!val) return;
+  const teamA=_bfArrangement.teamA, teamB=_bfArrangement.teamB;
+  const fromList=fromTeam==='A'?teamA:teamB;
+  const toList=fromTeam==='A'?teamB:teamA;
+  const [moved]=fromList.splice(fromIdx,1);
+  toList.push(moved);
+  _bfRenderTeamArrangeUI(document.getElementById('bf-arrange-wrap'));
+}
+
 function _bfTeamArrange(){
   // 팀전: 팀장 A/B 지정 후 뱀배열로 인원 균형 분배
-  const capAid=document.getElementById('bf-captain-a')?.value;
-  const capBid=document.getElementById('bf-captain-b')?.value;
+  // step2 셀렉트 우선, 없으면 step1, 없으면 기존 배분에서 유지
+  let capAid=document.getElementById('bf-captain-a2')?.value
+    || document.getElementById('bf-captain-a')?.value
+    || _bfArrangement?.teamA?.find(p=>p.captain)?.id||'';
+  let capBid=document.getElementById('bf-captain-b2')?.value
+    || document.getElementById('bf-captain-b')?.value
+    || _bfArrangement?.teamB?.find(p=>p.captain)?.id||'';
   const teamA=[],teamB=[];
   const others=[..._bfAttendees].filter(a=>a.id!==capAid&&a.id!==capBid).sort((a,b)=>b.score-a.score);
   const capA=_bfAttendees.find(a=>a.id===capAid);
@@ -3698,10 +3755,12 @@ function _bfRenderArrangeUI(wrap){
 function _bfRenderDuoArrangeUI(wrap){
   const {groups}=_bfArrangement;
   const isAdmin=ME?.role==='admin';
+  // 전체 참석자 목록 (선수 선택용)
+  const allAttendees=_bfAttendees||[];
   const allTeams=[];
   groups.forEach((g,gi)=>g.teams.forEach((t,ti)=>allTeams.push({gi,ti,label:t.p2_name?`${t.p1_name} / ${t.p2_name}`:t.p1_name,gname:g.name})));
   let html=`<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px;">
-    🤖 팀 실력 균형을 고려해 자동 배분했습니다.${isAdmin?' ↔ 교체 버튼으로 다른 팀과 위치를 바꿀 수 있습니다.':''}
+    🤖 팀 실력 균형을 고려해 자동 배분했습니다. ↔ 교체로 팀 위치를, 선수 드롭다운으로 파트너를 수정할 수 있습니다.
   </div>`;
   html+=`<div style="display:flex;flex-direction:column;gap:10px;">`;
   groups.forEach((g,gi)=>{
@@ -3709,26 +3768,71 @@ function _bfRenderDuoArrangeUI(wrap){
       <div style="font-weight:700;font-size:.85rem;color:var(--primary);margin-bottom:8px;">${g.name} <span style="font-weight:400;font-size:.75rem;color:var(--text-muted);">(${g.teams.length}팀)</span></div>
       <div style="display:flex;flex-direction:column;gap:5px;">`;
     g.teams.forEach((t,ti)=>{
-      const label=t.p2_name?`${t.p1_name} / ${t.p2_name}`:t.p1_name;
-      html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:.85rem;font-weight:600;display:flex;align-items:center;gap:6px;">
-        <span style="flex:1;">👥 ${label}</span>
-        ${isAdmin?`<div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
-          <select onchange="bfDuoSwapWithOther(this,${gi},${ti})" style="font-size:.72rem;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:2px 5px;color:var(--text-muted);cursor:pointer;max-width:110px;">
-            <option value="">↔ 교체</option>
-            ${allTeams.filter(x=>!(x.gi===gi&&x.ti===ti)).map(x=>`<option value="${x.gi}_${x.ti}">${x.label}(${x.gname})</option>`).join('')}
-          </select>
-          ${groups.length>1?`<select onchange="bfDuoMoveTeam(this,${gi},${ti})" style="font-size:.72rem;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:2px 5px;color:var(--text-muted);cursor:pointer;max-width:80px;">
-            <option value="">이동</option>
-            ${groups.map((og,ogi)=>ogi!==gi?`<option value="${ogi}">${og.name}으로</option>`:'').join('')}
-          </select>`:''}
-          <button onclick="bfDuoRemoveTeam(${gi},${ti})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.8rem;padding:0 2px;">✕</button>
-        </div>`:''}
+      // 선수1/선수2 옵션: 현재 팀 선수 + 미사용 선수
+      const usedIds=new Set();
+      groups.forEach((gg,ggi)=>gg.teams.forEach((tt,tti)=>{
+        if(ggi===gi&&tti===ti) return; // 현재 팀 제외
+        if(tt.p1_id) usedIds.add(tt.p1_id);
+        if(tt.p2_id) usedIds.add(tt.p2_id);
+      }));
+      const availForP1=allAttendees.filter(a=>!usedIds.has(a.id)||a.id===t.p1_id);
+      const availForP2=allAttendees.filter(a=>!usedIds.has(a.id)||a.id===t.p2_id);
+      const optsP1=availForP1.map(a=>`<option value="${a.id}"${a.id===t.p1_id?' selected':''}>${a.name}</option>`).join('');
+      const optsP2=`<option value=""${!t.p2_id?' selected':''}>없음</option>`+availForP2.map(a=>`<option value="${a.id}"${a.id===t.p2_id?' selected':''}>${a.name}</option>`).join('');
+      html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 8px;display:flex;align-items:center;gap:5px;">
+        <span style="font-size:.75rem;color:var(--text-muted);flex-shrink:0;">👥</span>
+        <select onchange="bfDuoChangePlayer(${gi},${ti},'p1',this.value)" style="flex:1;min-width:0;font-size:.78rem;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 4px;color:var(--text);">${optsP1}</select>
+        <span style="font-size:.72rem;color:var(--text-muted);flex-shrink:0;">/</span>
+        <select onchange="bfDuoChangePlayer(${gi},${ti},'p2',this.value)" style="flex:1;min-width:0;font-size:.78rem;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 4px;color:var(--text);">${optsP2}</select>
+        <select onchange="bfDuoSwapWithOther(this,${gi},${ti})" style="font-size:.72rem;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:3px 4px;color:var(--text-muted);cursor:pointer;flex-shrink:0;max-width:80px;">
+          <option value="">↔ 교체</option>
+          ${allTeams.filter(x=>!(x.gi===gi&&x.ti===ti)).map(x=>`<option value="${x.gi}_${x.ti}">${x.label}(${x.gname})</option>`).join('')}
+        </select>
+        <button onclick="bfDuoRemoveTeam(${gi},${ti})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.85rem;padding:0 2px;flex-shrink:0;">✕</button>
       </div>`;
     });
     html+=`</div></div>`;
   });
   html+=`</div>`;
   wrap.innerHTML=html;
+}
+
+function bfDuoChangePlayer(gi,ti,slot,newId){
+  const groups=_bfArrangement.groups;
+  const team=groups[gi].teams[ti];
+  const person=newId?_bfAttendees.find(a=>a.id===newId):null;
+  // 같은 팀 내 중복 체크
+  if(slot==='p1'&&newId&&newId===team.p2_id){toast('파트너와 같은 선수입니다','error');return;}
+  if(slot==='p2'&&newId&&newId===team.p1_id){toast('선수1과 같은 선수입니다','error');return;}
+  // 다른 팀에서 사용 중이면 swap
+  if(newId){
+    for(let ggi=0;ggi<groups.length;ggi++){
+      for(let tti=0;tti<groups[ggi].teams.length;tti++){
+        if(ggi===gi&&tti===ti) continue;
+        const ot=groups[ggi].teams[tti];
+        if(ot.p1_id===newId){
+          // 현재 팀의 해당 슬롯과 swap
+          const oldId=slot==='p1'?team.p1_id:team.p2_id;
+          const oldName=slot==='p1'?team.p1_name:team.p2_name;
+          ot.p1_id=oldId||null; ot.p1_name=oldName||'';
+          break;
+        } else if(ot.p2_id===newId){
+          const oldId=slot==='p1'?team.p1_id:team.p2_id;
+          const oldName=slot==='p1'?team.p1_name:team.p2_name;
+          ot.p2_id=oldId||null; ot.p2_name=oldName||'';
+          break;
+        }
+      }
+    }
+  }
+  if(slot==='p1'){
+    team.p1_id=person?.id||null; team.p1_name=person?.name||'';
+  } else {
+    team.p2_id=person?.id||null; team.p2_name=person?.name||null;
+  }
+  // 경기 재계산
+  groups.forEach(g=>{g.matches=[];for(let i=0;i<g.teams.length;i++)for(let j=i+1;j<g.teams.length;j++)g.matches.push({t1:g.teams[i],t2:g.teams[j],s1:'',s2:'',done:false});});
+  _bfRenderDuoArrangeUI(document.getElementById('bf-arrange-wrap'));
 }
 
 function bfDuoSwapWithOther(sel,gi,ti){
