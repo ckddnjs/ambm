@@ -23,8 +23,8 @@
 
 <div id="loading-screen">
   <div class="ld-icon">🏸</div>
-  <div class="ld-title">AM BADMINTON 🏸</div>
-  <div class="ld-sub">AM BADMINTON</div>
+  <div class="ld-title">새벽민턴 🏸</div>
+  <div class="ld-sub">새벽민턴</div>
   <div class="spinner"></div>
 </div>
 
@@ -32,14 +32,14 @@
   <div style="position:fixed;top:12px;right:16px;z-index:999;">
     <button onclick="toggleDarkMode()" id="btn-darkmode"
       style="background:rgba(0,0,0,.25);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:20px;padding:6px 14px;font-size:.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:inherit;">
-      <span id="dm-icon">🌙</span><span id="dm-label">다크</span>
+      <span id="dm-icon">🌙</span>
     </button>
   </div>
   <div class="login-container">
     <div class="login-hero">
       <span class="login-emoji">🏸</span>
-      <div class="login-title">AM BADMINTON</div>
-      <div class="login-subtitle">AM BADMINTON</div>
+      <div class="login-title">새벽민턴</div>
+      <div class="login-subtitle">새벽민턴</div>
     </div>
     <div class="login-card">
       <div class="login-tab-row">
@@ -101,11 +101,11 @@
 
 <div id="app">
   <header class="app-header">
-    <div class="app-header-logo" onclick="goHome()">🏸 AM BADMINTON</div>
+    <div class="app-header-logo" onclick="goHome()">🏸 새벽민턴</div>
     <div class="header-right">
       <button onclick="toggleDarkMode()" id="btn-darkmode-app"
         style="background:var(--bg3);border:1px solid var(--border);color:var(--text-muted);border-radius:16px;padding:4px 10px;font-size:.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;font-family:inherit;">
-        <span id="dm-icon-app">🌙</span><span id="dm-label-app">다크</span>
+        <span id="dm-icon-app">🌙</span>
       </button>
       <div class="header-chip">
         <span id="hdr-name">-</span>
@@ -166,8 +166,8 @@
         <div style="display:flex;gap:6px;align-items:center;">
           <button class="btn btn-ghost btn-sm" onclick="renderFeed()" style="color:var(--text-muted);">↻</button>
           <button id="btn-batch-register" class="btn btn-ghost btn-sm" onclick="toggleBatchPanel()" style="display:none;border:1px solid var(--border);color:var(--text-muted);font-size:.78rem;">📋 일괄등록</button>
-          <button class="btn btn-ghost btn-sm" onclick="openScoreboard()" style="border:1px solid var(--border);color:var(--text-muted);font-size:.78rem;">🏸 점수판</button>
-          <button class="btn btn-primary btn-sm" onclick="openRegisterModal()" style="font-size:.82rem;">✍️ 경기등록</button>
+          <!-- <button class="btn btn-ghost btn-sm" onclick="openScoreboard()" style="border:1px solid var(--border);color:var(--text-muted);font-size:.78rem;">🏸 점수판</button> -->
+          <button class="btn btn-primary btn-sm" onclick="openRegisterModal()" style="font-size:.82rem;">✍️ 등록</button>
         </div>
       </div>
       <div class="filter-row">
@@ -248,18 +248,6 @@
           <div class="card-title" style="margin-bottom:12px;">📋 기본 정보 & 참석자</div>
 
           <div class="form-group mb-2">
-            <label class="form-label">대회 종목 <span class="req">*</span></label>
-            <div style="display:flex;gap:6px;">
-              <button id="bf-type-individual" class="btn btn-primary btn-sm" onclick="bfSetType('individual')" style="flex:1;">👤 개인전</button>
-              <button id="bf-type-duo" class="btn btn-ghost btn-sm" onclick="bfSetType('duo')" style="flex:1;">👥 듀오전</button>
-              <button id="bf-type-team" class="btn btn-ghost btn-sm" onclick="bfSetType('team')" style="flex:1;">🚩 팀장전</button>
-            </div>
-            <div id="bf-type-desc" style="font-size:.75rem;color:var(--text-muted);margin-top:6px;padding:6px 10px;background:var(--bg2);border-radius:8px;">
-              조별 풀리그 후 각 조 1·2위가 본선 토너먼트에 진출합니다.
-            </div>
-          </div>
-
-          <div class="form-group mb-2">
             <label class="form-label">대회명 <span class="req">*</span></label>
             <input class="form-input" id="bf-auto-name" placeholder="예) 4월 자체대회">
           </div>
@@ -272,6 +260,18 @@
             <label class="form-label">참석자 선택 <span class="req">*</span></label>
             <div id="bf-attendee-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:44px;background:var(--bg2);border-radius:10px;padding:10px;"></div>
             <div id="bf-attendee-count" style="font-size:.75rem;color:var(--text-muted);margin-top:6px;text-align:right;">0명 선택됨</div>
+          </div>
+
+          <div class="form-group mb-2">
+            <label class="form-label">대회 종목 <span class="req">*</span></label>
+            <div style="display:flex;gap:6px;">
+              <button id="bf-type-individual" class="btn btn-primary btn-sm" onclick="bfSetType('individual')" style="flex:1;">👤 개인전</button>
+              <button id="bf-type-duo" class="btn btn-ghost btn-sm" onclick="bfSetType('duo')" style="flex:1;">👥 듀오전</button>
+              <button id="bf-type-team" class="btn btn-ghost btn-sm" onclick="bfSetType('team')" style="flex:1;">🚩 팀장전</button>
+            </div>
+            <div id="bf-type-desc" style="font-size:.75rem;color:var(--text-muted);margin-top:6px;padding:6px 10px;background:var(--bg2);border-radius:8px;">
+              조별 풀리그 후 각 조 1·2위가 본선 토너먼트에 진출합니다.
+            </div>
           </div>
 
           <!-- 팀전: 팀장 지정 (참석자 아래) -->
