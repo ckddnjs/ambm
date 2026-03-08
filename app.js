@@ -4133,234 +4133,331 @@ async function deleteBracket(id){
 //  ⚖️  밸런스 비교  (관리자 전용 · 대회 탭)
 // ══════════════════════════════════════════════════════════
 
-let _balType       = 'individual'; // individual | duo | team
-let _balAttendees  = [];           // 선택된 참석자 [{id,name,score,wr,wins,losses,games,diff}]
-let _balResult     = null;         // 현재 배분 결과
-let _balDuoPairs   = [];           // 듀오 페어
+let _balType      = 'individual';
+let _balAttendees = [];   // [{id,name,score(=CI),ci,wins,losses,games,diff,...}]
+let _balResult    = null; // 배분 결과
+let _balDuoPairs  = [];   // [{p1,p2}] 듀오 페어 (수동 구성)
 
 // ── 열기/닫기 ──
 function toggleBalanceForm(){
-  if(ME?.role !== 'admin'){ toast('관리자만 사용 가능합니다','error'); return; }
-  const el = document.getElementById('balance-form-inline');
+  if(ME?.role!=='admin'){toast('관리자만 사용 가능합니다','error');return;}
+  const el=document.getElementById('balance-form-inline');
   if(!el) return;
-  if(el.style.display !== 'none'){ el.style.display='none'; return; }
-  // 다른 폼 닫기
+  if(el.style.display!=='none'){el.style.display='none';return;}
   ['bulk-import-inline','bracket-form-inline'].forEach(id=>{
-    const e=document.getElementById(id); if(e) e.style.display='none';
+    const e=document.getElementById(id);if(e) e.style.display='none';
   });
   el.style.display='block';
-  _balAttendees=[]; _balType='individual'; _balResult=null; _balDuoPairs=[];
+  _balAttendees=[];_balType='individual';_balResult=null;_balDuoPairs=[];
   balGoStep(1);
   balSetType('individual');
   _balLoadAttendees();
 }
-
 function balGoStep(n){
-  document.getElementById('bal-step1').style.display = n===1?'block':'none';
-  document.getElementById('bal-step2').style.display = n===2?'block':'none';
+  document.getElementById('bal-step1').style.display=n===1?'block':'none';
+  document.getElementById('bal-step2').style.display=n===2?'block':'none';
 }
 
-// ── 참석자 로딩 ──
+// ── 참석자 로딩 (CI 포함) ──
 async function _balLoadAttendees(){
-  // _bfUsersMap·_bfAllUsers 공용 로딩 재사용
-  await _loadBfAttendees();
+  await _loadBfAttendees(); // scored/conceded/CI 로딩됨
   _balRenderAttendees();
 }
-
 function _balRenderAttendees(){
-  const wrap = document.getElementById('bal-attendee-list');
-  const cnt  = document.getElementById('bal-attendee-count');
+  const wrap=document.getElementById('bal-attendee-list');
+  const cnt=document.getElementById('bal-attendee-count');
   if(!wrap) return;
-  const all = window._bfAllUsers || [];
-  wrap.innerHTML = all.map(u=>{
-    const sel = _balAttendees.some(a=>a.id===u.id);
-    const wr  = u.games>0 ? Math.round((u.wins||0)/u.games*100) : 0;
-    const diff = (u.scored||0)-(u.conceded||0);
+  const all=window._bfAllUsers||[];
+  wrap.innerHTML=all.map(u=>{
+    const sel=_balAttendees.some(a=>a.id===u.id);
+    const ci=Math.round(u.ci||calcCI(u.wins||0,u.games||0,(u.scored||0)-(u.conceded||0)));
     return `<button onclick="balToggleAttendee('${u.id}')" style="
       padding:5px 11px;border-radius:20px;font-size:.78rem;cursor:pointer;
       font-family:inherit;font-weight:600;transition:all .12s;
       background:${sel?'var(--primary)':'var(--bg3)'};
       color:${sel?'#fff':'var(--text-muted)'};
       border:1.5px solid ${sel?'var(--primary)':'var(--border)'};
-    ">${u.name}<span style="font-size:.63rem;opacity:.7;margin-left:3px;">${wr}%</span></button>`;
-  }).join('') || '<div style="color:var(--text-muted);font-size:.8rem;">불러오는 중…</div>';
-  if(cnt) cnt.textContent = `${_balAttendees.length}명 선택됨`;
+    ">${u.name}<span style="font-size:.63rem;opacity:.7;margin-left:3px;">${ci}</span></button>`;
+  }).join('')||'<div style="color:var(--text-muted);font-size:.8rem;">불러오는 중…</div>';
+  if(cnt) cnt.textContent=`${_balAttendees.length}명 선택됨`;
   _balUpdateCaptainSelects();
 }
-
 function balToggleAttendee(id){
-  const u = window._bfUsersMap?.[id];
-  if(!u) return;
-  const idx = _balAttendees.findIndex(a=>a.id===id);
+  const raw=(window._bfAllUsers||[]).find(x=>x.id===id);
+  if(!raw) return;
+  const idx=_balAttendees.findIndex(a=>a.id===id);
   if(idx>=0) _balAttendees.splice(idx,1);
-  else {
-    // 전체 스탯 붙이기 (승률·득실)
-    const raw = (window._bfAllUsers||[]).find(x=>x.id===id)||{};
-    const wr  = raw.games>0 ? Math.round((raw.wins||0)/raw.games*100) : 0;
-    const diff = (raw.scored||0)-(raw.conceded||0);
-    _balAttendees.push({...u, wr, wins:raw.wins||0, losses:raw.losses||0,
-      games:raw.games||0, scored:raw.scored||0, conceded:raw.conceded||0, diff});
+  else{
+    const diff=(raw.scored||0)-(raw.conceded||0);
+    const ci=raw.ci||calcCI(raw.wins||0,raw.games||0,diff);
+    _balAttendees.push({...raw,diff,ci,score:Math.round(ci)});
   }
+  _balAttendees.sort((a,b)=>b.score-a.score);
   _balRenderAttendees();
+  if(_balType==='duo') _balRenderDuoPairUI(); // 듀오전이면 페어 UI 갱신
 }
 
 function balSetType(t){
-  _balType = t;
+  _balType=t;
+  _balDuoPairs=[];
   ['individual','duo','team'].forEach(k=>{
     const b=document.getElementById('bal-type-'+k);
     if(b) b.className='btn btn-sm '+(k===t?'btn-primary':'btn-ghost');
   });
-  const cap=document.getElementById('bal-captain-section');
-  if(cap) cap.style.display = t==='team'?'block':'none';
+  document.getElementById('bal-captain-section').style.display=t==='team'?'block':'none';
+  document.getElementById('bal-duo-section').style.display=t==='duo'?'block':'none';
   _balUpdateCaptainSelects();
+  if(t==='duo') _balRenderDuoPairUI();
 }
-
 function _balUpdateCaptainSelects(){
   if(_balType!=='team') return;
-  const opts = '<option value="">선택</option>'+
-    _balAttendees.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  const opts='<option value="">선택</option>'+_balAttendees.map(a=>`<option value="${a.id}">${a.name} (${a.score})</option>`).join('');
   ['bal-captain-a','bal-captain-b'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el) return;
-    const prev=el.value;
-    el.innerHTML=opts;
-    if(prev) el.value=prev;
+    const prev=el.value; el.innerHTML=opts; if(prev) el.value=prev;
   });
 }
 
-// ── 점수 계산 헬퍼 ──
-// 종합 CI: 승률(50%) + 득실(30%) + 게임수 보정(20%)
-function _balScore(p){
-  // p.score는 이미 _bfUsersMap에서 승률로 설정됨
-  const wr   = p.wr   ?? p.score ?? 0;              // 승률 0~100
-  const g    = p.games ?? 0;
-  // 득실을 -100~+100 범위로 정규화 (±200점 기준)
-  const rawDiff = p.diff ?? 0;
-  const normDiff = Math.max(-100, Math.min(100, rawDiff * 0.3));
-  // 게임수 보정: 10게임 미만은 신뢰도 페널티
-  const reliability = Math.min(1, g/10);
-  return Math.round((wr*0.5 + (normDiff+100)*0.3 + reliability*20) * 10)/10;
-}
+// ══════════════════════════════
+//  듀오전 페어 구성 UI
+// ══════════════════════════════
+// _balDuoPairs = [{p1:{id,name,score,...}, p2:{...}|null}]
+function _balRenderDuoPairUI(){
+  const wrap=document.getElementById('bal-duo-pairs-wrap');
+  if(!wrap) return;
 
-function _balGroupCI(members){
-  if(!members.length) return 0;
-  return Math.round(members.reduce((s,p)=>s+_balScore(p),0)/members.length*10)/10;
-}
+  // 아직 페어에 없는 참석자
+  const pairedIds=new Set(_balDuoPairs.flatMap(p=>[p.p1?.id,p.p2?.id].filter(Boolean)));
+  const unpaired=_balAttendees.filter(a=>!pairedIds.has(a.id));
 
-function _calcBalanceGrade(scores){
-  if(scores.length<2) return {std:0,label:'—',color:'var(--text-muted)',pct:100};
-  const mean = scores.reduce((s,v)=>s+v,0)/scores.length;
-  const std  = Math.sqrt(scores.reduce((s,v)=>s+(v-mean)**2,0)/scores.length);
-  const s    = Math.round(std*10)/10;
-  // 균형 점수: 편차가 0이면 100점, 20이면 0점
-  const pct  = Math.max(0, Math.round(100 - s*5));
-  const label = s<2?'⭐ 완벽':s<5?'✅ 균형':s<10?'🟡 양호':s<18?'⚠️ 불균형':'❌ 심한불균형';
-  const color = s<2?'#00C896':s<5?'#4CAF50':s<10?'#FFB74D':s<18?'var(--warn)':'var(--danger)';
-  return {std:s, label, color, pct};
-}
+  let html='';
 
-// ── 자동 배분 (기존 함수 재사용 + 임시 교체) ──
-function _balAutoArrange(){
-  const saved = {att:_bfAttendees, type:_bfType, pairs:_bfDuoPairs};
-  _bfAttendees = [..._balAttendees];
-  _bfType      = _balType;
-
-  let arr;
-  if(_balType==='individual'){
-    arr = _bfAutoArrange();
-  } else if(_balType==='duo'){
-    const sorted=[..._balAttendees].sort((a,b)=>b.score-a.score);
-    _bfDuoPairs=[];
-    for(let i=0;i<sorted.length-1;i+=2) _bfDuoPairs.push({p1:sorted[i],p2:sorted[i+1]||null});
-    if(sorted.length%2===1) _bfDuoPairs.push({p1:sorted[sorted.length-1],p2:null});
-    arr=_bfDuoArrange();
-  } else {
-    // 팀장전
-    const capAid = document.getElementById('bal-captain-a')?.value||'';
-    const capBid = document.getElementById('bal-captain-b')?.value||'';
-    // bf 셀렉트 임시 교체
-    const ca2=document.getElementById('bf-captain-a2');
-    const cb2=document.getElementById('bf-captain-b2');
-    const prevA=ca2?.value||'',prevB=cb2?.value||'';
-    if(ca2) ca2.value=capAid; if(cb2) cb2.value=capBid;
-    _bfArrangement=null;
-    arr=_bfTeamArrange();
-    if(ca2) ca2.value=prevA; if(cb2) cb2.value=prevB;
+  // 미배정 선수 풀
+  if(unpaired.length){
+    html+=`<div style="margin-bottom:10px;">
+      <div style="font-size:.76rem;font-weight:700;color:var(--text-muted);margin-bottom:5px;">미배정 선수 (클릭해서 페어 구성)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">`;
+    unpaired.forEach(p=>{
+      html+=`<button onclick="balDuoAssign('${p.id}')" style="
+        padding:4px 10px;border-radius:16px;font-size:.76rem;cursor:pointer;font-family:inherit;
+        background:var(--bg3);color:var(--text-muted);border:1.5px solid var(--border);">
+        ${p.name} <span style="font-size:.62rem;opacity:.7;">${p.score}</span>
+      </button>`;
+    });
+    html+=`</div></div>`;
   }
 
-  _bfAttendees=saved.att; _bfType=saved.type; _bfDuoPairs=saved.pairs;
-  return arr;
+  // 페어 목록 (각각 2칸)
+  if(_balDuoPairs.length){
+    html+=`<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:6px;">`;
+    _balDuoPairs.forEach((pair,pi)=>{
+      const ci=Math.round(((pair.p1?.score||0)+(pair.p2?.score||0))/(pair.p2?2:1));
+      html+=`<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:5px;align-items:center;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 8px;">
+        <!-- 파트너1 슬롯 -->
+        <div style="background:var(--surface);border-radius:6px;padding:4px 8px;min-height:30px;display:flex;align-items:center;justify-content:space-between;">
+          ${pair.p1
+            ?`<span style="font-size:.78rem;font-weight:600;">${pair.p1.name}</span>
+               <span style="font-size:.62rem;color:var(--text-muted);">${pair.p1.score}</span>`
+            :`<span style="font-size:.72rem;color:var(--text-muted);">파트너1</span>`}
+        </div>
+        <!-- 파트너2 슬롯 -->
+        <div style="background:var(--surface);border-radius:6px;padding:4px 8px;min-height:30px;display:flex;align-items:center;justify-content:space-between;">
+          ${pair.p2
+            ?`<span style="font-size:.78rem;font-weight:600;">${pair.p2.name}</span>
+               <span style="font-size:.62rem;color:var(--text-muted);">${pair.p2.score}</span>`
+            :`<span style="font-size:.72rem;color:var(--text-muted);">파트너2</span>`}
+        </div>
+        <div style="display:flex;gap:3px;">
+          <span style="font-size:.68rem;color:var(--text-muted);white-space:nowrap;">CI ${ci}</span>
+          <button onclick="balDuoRemovePair(${pi})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.8rem;padding:0 2px;">✕</button>
+        </div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+
+  // 자동 페어링 버튼
+  html+=`<button onclick="balDuoAutoPair()" style="
+    font-size:.74rem;padding:4px 12px;background:var(--bg2);border:1px solid var(--border);
+    border-radius:8px;cursor:pointer;color:var(--text-muted);">🔄 자동 페어링</button>`;
+
+  wrap.innerHTML=html;
+}
+
+let _balDuoSelectFirst=null; // 첫번째 클릭한 선수 id
+function balDuoAssign(id){
+  const p=_balAttendees.find(a=>a.id===id);
+  if(!p) return;
+  if(!_balDuoSelectFirst){
+    _balDuoSelectFirst=p;
+    _balRenderDuoPairUI(); // 하이라이트용 재렌더 (개선 여지)
+    return;
+  }
+  // 페어 생성
+  _balDuoPairs.push({p1:_balDuoSelectFirst,p2:p});
+  _balDuoSelectFirst=null;
+  _balRenderDuoPairUI();
+}
+function balDuoRemovePair(pi){
+  _balDuoPairs.splice(pi,1);
+  _balRenderDuoPairUI();
+}
+function balDuoAutoPair(){
+  // 뱀배열: 1위↔꼴찌, 2위↔꼴찌-1 ...
+  const sorted=[..._balAttendees].sort((a,b)=>b.score-a.score);
+  _balDuoPairs=[];
+  const n=sorted.length;
+  for(let i=0;i<Math.floor(n/2);i++){
+    _balDuoPairs.push({p1:sorted[i],p2:sorted[n-1-i]});
+  }
+  if(n%2===1) _balDuoPairs.push({p1:sorted[Math.floor(n/2)],p2:null});
+  _balDuoSelectFirst=null;
+  _balRenderDuoPairUI();
+}
+
+// ══════════════════════════════
+//  자동 배분 로직
+// ══════════════════════════════
+// 개인전: 4~5명씩 조편성 (뱀배열)
+function _balArrangeIndividual(){
+  const sorted=[..._balAttendees].sort((a,b)=>b.score-a.score);
+  const n=sorted.length;
+  // 조 수: 4명씩 기준, 나머지 1~2명은 기존 조에 분산
+  const groupCount=Math.max(1,Math.floor(n/4)+(n%4>=2?1:0));
+  const groups=Array.from({length:groupCount},(_,gi)=>({
+    name:`${String.fromCharCode(65+gi)}조`,
+    players:[],
+  }));
+  // 뱀배열
+  sorted.forEach((p,i)=>{
+    const row=Math.floor(i/groupCount);
+    const col=i%groupCount;
+    const gi=row%2===0?col:groupCount-1-col;
+    groups[gi].players.push({...p});
+  });
+  return {groups};
+}
+
+// 듀오전: 페어 단위 뱀배열 → 팀간 밸런스
+function _balArrangeDuo(){
+  if(_balDuoPairs.length<2){toast('페어가 2쌍 이상 필요합니다','error');return null;}
+  const avgCI=pair=>Math.round(((pair.p1?.score||0)+(pair.p2?.score||0))/(pair.p2?2:1));
+  const sorted=[..._balDuoPairs].sort((a,b)=>avgCI(b)-avgCI(a));
+  const n=sorted.length;
+  // 팀 수: 2팀으로 고정 (밸런스 비교 목적)
+  const teams=[{name:'A조',pairs:[]},{name:'B조',pairs:[]}];
+  sorted.forEach((pair,i)=>{
+    // 뱀배열 (짝수i→A, 홀수i→B, 다음 홀수→A...)
+    const row=Math.floor(i/2);
+    const col=i%2;
+    const ti=row%2===0?col:1-col;
+    teams[ti].pairs.push(pair);
+  });
+  return {teams};
+}
+
+// 팀장전: 팀장 기준 뱀배열
+function _balArrangeTeam(){
+  const capAid=document.getElementById('bal-captain-a')?.value||'';
+  const capBid=document.getElementById('bal-captain-b')?.value||'';
+  if(!capAid||!capBid){toast('두 팀장을 선택해주세요','error');return null;}
+  const capA=_balAttendees.find(a=>a.id===capAid);
+  const capB=_balAttendees.find(a=>a.id===capBid);
+  const others=[..._balAttendees].filter(a=>a.id!==capAid&&a.id!==capBid).sort((a,b)=>b.score-a.score);
+  const teamA=[{...capA,captain:true}],teamB=[{...capB,captain:true}];
+  others.forEach(p=>{
+    if(teamA.length<=teamB.length) teamA.push(p); else teamB.push(p);
+  });
+  return {teamA,teamB};
 }
 
 // ── 분석 실행 ──
 function balGenerate(){
-  if(_balAttendees.length<4){ toast('참석자 4명 이상 선택해주세요','error'); return; }
-  if(_balType==='team'){
-    const a=document.getElementById('bal-captain-a')?.value;
-    const b=document.getElementById('bal-captain-b')?.value;
-    if(!a||!b){ toast('두 팀장을 모두 선택해주세요','error'); return; }
-  }
-  _balResult = _balAutoArrange();
+  if(_balAttendees.length<4){toast('참석자 4명 이상 선택해주세요','error');return;}
+  let result=null;
+  if(_balType==='individual') result=_balArrangeIndividual();
+  else if(_balType==='duo')   result=_balArrangeDuo();
+  else                        result=_balArrangeTeam();
+  if(!result) return;
+  _balResult=result;
   balGoStep(2);
+  _balRenderStep2();
+}
+
+// ══════════════════════════════
+//  STEP 2: 결과 렌더
+// ══════════════════════════════
+function _balRenderStep2(){
   _balRenderGauge();
   _balRenderEdit();
 }
 
-// ── 게이지 렌더 ──
+// ── CI 기반 밸런스 등급 ──
+function _calcBalanceGrade(scores){
+  if(scores.length<2) return {std:0,label:'—',color:'var(--text-muted)',pct:100};
+  const mean=scores.reduce((s,v)=>s+v,0)/scores.length;
+  const std=Math.sqrt(scores.reduce((s,v)=>s+(v-mean)**2,0)/scores.length);
+  const s=Math.round(std*10)/10;
+  const pct=Math.max(0,Math.round(100-s*2)); // CI 기준 50편차=0점
+  const label=s<5?'⭐ 완벽':s<15?'✅ 균형':s<30?'🟡 양호':s<50?'⚠️ 불균형':'❌ 심한불균형';
+  const color=s<5?'#00C896':s<15?'#4CAF50':s<30?'#FFB74D':s<50?'var(--warn)':'var(--danger)';
+  return {std:s,label,color,pct};
+}
+
+// ── 게이지 ──
 function _balRenderGauge(){
   const el=document.getElementById('bal-gauge');
   if(!el||!_balResult) return;
-  const isDuo=_balType==='duo';
-  const isTeam=_balType==='team';
-  const pal=['#00C896','#FF7043','#4FC3F7','#FFB74D','#AED581','#CE93D8'];
+  const pal=['#4FC3F7','#AED581','#FFB74D','#F48FB1','#CE93D8','#80CBC4'];
+  const teamPal=['#00C896','#FF7043'];
 
-  let groups=[], scores=[], labels=[];
-
-  if(isTeam){
-    groups=[_balResult.teamA,_balResult.teamB];
-    scores=groups.map(g=>_balGroupCI(g));
-    labels=['A팀','B팀'];
+  let groups=[],scores=[],labels=[],memberLists=[];
+  if(_balType==='individual'){
+    (_balResult.groups||[]).forEach((g,gi)=>{
+      const sc=Math.round(g.players.reduce((s,p)=>s+(p.score||0),0)/(g.players.length||1));
+      groups.push(g); scores.push(sc); labels.push(g.name);
+      memberLists.push(g.players.map(p=>p.name).join('·'));
+    });
+  } else if(_balType==='duo'){
+    (_balResult.teams||[]).forEach((t,ti)=>{
+      const avgPairCI=pair=>((pair.p1?.score||0)+(pair.p2?.score||0))/(pair.p2?2:1);
+      const sc=Math.round(t.pairs.reduce((s,p)=>s+avgPairCI(p),0)/(t.pairs.length||1));
+      scores.push(sc); labels.push(t.name);
+      memberLists.push(t.pairs.map(p=>p.p2?`${p.p1.name}/${p.p2.name}`:p.p1.name).join(' · '));
+    });
   } else {
-    groups=((_balResult.groups)||[]).map(g=>isDuo?g.teams:g.players);
-    scores=groups.map(g=>_balGroupCI(g));
-    labels=(_balResult.groups||[]).map(g=>g.name);
+    const{teamA,teamB}=_balResult;
+    const sc=(arr)=>Math.round(arr.reduce((s,p)=>s+(p.score||0),0)/(arr.length||1));
+    scores=[sc(teamA),sc(teamB)]; labels=['A팀','B팀'];
+    memberLists=[teamA.map(p=>p.name+(p.captain?'⭐':'')).join('·'),teamB.map(p=>p.name+(p.captain?'⭐':'')).join('·')];
   }
 
-  const grade   = _calcBalanceGrade(scores);
-  const maxScore= Math.max(...scores,1);
+  const grade=_calcBalanceGrade(scores);
+  const maxSc=Math.max(...scores,1);
 
-  // 상단 등급 + 균형점수
-  let html=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
     <div>
-      <div style="font-size:.76rem;color:var(--text-muted);">밸런스 등급</div>
+      <div style="font-size:.73rem;color:var(--text-muted);">밸런스 등급</div>
       <div style="font-size:1rem;font-weight:800;color:${grade.color};">${grade.label}</div>
     </div>
     <div style="text-align:right;">
-      <div style="font-size:.76rem;color:var(--text-muted);">균형 점수</div>
-      <div style="font-size:1.4rem;font-weight:900;color:${grade.color};line-height:1;">${grade.pct}</div>
+      <div style="font-size:.73rem;color:var(--text-muted);">균형 점수</div>
+      <div style="font-size:1.5rem;font-weight:900;color:${grade.color};line-height:1;">${grade.pct}</div>
     </div>
-  </div>`;
-
-  // 균형 바 (전체 스펙트럼)
-  html+=`<div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:14px;">
+  </div>
+  <div style="height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:14px;">
     <div style="height:100%;width:${grade.pct}%;background:${grade.color};border-radius:3px;transition:width .5s;"></div>
   </div>`;
 
-  // 조/팀별 막대
-  groups.forEach((members,gi)=>{
-    const sc=scores[gi];
-    const pct=maxScore>0?Math.round(sc/maxScore*100):0;
-    const color=isTeam?pal[gi]:pal[gi%pal.length];
-    const names=isTeam
-      ? members.map(p=>p.name+(p.captain?'⭐':'')).join('·')
-      : isDuo
-        ? members.map(t=>t.p2_name?`${t.p1_name}/${t.p2_name}`:t.p1_name).join('·')
-        : members.map(p=>p.name).join('·');
+  scores.forEach((sc,gi)=>{
+    const color=_balType==='team'?teamPal[gi]:pal[gi%pal.length];
+    const pct=Math.round(sc/maxSc*100);
     html+=`<div style="margin-bottom:9px;">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;">
-        <div style="font-size:.78rem;font-weight:700;color:${color};">${labels[gi]}</div>
-        <div style="font-size:.72rem;color:var(--text-muted);">${names}</div>
-        <div style="font-size:.78rem;font-weight:700;color:${color};margin-left:8px;">${sc}</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+        <div style="font-size:.78rem;font-weight:700;color:${color};min-width:30px;">${labels[gi]}</div>
+        <div style="font-size:.7rem;color:var(--text-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${memberLists[gi]}</div>
+        <div style="font-size:.75rem;font-weight:700;color:${color};margin-left:4px;">CI ${sc}</div>
       </div>
       <div style="height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;">
         <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width .4s;"></div>
@@ -4368,166 +4465,175 @@ function _balRenderGauge(){
     </div>`;
   });
 
-  // 개인별 점수 상세 토글
-  html+=`<button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'"
-    style="font-size:.72rem;color:var(--text-muted);background:none;border:none;cursor:pointer;margin-top:4px;padding:0;">
-    ▼ 개인 CI 점수 보기
-  </button>
-  <div style="display:none;margin-top:8px;">`;
-
-  const allPlayers = isTeam
-    ? [..._balResult.teamA,..._balResult.teamB]
-    : (_balResult.groups||[]).flatMap(g=>isDuo?g.teams:g.players);
-  const sorted = [...allPlayers].sort((a,b)=>_balScore(b)-_balScore(a));
-
-  html+=`<div style="display:flex;flex-direction:column;gap:3px;">`;
-  sorted.forEach((p,i)=>{
-    const sc=_balScore(p);
-    const name=isDuo&&!isTeam?(p.p2_name?`${p.p1_name}/${p.p2_name}`:p.p1_name):p.name+(p.captain?'⭐':'');
-    const wr=p.wr??p.score??0;
-    const diff=p.diff??0;
-    html+=`<div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:var(--surface);border-radius:6px;">
-      <span style="font-size:.65rem;color:var(--text-muted);min-width:14px;">${i+1}</span>
-      <span style="flex:1;font-size:.75rem;font-weight:600;">${name}</span>
-      <span style="font-size:.65rem;color:var(--text-muted);">${wr}%</span>
-      <span style="font-size:.65rem;color:${diff>=0?'#00C896':'var(--danger)'};">${diff>=0?'+':''}${diff}</span>
-      <span style="font-size:.72rem;font-weight:700;color:var(--primary);min-width:28px;text-align:right;">${sc}</span>
-    </div>`;
-  });
-  html+=`</div></div>`;
-
   el.innerHTML=html;
 }
 
-// ── 수정 영역 렌더 ──
+// ── 수정 영역 ──
 function _balRenderEdit(){
   const el=document.getElementById('bal-edit');
   if(!el||!_balResult) return;
-  const isTeam=_balType==='team';
-  const isDuo=_balType==='duo';
-  const pal=['#00C896','#FF7043','#4FC3F7','#FFB74D','#AED581','#CE93D8'];
+  const pal=['#4FC3F7','#AED581','#FFB74D','#F48FB1','#CE93D8','#80CBC4'];
+  const teamPal=['#00C896','#FF7043'];
   let html='';
 
-  if(isTeam){
-    html+=`<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:8px;">🔀 버튼으로 팀 이동 · 이동 즉시 균형 재계산</div>`;
-    html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">`;
-    ['A','B'].forEach((side,si)=>{
-      const color=pal[si];
-      const members=side==='A'?_balResult.teamA:_balResult.teamB;
-      html+=`<div style="background:var(--bg2);border:1px solid ${color}40;border-radius:10px;padding:10px;">
-        <div style="font-size:.78rem;font-weight:700;color:${color};margin-bottom:7px;">${side}팀 (${members.length}명)</div>
-        <div style="display:flex;flex-direction:column;gap:4px;">`;
-      members.forEach((p,pi)=>{
-        const sc=_balScore(p);
-        const arrow=side==='A'?'→B':'←A';
-        html+=`<div style="display:flex;align-items:center;gap:5px;background:var(--surface);border-radius:7px;padding:5px 8px;">
-          <div style="width:3px;align-self:stretch;background:${p.captain?color:'rgba(120,120,130,.3)'};border-radius:2px;"></div>
-          <span style="flex:1;font-size:.77rem;${p.captain?'font-weight:700;color:'+color+';':''}">${p.captain?'⭐':''} ${p.name}</span>
-          <span style="font-size:.63rem;color:var(--text-muted);">CI ${sc}</span>
-          ${!p.captain?`<button onclick="balMoveTeam('${side}',${pi})" style="font-size:.68rem;padding:2px 7px;border:1px solid var(--border);border-radius:5px;cursor:pointer;background:var(--bg3);color:var(--text-muted);">${arrow}</button>`:''}
-        </div>`;
-      });
-      html+=`</div></div>`;
-    });
-    html+=`</div>`;
-  } else if(!isDuo){
-    // 개인전 조별 수정
-    html+=`<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:8px;">🔀 버튼으로 조 이동</div>`;
+  if(_balType==='individual'){
+    html+=`<div style="font-size:.76rem;color:var(--text-muted);margin-bottom:8px;">🔀 선수 클릭 → 다른 조로 이동. 이동 즉시 균형 재계산.</div>`;
     html+=`<div style="display:flex;flex-direction:column;gap:6px;">`;
     (_balResult.groups||[]).forEach((g,gi)=>{
       const color=pal[gi%pal.length];
+      const avgCI=Math.round(g.players.reduce((s,p)=>s+(p.score||0),0)/(g.players.length||1));
       html+=`<div style="background:var(--bg2);border:1px solid ${color}40;border-radius:10px;padding:10px;">
-        <div style="font-size:.78rem;font-weight:700;color:${color};margin-bottom:6px;">${g.name} (${g.players.length}명)</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+          <div style="font-size:.78rem;font-weight:700;color:${color};">${g.name} <span style="font-weight:400;color:var(--text-muted);font-size:.7rem;">(${g.players.length}명)</span></div>
+          <div style="font-size:.72rem;color:${color};">평균 CI ${avgCI}</div>
+        </div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;">`;
       g.players.forEach((p,pi)=>{
-        const sc=_balScore(p);
         html+=`<div style="display:flex;align-items:center;gap:4px;background:var(--surface);border-radius:7px;padding:4px 8px;">
-          <span style="font-size:.77rem;">${p.name}</span>
-          <span style="font-size:.62rem;color:var(--text-muted);">CI ${sc}</span>
+          <span style="font-size:.77rem;font-weight:600;">${p.name}</span>
+          <span style="font-size:.63rem;color:var(--text-muted);">CI ${p.score||0}</span>
           <button onclick="balShowGroupMove(${gi},${pi},this)" style="font-size:.65rem;padding:1px 6px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--bg3);color:var(--text-muted);">🔀</button>
         </div>`;
       });
       html+=`</div></div>`;
     });
     html+=`</div>`;
-  } else {
-    // 듀오전 - 간략 표시
-    html+=`<div style="font-size:.78rem;color:var(--text-muted);">듀오전은 자동 배분만 지원됩니다.</div>`;
+
+  } else if(_balType==='duo'){
+    html+=`<div style="font-size:.76rem;color:var(--text-muted);margin-bottom:8px;">팀(조) 간 페어 이동 가능.</div>`;
+    html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">`;
+    (_balResult.teams||[]).forEach((t,ti)=>{
+      const color=teamPal[ti%teamPal.length];
+      const avgCI=Math.round(t.pairs.reduce((s,p)=>s+((p.p1?.score||0)+(p.p2?.score||0))/(p.p2?2:1),0)/(t.pairs.length||1));
+      html+=`<div style="background:var(--bg2);border:1px solid ${color}40;border-radius:10px;padding:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+          <div style="font-size:.78rem;font-weight:700;color:${color};">${t.name}</div>
+          <div style="font-size:.72rem;color:${color};">CI ${avgCI}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">`;
+      t.pairs.forEach((pair,pi)=>{
+        const pairCI=Math.round(((pair.p1?.score||0)+(pair.p2?.score||0))/(pair.p2?2:1));
+        const arrow=ti===0?'→B':'←A';
+        html+=`<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:4px;align-items:center;background:var(--surface);border-radius:7px;padding:5px 7px;">
+          <div style="background:${color}18;border-radius:5px;padding:3px 6px;text-align:center;">
+            <div style="font-size:.72rem;font-weight:600;">${pair.p1?.name||'—'}</div>
+            <div style="font-size:.6rem;color:var(--text-muted);">CI ${pair.p1?.score||0}</div>
+          </div>
+          <div style="background:${color}18;border-radius:5px;padding:3px 6px;text-align:center;">
+            <div style="font-size:.72rem;font-weight:600;">${pair.p2?.name||'미정'}</div>
+            <div style="font-size:.6rem;color:var(--text-muted);">CI ${pair.p2?.score||0}</div>
+          </div>
+          <button onclick="balDuoMovePair(${ti},${pi})" style="font-size:.65rem;padding:2px 6px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--bg3);color:var(--text-muted);">${arrow}</button>
+        </div>`;
+      });
+      html+=`</div></div>`;
+    });
+    html+=`</div>`;
+
+  } else { // team
+    html+=`<div style="font-size:.76rem;color:var(--text-muted);margin-bottom:8px;">🔀 버튼으로 팀 이동 · 이동 즉시 균형 재계산.</div>`;
+    html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">`;
+    ['A','B'].forEach((side,si)=>{
+      const color=teamPal[si];
+      const members=si===0?_balResult.teamA:_balResult.teamB;
+      const avgCI=Math.round(members.reduce((s,p)=>s+(p.score||0),0)/(members.length||1));
+      html+=`<div style="background:var(--bg2);border:1px solid ${color}40;border-radius:10px;padding:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+          <div style="font-size:.78rem;font-weight:700;color:${color};">${side}팀 (${members.length}명)</div>
+          <div style="font-size:.72rem;color:${color};">평균 CI ${avgCI}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">`;
+      members.forEach((p,pi)=>{
+        const arrow=side==='A'?'→B':'←A';
+        html+=`<div style="display:flex;align-items:center;gap:5px;background:var(--surface);border-radius:7px;padding:5px 8px;">
+          <div style="width:3px;align-self:stretch;background:${p.captain?color:'rgba(120,120,130,.3)'};border-radius:2px;"></div>
+          <span style="flex:1;font-size:.77rem;${p.captain?'font-weight:700;color:'+color+';':''}">${p.captain?'⭐':''} ${p.name}</span>
+          <span style="font-size:.63rem;color:var(--text-muted);">CI ${p.score||0}</span>
+          ${!p.captain?`<button onclick="balMoveTeam('${side}',${pi})" style="font-size:.68rem;padding:2px 7px;border:1px solid var(--border);border-radius:5px;cursor:pointer;background:var(--bg3);color:var(--text-muted);">${arrow}</button>`:''}
+        </div>`;
+      });
+      html+=`</div></div>`;
+    });
+    html+=`</div>`;
   }
 
   el.innerHTML=html;
 }
 
-// ── 팀 이동 ──
-function balMoveTeam(fromSide, idx){
-  if(!_balResult) return;
+// ── 이동 동작 ──
+function balMoveTeam(fromSide,idx){
   const from=fromSide==='A'?_balResult.teamA:_balResult.teamB;
   const to  =fromSide==='A'?_balResult.teamB:_balResult.teamA;
-  const [p]=from.splice(idx,1);
-  to.push(p);
-  _balRenderGauge();
-  _balRenderEdit();
+  const [p]=from.splice(idx,1); to.push(p);
+  _balRenderStep2();
+}
+function balDuoMovePair(fromTi,pi){
+  const teams=_balResult.teams;
+  const toTi=fromTi===0?1:0;
+  const [pair]=teams[fromTi].pairs.splice(pi,1);
+  teams[toTi].pairs.push(pair);
+  _balRenderStep2();
 }
 
-// ── 조 이동 팝업 ──
-function balShowGroupMove(gi, pi, btn){
+let _balGrpMoveCtx=null;
+function balShowGroupMove(gi,pi,btn){
   document.querySelectorAll('.bal-gpopup').forEach(e=>e.remove());
-  const groups=_balResult?.groups;
-  if(!groups) return;
   const pop=document.createElement('div');
   pop.className='bal-gpopup';
   pop.style.cssText='position:absolute;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px;z-index:200;box-shadow:0 4px 16px rgba(0,0,0,.35);right:0;top:100%;';
-  pop.innerHTML=groups.filter((_,i)=>i!==gi).map(g=>`
-    <button onclick="balMoveGroup(${gi},${pi},'${g.name}');document.querySelectorAll('.bal-gpopup').forEach(e=>e.remove())"
-      style="display:block;width:100%;padding:5px 14px;background:none;border:none;color:var(--text);font-size:.78rem;cursor:pointer;text-align:left;border-radius:5px;font-family:inherit;white-space:nowrap;">
-      ${g.name}으로 이동
-    </button>`).join('');
-  btn.style.position='relative';
-  btn.appendChild(pop);
+  (_balResult.groups||[]).filter((_,i)=>i!==gi).forEach(g=>{
+    const b=document.createElement('button');
+    b.textContent=`${g.name}으로 이동`;
+    b.style.cssText='display:block;width:100%;padding:5px 14px;background:none;border:none;color:var(--text);font-size:.78rem;cursor:pointer;text-align:left;border-radius:5px;font-family:inherit;white-space:nowrap;';
+    b.onclick=(e)=>{e.stopPropagation();balMoveGroup(gi,pi,g.name);document.querySelectorAll('.bal-gpopup').forEach(e=>e.remove());};
+    pop.appendChild(b);
+  });
+  btn.style.position='relative'; btn.appendChild(pop);
   setTimeout(()=>document.addEventListener('click',()=>document.querySelectorAll('.bal-gpopup').forEach(e=>e.remove()),{once:true}),0);
 }
-
-function balMoveGroup(fromGi, pi, toName){
-  const groups=_balResult?.groups;
-  if(!groups) return;
-  const toGi=groups.findIndex(g=>g.name===toName);
+function balMoveGroup(fromGi,pi,toName){
+  const toGi=(_balResult.groups||[]).findIndex(g=>g.name===toName);
   if(toGi<0) return;
-  const [p]=groups[fromGi].players.splice(pi,1);
-  groups[toGi].players.push(p);
-  _balRenderGauge();
-  _balRenderEdit();
+  const [p]=_balResult.groups[fromGi].players.splice(pi,1);
+  _balResult.groups[toGi].players.push(p);
+  _balRenderStep2();
 }
 
 // ── 저장 ──
 async function balSave(){
-  if(!_balResult){ toast('먼저 밸런스 분석을 실행하세요','error'); return; }
+  if(!_balResult){toast('먼저 밸런스 분석을 실행하세요','error');return;}
   const today=new Date().toISOString().slice(0,10);
   const typeLabel={individual:'개인전',duo:'듀오전',team:'팀장전'};
   const name=`⚖️ ${today} ${_balAttendees.length}명 ${typeLabel[_balType]||''}`;
-  const isTeam=_balType==='team';
-  const isDuo=_balType==='duo';
-
   let groupsData;
-  if(isTeam){
-    groupsData={
-      groups:[], knockout:[], rounds:[],
+  if(_balType==='team'){
+    groupsData={groups:[],knockout:[],rounds:[],
       teams:[
-        {name:'A팀', captain:(_balResult.teamA.find(p=>p.captain)||{}).name||null, members:_balResult.teamA.map(p=>p.name)},
-        {name:'B팀', captain:(_balResult.teamB.find(p=>p.captain)||{}).name||null, members:_balResult.teamB.map(p=>p.name)}
-      ]
+        {name:'A팀',captain:(_balResult.teamA.find(p=>p.captain)||{}).name||null,members:_balResult.teamA.map(p=>p.name)},
+        {name:'B팀',captain:(_balResult.teamB.find(p=>p.captain)||{}).name||null,members:_balResult.teamB.map(p=>p.name)}
+      ]};
+  } else if(_balType==='duo'){
+    // 팀별 페어를 group 형태로 저장
+    groupsData={
+      groups:(_balResult.teams||[]).map(t=>({
+        name:t.name,
+        teams:t.pairs.map(pair=>({
+          p1_name:pair.p1?.name||'',p1_id:pair.p1?.id||null,
+          p2_name:pair.p2?.name||'',p2_id:pair.p2?.id||null
+        })),
+        matches:[]
+      })),
+      knockout:[],rounds:[],teams:[]
     };
   } else {
-    groupsData={groups:_balResult.groups||[], knockout:[], rounds:[], teams:[]};
+    groupsData={groups:_balResult.groups,knockout:[],rounds:[],teams:[]};
   }
-
   const{data,error}=await sb.from('bracket_tournaments').insert({
-    name, match_date:today, status:'balance',
-    tournament_type:_balType, rounds:JSON.stringify([]),
-    groups:JSON.stringify(groupsData), created_by:ME.id
+    name,match_date:today,status:'balance',
+    tournament_type:_balType,rounds:JSON.stringify([]),
+    groups:JSON.stringify(groupsData),created_by:ME.id
   }).select().single();
-
-  if(error){ toast('저장 실패: '+error.message,'error'); return; }
-  addLog?.(`밸런스 저장: ${name}`, ME.id);
+  if(error){toast('저장 실패: '+error.message,'error');return;}
   toast('✅ 밸런스 저장 완료','success');
   toggleBalanceForm();
   renderBracketPage();
@@ -4586,11 +4692,12 @@ async function _loadBfAttendees(){
   window._bfUsersMap={};
   window._bfAllUsers=[];
   // 정회원 로드
-  const{data:users}=await sb.from('profiles').select('id,name,wins,losses,games').eq('status','approved').order('name');
+  const{data:users}=await sb.from('profiles').select('id,name,wins,losses,games,scored,conceded').eq('status','approved').order('name');
   (users||[]).forEach(u=>{
-    const wr=u.games>0?Math.round((u.wins||0)/u.games*100):0;
-    window._bfUsersMap[u.id]={id:u.id,name:u.name,score:wr,wr};
-    window._bfAllUsers.push({...u,isGuest:false});
+    const diff=(u.scored||0)-(u.conceded||0);
+    const ci=calcCI(u.wins||0,u.games||0,diff);
+    window._bfUsersMap[u.id]={id:u.id,name:u.name,score:Math.round(ci),ci,wins:u.wins||0,losses:u.losses||0,games:u.games||0,scored:u.scored||0,conceded:u.conceded||0,diff};
+    window._bfAllUsers.push({...u,diff,ci,isGuest:false});
   });
   // 비회원 로드 (게스트모드 제외)
   const guestModeNames=await _loadGuestModeNames();
