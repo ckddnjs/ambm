@@ -182,11 +182,11 @@ function toggleDarkMode(){
   setTimeout(()=>document.body.style.transition='',350);
 }
 function _updateDmUI(isLight){
-  const icon=document.getElementById('dm-icon'); const btn=document.getElementById('btn-darkmode');
-  if(icon) icon.textContent=isLight?'☀️':'🌙';
+  const icon=document.getElementById('dm-icon'); const label=document.getElementById('dm-label'); const btn=document.getElementById('btn-darkmode');
+  if(icon) icon.textContent=isLight?'☀️':'🌙'; if(label) label.textContent=isLight?'밝음':'다크';
   if(btn){btn.style.background=isLight?'rgba(255,255,255,.6)':'rgba(0,0,0,.25)';btn.style.color=isLight?'#1a202c':'#fff';btn.style.borderColor=isLight?'rgba(0,0,0,.15)':'rgba(255,255,255,.15)';}
-  const icon2=document.getElementById('dm-icon-app');
-  if(icon2) icon2.textContent=isLight?'☀️':'🌙';
+  const icon2=document.getElementById('dm-icon-app'); const label2=document.getElementById('dm-label-app');
+  if(icon2) icon2.textContent=isLight?'☀️':'🌙'; if(label2) label2.textContent=isLight?'밝음':'다크';
 }
 function initTheme(){
   const saved=localStorage.getItem('theme');
@@ -274,7 +274,7 @@ function navigateTo(page){
     case 'feed':renderFeed();break;
     case 'register':break; // 모달로 대체
     case 'admin':renderAdminPage();break;
-    case 'tournament':renderTournamentPage();break; // renderBracketPage alias
+    case 'tournament':renderTournamentPage();break;
     case 'bracket':navigateTo('tournament');break;
     case 'community':renderCommunityPage();break;
     case 'compare':renderComparePage();break;
@@ -969,8 +969,10 @@ async function renderRankTable(allMatches){
   const{data:users}=await sb.from('profiles').select('*').eq('status','approved');
   if(!users) return;
   const excludedIds=new Set(users.filter(u=>u.exclude_stats).map(u=>u.id));
+  // 게스트 모드 이름 목록 로드 (관리자가 설정한 랭킹 미반영 비회원 이름들)
+  const guestModeNames=await _loadGuestModeNames();
   const userStats={};
-  users.filter(u=>!u.exclude_stats).forEach(u=>{userStats[u.id]={id:u.id,name:u.name,games:0,wins:0,losses:0,scored:0,conceded:0,isGuest:false};});
+  users.filter(u=>!u.exclude_stats).forEach(u=>{userStats[u.id]={id:u.id,name:u.name,games:0,wins:0,losses:0,scored:0,conceded:0,isGuest:false,isGuestMode:false};});
   const filtered=rankTab==='all'?allMatches:allMatches.filter(m=>m.match_type===rankTab);
   filtered.forEach(m=>{
     const aWin=m.score_a>m.score_b;
@@ -989,13 +991,14 @@ async function renderRankTable(allMatches){
      {id:m.b1_id,name:m.b1_name,win:!aWin,s:m.score_b,c:m.score_a},
      {id:m.b2_id,name:m.b2_name,win:!aWin,s:m.score_b,c:m.score_a}]
     .filter(p=>!p.id&&p.name).forEach(p=>{
+      const isGM=guestModeNames.has(p.name);
+      if(isGM) return; // 게스트 모드(랭킹 미반영) 이름은 랭킹에서 완전 제외
       const key='name:'+p.name;
-      if(!userStats[key]) userStats[key]={id:key,name:p.name,games:0,wins:0,losses:0,scored:0,conceded:0,isGuest:true};
+      if(!userStats[key]) userStats[key]={id:key,name:p.name,games:0,wins:0,losses:0,scored:0,conceded:0,isGuest:true,isGuestMode:false};
       userStats[key].games++;
       if(p.win)userStats[key].wins++;else userStats[key].losses++;
       userStats[key].scored+=p.s;userStats[key].conceded+=p.c;
     });
-  });
   Object.values(userStats).forEach(u=>{u.diff=u.scored-u.conceded;u.ci=calcCI(u.wins,u.games,u.diff);});
   let sorted=Object.values(userStats).filter(u=>u.games>0);
   const wr=u=>u.games>0?u.wins/u.games:0;
@@ -1028,7 +1031,10 @@ async function renderRankTable(allMatches){
     const wr=u.games>0?Math.round(u.wins/u.games*100)+'%':'0%';
     const diff=`<span style="${diffColor(u.diff)}">${u.diff>0?'+':''}${u.diff}</span>`;
     const ciVal=`<span style="font-weight:700;">${Math.round(u.ci)}</span>`;
-    const guestBadge=u.isGuest?`<span style="font-size:.58rem;background:rgba(255,152,0,.15);border:1px solid rgba(255,152,0,.3);color:#E65100;border-radius:6px;padding:1px 4px;margin-left:3px;vertical-align:middle;">비회원</span>`:'';
+    const guestBadge=u.isGuest?(u.isGuestMode
+      ?`<span style="font-size:.58rem;background:rgba(255,152,0,.15);border:1px solid rgba(255,152,0,.3);color:#E65100;border-radius:6px;padding:1px 4px;margin-left:3px;vertical-align:middle;">👻</span>`
+      :`<span style="font-size:.58rem;background:rgba(255,152,0,.15);border:1px solid rgba(255,152,0,.3);color:#E65100;border-radius:6px;padding:1px 4px;margin-left:3px;vertical-align:middle;">비</span>`)
+      :'';
     return `<tr class="${u.id===ME.id?'me':''}" ${!isRanked?'style="opacity:0.55;"':''}>
     <td>${rankCell}</td>
     <td><span class="rank-name" onclick="goToFeedByName('${u.name.replace(/'/g,"\\'")}')">${u.name}</span>${guestBadge}</td>
@@ -1683,15 +1689,25 @@ async function submitMatch(){
 function renderAdminPage(){switchAdminTab(adminTab);}
 function switchAdminTab(tab){
   adminTab=tab;
-  document.querySelectorAll('#page-admin .sub-tab').forEach((el,i)=>el.classList.toggle('active',['pending','members','logs'][i]===tab));
+  // onclick 속성으로 탭 매칭 (인덱스 방식보다 안전)
+  document.querySelectorAll('#page-admin .sub-tab').forEach(el=>{
+    const m=el.getAttribute('onclick')?.match(/switchAdminTab\('(\w+)'\)/);
+    el.classList.toggle('active', m&&m[1]===tab);
+  });
   switch(tab){case 'pending':renderAdminPending();break;case 'members':renderAdminMembers();break;case 'logs':renderAdminLogs();break;}
 }
 async function renderAdminPending(){
   const el=document.getElementById('admin-content');
+  el.innerHTML=`<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:.82rem;">불러오는 중...</div>`;
   // 가입 대기 회원
-  const{data:pendingUsers}=await sb.from('profiles').select('*').eq('status','pending').order('created_at',{ascending:false});
+  const{data:pendingUsers,error:e1}=await sb.from('profiles').select('*').eq('status','pending').order('created_at',{ascending:false});
   // 경기 승인 대기
-  const{data:matches}=await sb.from('matches').select('*').eq('status','pending').order('created_at',{ascending:false});
+  const{data:matches,error:e2}=await sb.from('matches').select('*').eq('status','pending').order('created_at',{ascending:false});
+
+  if(e1||e2){
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div>불러오기 실패<br><span style="font-size:.72rem;color:var(--danger);">${(e1||e2)?.message||'오류'}</span></div></div>`;
+    return;
+  }
 
   let html='';
 
@@ -1775,7 +1791,6 @@ function filterAdminAll(){
 async function renderAdminMembers(){
   const{data:users}=await sb.from('profiles').select('*').order('created_at',{ascending:false});
   const el=document.getElementById('admin-content');
-  const gLabel=g=>g==='male'?'<span style="color:#2979FF;font-weight:700;">男</span>':g==='female'?'<span style="color:#E91E8C;font-weight:700;">女</span>':'<span style="color:var(--text-muted);">?</span>';
   // 비회원(이름만 있는) 경기 목록에서 이름 추출
   const{data:guestMatches}=await sb.from('matches').select('a1_name,a2_name,b1_name,b2_name,a1_id,a2_id,b1_id,b2_id').eq('status','approved');
   const memberNames=new Set((users||[]).map(u=>u.name));
@@ -1785,25 +1800,10 @@ async function renderAdminMembers(){
     .forEach(p=>{if(p.n&&!p.id&&!memberNames.has(p.n)) guestNames.add(p.n);});
   });
   const guestArr=[...guestNames].sort();
-  const guestSection=guestArr.length?`
-    <div style="background:rgba(255,152,0,.06);border:1px solid rgba(255,152,0,.2);border-radius:10px;padding:10px 12px;margin-bottom:12px;">
-      <div style="font-size:.82rem;font-weight:700;color:#E65100;margin-bottom:8px;">⚠️ 비회원 기록 연계 (${guestArr.length}명)</div>
-      <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:8px;">비회원 이름을 회원과 연계하면, 해당 경기 기록이 회원 이름으로 변경됩니다.</div>
-      <div style="display:flex;flex-direction:column;gap:6px;">
-        ${guestArr.map(nm=>`
-          <div style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 10px;">
-            <span style="flex:0 0 auto;font-size:.82rem;font-weight:600;color:var(--accent);">👤 ${escHtml(nm)}</span>
-            <span style="font-size:.75rem;color:var(--text-muted);">→</span>
-            <select class="form-select" id="link-sel-${escHtml(nm).replace(/[^a-zA-Z0-9가-힣]/g,'_')}" style="flex:1;font-size:.78rem;padding:4px 8px;">
-              <option value="">회원 선택...</option>
-              ${(users||[]).filter(u=>u.status==='approved').map(u=>`<option value="${u.id}|${escHtml(u.name)}">${u.name}</option>`).join('')}
-            </select>
-            <button onclick="linkGuestToMember('${escHtml(nm)}','link-sel-${escHtml(nm).replace(/[^a-zA-Z0-9가-힣]/g,'_')}')" style="font-size:.76rem;padding:4px 10px;background:var(--primary);border:none;border-radius:6px;cursor:pointer;color:#fff;white-space:nowrap;flex-shrink:0;">연계</button>
-          </div>`).join('')}
-      </div>
-    </div>`:
-    '';
-  el.innerHTML=guestSection+`<div class="flex-between mb-2"><span class="text-muted">총 ${(users||[]).length}명</span><button class="btn btn-primary btn-sm" onclick="openCreateUserModal()">➕ 계정 생성</button></div>`+
+  const guestModeNames=await _loadGuestModeNames();
+
+  // 회원 목록
+  const memberSection=`<div class="flex-between mb-2"><span class="text-muted" style="font-size:.82rem;">총 ${(users||[]).length}명</span><button class="btn btn-primary btn-sm" onclick="openCreateUserModal()">➕ 계정 생성</button></div>`+
     (users||[]).map(u=>`<div class="card" style="margin-bottom:8px;padding:10px 12px;">
       <div style="display:flex;align-items:center;gap:8px;">
         <div style="flex:1;min-width:0;">
@@ -1816,6 +1816,98 @@ async function renderAdminMembers(){
         </div>
       </div>
     </div>`).join('');
+
+  // 비회원 관리 섹션 (회원 목록 아래)
+  const guestSection=guestArr.length?`
+    <div style="margin-top:16px;">
+      <div style="font-size:.84rem;font-weight:700;color:var(--text);margin-bottom:10px;padding-top:12px;border-top:1px solid var(--border);">👻 비회원 관리 (${guestArr.length}명)</div>
+
+      <!-- 기록 연계 -->
+      <div style="background:rgba(41,121,255,.05);border:1px solid rgba(41,121,255,.15);border-radius:10px;padding:10px 12px;margin-bottom:10px;">
+        <div style="font-size:.78rem;font-weight:700;color:var(--info);margin-bottom:6px;">🔗 기록 연계</div>
+        <div style="font-size:.73rem;color:var(--text-muted);margin-bottom:8px;">비회원 이름을 회원과 연계하면 해당 경기 기록이 회원 이름으로 변경됩니다.</div>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          ${guestArr.map(nm=>{
+            const safeId=nm.replace(/[^a-zA-Z0-9가-힣]/g,'_');
+            return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;">
+              <span style="flex:0 0 auto;font-size:.82rem;font-weight:600;min-width:60px;">${escHtml(nm)}</span>
+              <select class="form-select" id="link-sel-${safeId}" style="flex:1;font-size:.76rem;padding:3px 7px;">
+                <option value="">회원 선택...</option>
+                ${(users||[]).filter(u=>u.status==='approved').map(u=>`<option value="${u.id}|${escHtml(u.name)}">${u.name}</option>`).join('')}
+              </select>
+              <button onclick="linkGuestToMember('${escHtml(nm)}','link-sel-${safeId}')" style="font-size:.73rem;padding:3px 8px;background:var(--primary);border:none;border-radius:6px;cursor:pointer;color:#fff;white-space:nowrap;flex-shrink:0;">연계</button>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- 게스트 모드 (랭킹 미반영) -->
+      <div style="background:rgba(255,152,0,.05);border:1px solid rgba(255,152,0,.2);border-radius:10px;padding:10px 12px;">
+        <div style="font-size:.78rem;font-weight:700;color:#E65100;margin-bottom:6px;">👻 게스트 모드 (랭킹 미반영)</div>
+        <div style="font-size:.73rem;color:var(--text-muted);margin-bottom:8px;">체크된 이름은 경기 기록은 유지되지만 전체 랭킹에서 제외됩니다.</div>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          ${guestArr.map(nm=>{
+            const isGM=guestModeNames.has(nm);
+            const safeId='gm-'+nm.replace(/[^a-zA-Z0-9가-힣]/g,'_');
+            return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;">
+              <input type="checkbox" id="${safeId}" ${isGM?'checked':''} onchange="toggleGuestMode('${escHtml(nm)}',this.checked)" style="width:16px;height:16px;cursor:pointer;flex-shrink:0;">
+              <label for="${safeId}" style="font-size:.82rem;cursor:pointer;flex:1;">${escHtml(nm)}</label>
+              <span style="font-size:.7rem;color:${isGM?'#E65100':'var(--text-dim)'};">${isGM?'👻 랭킹 제외':'랭킹 반영'}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>`:
+    '<div style="margin-top:8px;font-size:.8rem;color:var(--text-muted);text-align:center;padding:8px 0;">비회원 기록 없음</div>';
+
+  el.innerHTML=memberSection+guestSection;
+}
+
+// ── 게스트 모드 이름 저장소 (Supabase logs 테이블 활용 or localStorage fallback) ──
+// 관리자 설정값 KEY: "guest_mode_names" 로 logs 테이블에 단일 JSON 레코드 저장
+const GUEST_MODE_KEY='__guest_mode_config__';
+
+async function _loadGuestModeNames(){
+  try{
+    const{data}=await sb.from('logs').select('message').eq('user_id',GUEST_MODE_KEY).limit(1).single();
+    if(data?.message){
+      const arr=JSON.parse(data.message);
+      return new Set(arr);
+    }
+  }catch(e){}
+  // fallback: localStorage
+  try{
+    const raw=localStorage.getItem('guest_mode_names');
+    if(raw) return new Set(JSON.parse(raw));
+  }catch(e){}
+  return new Set();
+}
+
+async function _saveGuestModeNames(names){
+  const arr=[...names];
+  const json=JSON.stringify(arr);
+  // localStorage fallback 항상 저장
+  try{ localStorage.setItem('guest_mode_names',json); }catch(e){}
+  // Supabase logs 테이블에 upsert
+  try{
+    const{data:existing}=await sb.from('logs').select('id').eq('user_id',GUEST_MODE_KEY).limit(1).single();
+    if(existing?.id){
+      await sb.from('logs').update({message:json,created_at:nowISO()}).eq('id',existing.id);
+    } else {
+      await sb.from('logs').insert({user_id:GUEST_MODE_KEY,message:json,created_at:nowISO()});
+    }
+  }catch(e){ console.warn('guest mode save error',e); }
+}
+
+async function toggleGuestMode(name, enabled){
+  const names=await _loadGuestModeNames();
+  if(enabled) names.add(name); else names.delete(name);
+  await _saveGuestModeNames(names);
+  toast(enabled?`👻 "${name}" 게스트 모드 설정 (랭킹 제외)`:`"${name}" 랭킹 반영으로 변경`,'success');
+  // 레이블 즉시 업데이트
+  const safeId='gm-'+name.replace(/[^a-zA-Z0-9가-힣]/g,'_');
+  const lbl=document.getElementById(safeId)?.closest('div')?.querySelector('span:last-child');
+  if(lbl){ lbl.style.color=enabled?'#E65100':'var(--text-dim)'; lbl.textContent=enabled?'👻 랭킹 제외':'랭킹 반영'; }
 }
 
 // 비회원 기록을 기존 회원에 연계
@@ -1834,13 +1926,14 @@ async function linkGuestToMember(guestName, selId){
     ];
     let total=0;
     for(const {nameCol,idCol} of cols){
-      // 이름 일치 + id가 null인 기록만
       const{data:rows}=await sb.from('matches').select('id').eq(nameCol,guestName).is(idCol,null);
       if(rows&&rows.length){
         await sb.from('matches').update({[idCol]:memberId,[nameCol]:memberName}).in('id',rows.map(r=>r.id));
         total+=rows.length;
       }
     }
+    // 게스트 모드에 해당 이름이 있으면 제거
+    const gm=await _loadGuestModeNames(); gm.delete(guestName); await _saveGuestModeNames(gm);
     addLog(`비회원 연계: "${guestName}" → "${memberName}" (${total}건)`,ME.id);
     toast(`✅ "${memberName}"에 ${total}건 연계 완료`,'success');
     renderAdminMembers();
@@ -2952,175 +3045,6 @@ function bdCalcStandings(groups, isIndividual){
     });
     g.standings=Object.values(st).sort((a,b)=>b.wins!==a.wins?b.wins-a.wins:b.diff-a.diff);
   });
-}
-
-// ── renderTournamentPage: renderBracketPage의 alias ──
-function renderTournamentPage(){ renderBracketPage(); }
-
-// ── 대회 상세 모달 ──
-async function openBracketDetail(id){
-  _bdId=id;
-  const{data:bt}=await sb.from('bracket_tournaments').select('*').eq('id',id).single();
-  if(!bt){toast('대회 정보를 불러올 수 없습니다','error');return;}
-  _bdData=bt;
-  const titleEl=document.getElementById('bd-title');
-  const contentEl=document.getElementById('bd-content');
-  const actionsEl=document.getElementById('bd-actions');
-  if(titleEl) titleEl.textContent='🎯 '+bt.name;
-  if(!contentEl) return;
-  const isAdmin=ME?.role==='admin';
-  const typeLabel={individual:'👤 개인전',duo:'👥 듀오전',team:'🚩 팀장전'};
-  const statusLabel={plan:'배분중',active:'진행중',league:'진행중',done:'완료'};
-  const data=typeof bt.bracket_data==='string'?JSON.parse(bt.bracket_data||'{}'):bt.bracket_data||{};
-  const groups=data.groups||[];
-  const tType=bt.tournament_type||'individual';
-  const isIndividual=tType==='individual';
-
-  let html=`<div style="font-size:.8rem;color:var(--text-muted);margin-bottom:12px;">
-    📅 ${fmtMatchDate(bt.match_date)} · ${typeLabel[tType]||'대회'} ·
-    <span style="color:${bt.status==='done'?'var(--primary)':bt.status==='plan'?'var(--warn)':'var(--info)'};">${statusLabel[bt.status]||bt.status}</span>
-  </div>`;
-
-  if(bt.winner_name){
-    html+=`<div style="background:rgba(255,215,0,.1);border:1px solid rgba(255,215,0,.3);border-radius:10px;padding:10px 14px;margin-bottom:12px;text-align:center;">
-      <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:2px;">🏆 우승</div>
-      <div style="font-size:1.1rem;font-weight:700;color:#FFD700;">${bt.winner_name}</div>
-    </div>`;
-  }
-
-  // 조별리그 표시
-  if(groups.length){
-    html+=`<div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:10px;">📋 조별 리그</div>`;
-    groups.forEach((g,gi)=>{
-      const gPlayers=isIndividual?(g.players||[]):(g.teams||[]);
-      const gMatches=g.matches||[];
-      bdCalcStandings([g],isIndividual);
-      const standings=g.standings||[];
-
-      html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px;">
-        <div style="font-weight:700;font-size:.88rem;color:var(--primary);margin-bottom:8px;">${g.name}</div>`;
-
-      // 순위표
-      if(standings.length){
-        html+=`<table style="width:100%;font-size:.76rem;border-collapse:collapse;margin-bottom:8px;">
-          <thead><tr style="border-bottom:1px solid var(--border);">
-            <th style="padding:4px 2px;text-align:left;color:var(--text-muted);">순위</th>
-            <th style="padding:4px 2px;text-align:left;color:var(--text-muted);">선수</th>
-            <th style="padding:4px 2px;text-align:center;color:var(--text-muted);">승</th>
-            <th style="padding:4px 2px;text-align:center;color:var(--text-muted);">패</th>
-            <th style="padding:4px 2px;text-align:center;color:var(--text-muted);">득실</th>
-          </tr></thead><tbody>`;
-        standings.forEach((s,si)=>{
-          const nm=isIndividual?s.team.name:(s.team.p2_name?`${s.team.p1_name}/${s.team.p2_name}`:s.team.p1_name);
-          const medal=si===0?'🥇':si===1?'🥈':si===2?'🥉':'';
-          const isPromo=si<2;
-          html+=`<tr style="border-bottom:1px solid var(--border);${isPromo?'color:var(--primary);font-weight:600;':''}">
-            <td style="padding:4px 2px;">${medal||si+1}</td>
-            <td style="padding:4px 2px;">${nm}</td>
-            <td style="padding:4px 2px;text-align:center;">${s.wins}</td>
-            <td style="padding:4px 2px;text-align:center;">${s.losses}</td>
-            <td style="padding:4px 2px;text-align:center;">${s.diff>0?'+':''}${s.diff}</td>
-          </tr>`;
-        });
-        html+=`</tbody></table>`;
-      }
-
-      // 경기 결과
-      const doneMatches=gMatches.filter(m=>m.done);
-      if(doneMatches.length){
-        html+=`<div style="font-size:.74rem;color:var(--text-muted);margin-bottom:4px;">경기 결과 (${doneMatches.length}/${gMatches.length})</div>`;
-        doneMatches.forEach(m=>{
-          const n1=isIndividual?m.p1.name:(m.t1.p2_name?`${m.t1.p1_name}/${m.t1.p2_name}`:m.t1.p1_name);
-          const n2=isIndividual?m.p2.name:(m.t2.p2_name?`${m.t2.p1_name}/${m.t2.p2_name}`:m.t2.p1_name);
-          const w1=parseInt(m.s1)>parseInt(m.s2);
-          html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:3px 4px;font-size:.74rem;border-bottom:1px solid var(--border);">
-            <span style="flex:1;${w1?'font-weight:700;color:var(--text);':'color:var(--text-muted);'}">${n1}</span>
-            <span style="padding:0 8px;font-weight:700;color:var(--primary);">${m.s1}:${m.s2}</span>
-            <span style="flex:1;text-align:right;${!w1?'font-weight:700;color:var(--text);':'color:var(--text-muted);'}">${n2}</span>
-          </div>`;
-        });
-      }
-
-      if(isAdmin){
-        // 관리자: 미완 경기 점수 입력
-        const pendingMatches=gMatches.filter(m=>!m.done);
-        if(pendingMatches.length){
-          html+=`<div style="font-size:.74rem;color:var(--accent);margin-top:6px;margin-bottom:4px;">⏳ 미완료 경기 (${pendingMatches.length})</div>`;
-          pendingMatches.forEach((m,mi)=>{
-            const n1=isIndividual?m.p1.name:(m.t1.p2_name?`${m.t1.p1_name}/${m.t1.p2_name}`:m.t1.p1_name);
-            const n2=isIndividual?m.p2.name:(m.t2.p2_name?`${m.t2.p1_name}/${m.t2.p2_name}`:m.t2.p1_name);
-            const realMi=gMatches.indexOf(m);
-            html+=`<div style="display:flex;align-items:center;gap:4px;padding:4px 0;font-size:.78rem;border-bottom:1px solid var(--border);">
-              <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n1}</span>
-              <input type="number" placeholder="점수" min="0" max="30" id="bd-s1-${gi}-${realMi}" style="width:44px;text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px;font-size:.78rem;color:var(--text);">
-              <span style="color:var(--text-muted);">:</span>
-              <input type="number" placeholder="점수" min="0" max="30" id="bd-s2-${gi}-${realMi}" style="width:44px;text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px;font-size:.78rem;color:var(--text);">
-              <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;">${n2}</span>
-              <button onclick="bdSaveMatchScore('${id}',${gi},${realMi})" style="background:var(--primary);border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:.72rem;cursor:pointer;flex-shrink:0;">저장</button>
-            </div>`;
-          });
-        }
-      }
-
-      html+=`</div>`;
-    });
-  }
-
-  // 본선 토너먼트 (knockout)
-  const knockout=data.knockout||[];
-  if(knockout.length){
-    html+=`<div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:10px;margin-top:4px;">🏆 본선 토너먼트</div>`;
-    html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px;">`;
-    knockout.forEach((round,ri)=>{
-      html+=`<div style="font-size:.78rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;">${round.label||`라운드${ri+1}`}</div>`;
-      (round.matches||[]).forEach((m,mi)=>{
-        const n1=_tl(m.t1)||'TBD', n2=_tl(m.t2)||'TBD';
-        const done=m.done;
-        const w1=done&&parseInt(m.s1)>parseInt(m.s2);
-        html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;font-size:.8rem;border-bottom:1px solid var(--border);">
-          <span style="flex:1;${w1?'font-weight:700;color:var(--text);':'color:var(--text-muted);'}">${n1}</span>
-          <span style="padding:0 8px;font-weight:700;color:${done?'var(--primary)':'var(--text-muted)'};">${done?`${m.s1}:${m.s2}`:'vs'}</span>
-          <span style="flex:1;text-align:right;${done&&!w1?'font-weight:700;color:var(--text);':'color:var(--text-muted);'}">${n2}</span>
-        </div>`;
-      });
-    });
-    html+=`</div>`;
-  }
-
-  if(!groups.length&&!knockout.length){
-    html+=`<div class="empty-state"><div class="empty-icon">📋</div><div>아직 대회 데이터가 없습니다</div></div>`;
-  }
-
-  contentEl.innerHTML=html;
-
-  if(actionsEl){
-    let btns=`<button class="btn btn-ghost" onclick="closeModal('modal-bracket-detail')">닫기</button>`;
-    if(isAdmin&&bt.status!=='done'){
-      btns+=`<button class="btn btn-primary btn-sm" onclick="closeModal('modal-bracket-detail');bdOpenManage('${id}')">⚙️ 관리</button>`;
-    }
-    actionsEl.innerHTML=btns;
-  }
-  openModal('modal-bracket-detail');
-}
-
-async function bdSaveMatchScore(btId,gi,mi){
-  const s1=parseInt(document.getElementById(`bd-s1-${gi}-${mi}`)?.value);
-  const s2=parseInt(document.getElementById(`bd-s2-${gi}-${mi}`)?.value);
-  if(isNaN(s1)||isNaN(s2)){toast('점수를 입력하세요','error');return;}
-  if(s1===s2){toast('동점은 불가','error');return;}
-  const{data:bt}=await sb.from('bracket_tournaments').select('bracket_data').eq('id',btId).single();
-  if(!bt){toast('대회 정보 없음','error');return;}
-  const data=typeof bt.bracket_data==='string'?JSON.parse(bt.bracket_data||'{}'):bt.bracket_data||{};
-  const m=data.groups[gi].matches[mi];
-  m.s1=s1;m.s2=s2;m.done=true;
-  await sb.from('bracket_tournaments').update({bracket_data:JSON.stringify(data)}).eq('id',btId);
-  toast('✅ 저장 완료','success');
-  openBracketDetail(btId);
-}
-
-function bdOpenManage(id){
-  // 관리: 대회 목록으로 돌아가서 관리 UI 열기 (추후 확장)
-  openBracketDetail(id);
 }
 
 // ── 목록 렌더 ──
