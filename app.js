@@ -1718,7 +1718,7 @@ function switchAdminTab(tab){
     const m=el.getAttribute('onclick')?.match(/switchAdminTab\('(\w+)'\)/);
     el.classList.toggle('active', m&&m[1]===tab);
   });
-  switch(tab){case 'pending':renderAdminPending();break;case 'members':renderAdminMembers();break;case 'logs':renderAdminLogs();break;case 'tournamentImport':renderAdminTournamentImport();break;}
+  switch(tab){case 'pending':renderAdminPending();break;case 'members':renderAdminMembers();break;case 'logs':renderAdminLogs();break;case 'tournamentImport':renderAdminTournamentImport();break;case 'matchDelete':renderAdminMatchDelete();break;}
 }
 async function renderAdminPending(){
   const el=document.getElementById('admin-content');
@@ -2347,11 +2347,12 @@ async function tiSubmit(){
     const typeMap={'개인전':'individual','듀오전':'duo','팀전':'team'};
     const tType=result.type||'individual';
     const bracket=_tiBuildBracket(result);
-    // bracket_data 하나에 모든 데이터 저장 (groups, knockout, rounds 통합)
+    // groups 컬럼에 모든 데이터 통합 저장 (knockout, rounds, teams 포함)
     const bracketData={
       groups: bracket.groups,
       knockout: bracket.knockout,
-      rounds: bracket.rounds
+      rounds: bracket.rounds,
+      teams: bracket.teams||[]
     };
     const{data:bt,error:btErr}=await sb.from('bracket_tournaments').insert({
       name,
@@ -2359,8 +2360,7 @@ async function tiSubmit(){
       status: (result.knockout.length>0)?'done':'league',
       tournament_type:tType,
       rounds:JSON.stringify(bracket.rounds),
-      groups:JSON.stringify(bracket.groups),
-      bracket_data:JSON.stringify(bracketData),
+      groups:JSON.stringify(bracketData),
       created_by:ME.id
     }).select().single();
     if(btErr) throw new Error('대회 생성 실패: '+btErr.message);
@@ -2463,9 +2463,24 @@ function _tiBuildBracket(result){
     return{label:st,matches};
   }).filter(Boolean);
 
-  // 팀전 rounds
+  // 팀전 rounds + 팀 구성원 자동 수집
   const rounds=[];
+  const teamMembers={}; // {팀A이름: Set([선수들]), 팀B이름: Set([선수들])}
   if(result.team.length){
+    // 모든 경기에서 팀별 선수 중복제거로 수집
+    result.team.forEach(r=>{
+      // pA/pB는 각 경기의 팀A 선수, pC/pD는 팀B 선수
+      // 팀 이름은 라운드 컬럼의 팀 구분이 없으므로 A팀/B팀으로 구분
+      // slot 컬럼을 팀 이름으로 사용 (없으면 A팀/B팀)
+      const teamAName = r.slot==='R1'||!r.slot ? 'A팀' : (r.slot||'A팀');
+      // 실제로는 선수 이름으로 팀을 구분 - A 컬럼 선수들 vs C 컬럼 선수들
+      if(!teamMembers['A팀']) teamMembers['A팀']={members:new Set(),captain:null};
+      if(!teamMembers['B팀']) teamMembers['B팀']={members:new Set(),captain:null};
+      if(r.pA) teamMembers['A팀'].members.add(r.pA);
+      if(r.pB) teamMembers['A팀'].members.add(r.pB);
+      if(r.pC) teamMembers['B팀'].members.add(r.pC);
+      if(r.pD) teamMembers['B팀'].members.add(r.pD);
+    });
     const byRound={};
     result.team.forEach(r=>{const k=r.round||'R1';if(!byRound[k]) byRound[k]=[];byRound[k].push(r);});
     Object.entries(byRound).forEach(([rnd,rows])=>{
@@ -2473,8 +2488,12 @@ function _tiBuildBracket(result){
       rounds.push({label:rnd,matches});
     });
   }
+  // teamMembers Set → Array 변환
+  const teams=Object.entries(teamMembers).map(([name,info])=>({
+    name, captain:info.captain, members:[...info.members]
+  }));
 
-  return{groups,knockout,rounds};
+  return{groups,knockout,rounds,teams};
 }
 
 function _tiExtractMatches(result){
@@ -2499,6 +2518,116 @@ function _tiExtractMatches(result){
     });
   });
   return records;
+}
+
+
+// ══════════════════════════════════════════════
+//  경기내역 일괄 삭제 (관리자 전용)
+// ══════════════════════════════════════════════
+
+let _delSelectedIds = new Set();
+
+async function renderAdminMatchDelete(){
+  const el = document.getElementById('admin-content');
+  if(!el) return;
+  _delSelectedIds = new Set();
+  el.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+    <div style="font-size:.88rem;font-weight:700;">🗑️ 경기내역 일괄 삭제</div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <span id="del-count-label" style="font-size:.78rem;color:var(--text-muted);">0건 선택</span>
+      <button id="del-all-btn" onclick="delToggleAll()" class="btn btn-ghost btn-sm">전체선택</button>
+      <button onclick="delExecute()" class="btn btn-danger btn-sm" id="del-exec-btn" disabled>🗑️ 삭제</button>
+    </div>
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+    <input id="del-date-f" type="date" class="form-input" style="font-size:.78rem;padding:5px 8px;width:140px;" onchange="renderAdminMatchDelete()">
+    <input id="del-name-f" type="text" class="form-input" placeholder="이름 검색" style="font-size:.78rem;padding:5px 8px;flex:1;min-width:100px;" oninput="renderAdminMatchDelete()">
+  </div>
+  <div id="del-list">불러오는 중...</div>`;
+  await _renderDelList();
+}
+
+async function _renderDelList(){
+  const el = document.getElementById('del-list');
+  if(!el) return;
+  const dateF = document.getElementById('del-date-f')?.value||'';
+  const nameF = (document.getElementById('del-name-f')?.value||'').trim().toLowerCase();
+  let q = sb.from('matches').select('*').eq('status','approved').order('match_date',{ascending:false}).order('created_at',{ascending:false}).limit(300);
+  if(dateF) q = q.eq('match_date', dateF);
+  const {data:matches} = await q;
+  let list = matches||[];
+  if(nameF) list = list.filter(m=>[m.a1_name,m.a2_name,m.b1_name,m.b2_name].some(n=>(n||'').toLowerCase().includes(nameF)));
+  if(!list.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><div>경기 없음</div></div>`;return;}
+
+  let html='<div style="display:flex;flex-direction:column;gap:4px;">';
+  list.forEach(m=>{
+    const sel = _delSelectedIds.has(m.id);
+    const aWin = m.score_a > m.score_b;
+    const aNames=[m.a1_name,m.a2_name].filter(Boolean).join(' / ');
+    const bNames=[m.b1_name,m.b2_name].filter(Boolean).join(' / ');
+    html+=`<div onclick="delToggle('${m.id}',this)" data-id="${m.id}" style="display:flex;align-items:center;gap:8px;background:${sel?'rgba(255,82,82,.12)':'var(--surface)'};border:1.5px solid ${sel?'var(--danger)':'var(--border)'};border-radius:8px;padding:8px 10px;cursor:pointer;transition:all .15s;">
+      <div style="width:18px;height:18px;border-radius:4px;border:2px solid ${sel?'var(--danger)':'var(--border)'};background:${sel?'var(--danger)':'transparent'};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+        ${sel?'<span style="color:#fff;font-size:.7rem;font-weight:900;">✓</span>':''}
+      </div>
+      <span style="font-size:.72rem;color:var(--text-muted);flex-shrink:0;min-width:70px;">${m.match_date||''}</span>
+      <span style="font-size:.8rem;flex:1;${aWin?'font-weight:700;':'color:var(--text-muted);'}">${aNames}</span>
+      <span style="font-size:.85rem;font-weight:900;color:var(--primary);flex-shrink:0;">${m.score_a}:${m.score_b}</span>
+      <span style="font-size:.8rem;flex:1;text-align:right;${!aWin?'font-weight:700;':'color:var(--text-muted);'}">${bNames}</span>
+    </div>`;
+  });
+  html+='</div>';
+  el.innerHTML=html;
+  _updateDelUI();
+}
+
+function delToggle(id, el){
+  if(_delSelectedIds.has(id)) _delSelectedIds.delete(id);
+  else _delSelectedIds.add(id);
+  // 카드 스타일 즉시 업데이트
+  const sel=_delSelectedIds.has(id);
+  el.style.background=sel?'rgba(255,82,82,.12)':'var(--surface)';
+  el.style.borderColor=sel?'var(--danger)':'var(--border)';
+  const box=el.querySelector('div');
+  if(box){box.style.borderColor=sel?'var(--danger)':'var(--border)';box.style.background=sel?'var(--danger)':'transparent';box.innerHTML=sel?'<span style="color:#fff;font-size:.7rem;font-weight:900;">✓</span>':'';}
+  _updateDelUI();
+}
+
+function delToggleAll(){
+  const cards=document.querySelectorAll('#del-list [data-id]');
+  const allIds=[...cards].map(c=>c.dataset.id);
+  const allSelected=allIds.every(id=>_delSelectedIds.has(id));
+  if(allSelected){allIds.forEach(id=>_delSelectedIds.delete(id));}
+  else{allIds.forEach(id=>_delSelectedIds.add(id));}
+  _renderDelList();
+}
+
+function _updateDelUI(){
+  const n=_delSelectedIds.size;
+  const lbl=document.getElementById('del-count-label');
+  const btn=document.getElementById('del-exec-btn');
+  const allBtn=document.getElementById('del-all-btn');
+  if(lbl) lbl.textContent=`${n}건 선택`;
+  if(btn){btn.disabled=n===0;btn.textContent=n>0?`🗑️ ${n}건 삭제`:'🗑️ 삭제';}
+  const cards=document.querySelectorAll('#del-list [data-id]');
+  const allIds=[...cards].map(c=>c.dataset.id);
+  if(allBtn) allBtn.textContent=allIds.length&&allIds.every(id=>_delSelectedIds.has(id))?'전체해제':'전체선택';
+}
+
+async function delExecute(){
+  const ids=[..._delSelectedIds];
+  if(!ids.length) return;
+  showConfirm({
+    icon:'🗑️', title:'경기 삭제', msg:`선택한 ${ids.length}건을 삭제합니다. 복구할 수 없습니다.`,
+    okLabel:'삭제', okClass:'btn-danger',
+    onOk: async()=>{
+      const{error}=await sb.from('matches').delete().in('id',ids);
+      if(error){toast('삭제 실패: '+error.message,'error');return;}
+      addLog(`경기 ${ids.length}건 삭제`,ME.id);
+      toast(`✅ ${ids.length}건 삭제 완료`,'success');
+      _delSelectedIds.clear();
+      renderAdminMatchDelete();
+    }
+  });
 }
 
 async function renderAdminLogs(){
@@ -3482,15 +3611,14 @@ async function openBracketDetail(id){
   const isAdmin=ME?.role==='admin';
   const typeLabel={individual:'👤 개인전',duo:'👥 듀오전',team:'🚩 팀장전'};
   const statusLabel={plan:'배분중',active:'진행중',league:'진행중',done:'완료'};
-  const data=typeof bt.bracket_data==='string'?JSON.parse(bt.bracket_data||'{}'):bt.bracket_data||{};
-  // groups: bracket_data.groups 우선, 없으면 bt.groups 컬럼
-  const rawGroups=data.groups?.length?data.groups:(bt.groups?(typeof bt.groups==='string'?JSON.parse(bt.groups):bt.groups):null);
-  const groups=rawGroups||[];
-  // knockout: bracket_data.knockout 우선
+  // groups 컬럼에 {groups,knockout,rounds,teams} 통합 저장 (일괄입력) 또는 순수 배열 (기존방식)
+  const rawG=bt.groups?(typeof bt.groups==='string'?JSON.parse(bt.groups||'{}'):bt.groups):{};
+  const data=Array.isArray(rawG)?{groups:rawG}:rawG;
+  const groups=data.groups||[];
   const knockout=data.knockout||[];
-  // rounds(팀전): bracket_data.rounds 우선, 없으면 bt.rounds 컬럼
   const rawRounds=data.rounds?.length?data.rounds:(bt.rounds?(typeof bt.rounds==='string'?JSON.parse(bt.rounds||'[]'):bt.rounds):[]);
   const teamRounds=rawRounds||[];
+  const teamsList=data.teams||[];
   const tType=bt.tournament_type||'individual';
   const isIndividual=tType==='individual';
   let html=`<div style="font-size:.8rem;color:var(--text-muted);margin-bottom:12px;">📅 ${fmtMatchDate(bt.match_date)} · ${typeLabel[tType]||'대회'} · <span style="color:${bt.status==='done'?'var(--primary)':bt.status==='plan'?'var(--warn)':'var(--info)'};">${statusLabel[bt.status]||bt.status}</span></div>`;
@@ -3540,17 +3668,89 @@ async function openBracketDetail(id){
     html+=`<div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:10px;margin-top:4px;">🏆 본선 토너먼트</div>`;
     html+=_renderKnockoutBracket(knockout);
   }
-  if(teamRounds.length){
-    html+=`<div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:10px;margin-top:4px;">🚩 팀전 라운드</div>`;
-    html+=_renderTeamRounds(teamRounds);
+  if(teamsList.length||teamRounds.length){
+    html+=`<div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:10px;margin-top:4px;">🚩 팀전</div>`;
+    // 팀 구성원 카드 (팀장 지정 포함)
+    if(teamsList.length){
+      html+=`<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">`;
+      teamsList.forEach((team,ti)=>{
+        const captain=team.captain||'(미지정)';
+        const captainSet=!!team.captain;
+        html+=`<div style="flex:1;min-width:140px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
+          <div style="font-weight:700;font-size:.9rem;margin-bottom:6px;">${team.name}</div>
+          <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:6px;">
+            🚩 팀장: <span style="color:${captainSet?'var(--primary)':'var(--warn)'};font-weight:700;">${captain}</span>
+            ${isAdmin?`<button onclick="bdEditTeamCaptain('${id}',${ti})" style="margin-left:4px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:.68rem;cursor:pointer;color:var(--text-muted);">수정</button>`:''}
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            ${(team.members||[]).map(m=>`<span style="font-size:.74rem;background:var(--bg3);border-radius:12px;padding:2px 8px;">${m}</span>`).join('')}
+          </div>
+        </div>`;
+      });
+      html+=`</div>`;
+    }
+    if(teamRounds.length){
+      html+=_renderTeamRounds(teamRounds);
+    }
   }
-  if(!groups.length&&!knockout.length&&!teamRounds.length) html+=`<div class="empty-state"><div class="empty-icon">📋</div><div>아직 대회 데이터가 없습니다</div></div>`;
-  if(!groups.length&&!knockout.length) html+=`<div class="empty-state"><div class="empty-icon">📋</div><div>아직 대회 데이터가 없습니다</div></div>`;
+  if(!groups.length&&!knockout.length&&!teamsList.length&&!teamRounds.length) html+=`<div class="empty-state"><div class="empty-icon">📋</div><div>아직 대회 데이터가 없습니다</div></div>`;
   contentEl.innerHTML=html;
   if(actionsEl) actionsEl.innerHTML=`<button class="btn btn-ghost" onclick="closeModal('modal-bracket-detail')">닫기</button>`;
   openModal('modal-bracket-detail');
 }
 
+
+// ── 팀장 수정 ──
+async function bdEditTeamCaptain(btId, teamIdx){
+  const{data:bt}=await sb.from('bracket_tournaments').select('groups').eq('id',btId).single();
+  if(!bt){toast('대회 정보 없음','error');return;}
+  const rawG2=bt.groups?(typeof bt.groups==='string'?JSON.parse(bt.groups||'{}'):bt.groups):{};
+  const data=Array.isArray(rawG2)?{}:rawG2;
+  const teams=data.teams||[];
+  const team=teams[teamIdx];
+  if(!team){toast('팀 정보 없음','error');return;}
+  const members=team.members||[];
+  if(!members.length){toast('팀원이 없습니다','error');return;}
+
+  // 팝업: 팀원 목록에서 팀장 선택
+  const btIdSafe=btId.replace(/[^a-zA-Z0-9_-]/g,'');
+  const modalHtml=`
+    <div style="background:var(--modal-bg,var(--surface));border-radius:16px;padding:20px;max-width:320px;width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.4);">
+      <div style="font-weight:700;font-size:.95rem;margin-bottom:4px;">🚩 팀장 지정 — ${team.name}</div>
+      <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:14px;">현재: ${team.captain||'미지정'}</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
+        ${members.map(m=>`
+          <button onclick="bdSetTeamCaptain('${btId}',${teamIdx},'${m}')" style="background:${team.captain===m?'var(--primary)':'var(--bg2)'};color:${team.captain===m?'#fff':'var(--text)'};border:1.5px solid ${team.captain===m?'var(--primary)':'var(--border)'};border-radius:8px;padding:9px 14px;font-size:.88rem;font-weight:600;cursor:pointer;text-align:left;font-family:inherit;">
+            ${team.captain===m?'✅ ':''}${m}
+          </button>`).join('')}
+      </div>
+      <button onclick="document.getElementById('captain-pick-modal').remove()" class="btn btn-ghost" style="width:100%;">닫기</button>
+    </div>`;
+  let overlay=document.getElementById('captain-pick-modal');
+  if(overlay) overlay.remove();
+  overlay=document.createElement('div');
+  overlay.id='captain-pick-modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML=modalHtml;
+  overlay.addEventListener('click',e=>{if(e.target===overlay) overlay.remove();});
+  document.body.appendChild(overlay);
+}
+
+async function bdSetTeamCaptain(btId, teamIdx, captainName){
+  document.getElementById('captain-pick-modal')?.remove();
+  const{data:bt}=await sb.from('bracket_tournaments').select('groups').eq('id',btId).single();
+  if(!bt) return;
+  const rawG3=bt.groups?(typeof bt.groups==='string'?JSON.parse(bt.groups||'{}'):bt.groups):{};
+  const data=Array.isArray(rawG3)?{}:rawG3;
+  const teams=data.teams||[];
+  if(!teams[teamIdx]) return;
+  teams[teamIdx].captain=captainName;
+  data.teams=teams;
+  const{error}=await sb.from('bracket_tournaments').update({groups:JSON.stringify(data)}).eq('id',btId);
+  if(error){toast('저장 실패','error');return;}
+  toast(`✅ ${teams[teamIdx].name} 팀장: ${captainName}`,'success');
+  openBracketDetail(btId);
+}
 
 // ── 본선 토너먼트 시각화 ──
 function _renderKnockoutBracket(knockout){
@@ -3655,11 +3855,13 @@ async function bdSaveMatchScore(btId,gi,mi){
   const s2=parseInt(document.getElementById(`bd-s2-${gi}-${mi}`)?.value);
   if(isNaN(s1)||isNaN(s2)){toast('점수를 입력하세요','error');return;}
   if(s1===s2){toast('동점은 불가','error');return;}
-  const{data:bt}=await sb.from('bracket_tournaments').select('bracket_data').eq('id',btId).single();
+  const{data:bt}=await sb.from('bracket_tournaments').select('groups').eq('id',btId).single();
   if(!bt){toast('대회 정보 없음','error');return;}
-  const data=typeof bt.bracket_data==='string'?JSON.parse(bt.bracket_data||'{}'):bt.bracket_data||{};
+  const rawG4=bt.groups?(typeof bt.groups==='string'?JSON.parse(bt.groups||'{}'):bt.groups):{};
+  const data=Array.isArray(rawG4)?{groups:rawG4}:rawG4;
+  if(!data.groups?.[gi]?.matches?.[mi]){toast('경기 정보 없음','error');return;}
   data.groups[gi].matches[mi].s1=s1;data.groups[gi].matches[mi].s2=s2;data.groups[gi].matches[mi].done=true;
-  await sb.from('bracket_tournaments').update({bracket_data:JSON.stringify(data)}).eq('id',btId);
+  await sb.from('bracket_tournaments').update({groups:JSON.stringify(data)}).eq('id',btId);
   toast('✅ 저장 완료','success');openBracketDetail(btId);
 }
 
@@ -3667,6 +3869,8 @@ async function bdSaveMatchScore(btId,gi,mi){
 async function renderBracketPage(){
   const addBtn=document.getElementById('btn-add-bracket');
   if(addBtn) addBtn.style.display=ME?.role==='admin'?'block':'none';
+  const importBtn=document.getElementById('btn-bulk-import');
+  if(importBtn) importBtn.style.display=ME?.role==='admin'?'block':'none';
   const el=document.getElementById('bracket-list');
   if(!el) return;
   el.innerHTML=`<div class="skeleton sk-card"></div>`.repeat(3);
@@ -3703,15 +3907,63 @@ async function renderBracketPage(){
 }
 
 async function deleteBracket(id){
-  showConfirm({icon:'🗑️',title:'대회 삭제',msg:'삭제하면 복구할 수 없습니다.',okLabel:'삭제',okClass:'btn-danger',onOk:async()=>{
+  // 연관 경기 수 미리 확인
+  const{data:bt}=await sb.from('bracket_tournaments').select('name,match_date,groups').eq('id',id).single();
+  if(!bt) return;
+  // 대회 날짜로 경기 추정 (match_date 동일 건)
+  const{data:relMatches}=await sb.from('matches').select('id').eq('match_date',bt.match_date).eq('status','approved');
+  const relCount=relMatches?.length||0;
+  const msg=relCount>0
+    ?`"${bt.name}" 대회와 같은 날짜의 경기내역 ${relCount}건도 함께 삭제됩니다.\n삭제하면 복구할 수 없습니다.`
+    :`"${bt.name}" 대회를 삭제합니다. 복구할 수 없습니다.`;
+  showConfirm({icon:'🗑️',title:'대회 삭제',msg,okLabel:'삭제',okClass:'btn-danger',onOk:async()=>{
+    // 1. 연관 경기 삭제
+    if(relCount>0){
+      const ids=(relMatches||[]).map(m=>m.id);
+      await sb.from('matches').delete().in('id',ids);
+    }
+    // 2. 대회 삭제
     await sb.from('bracket_tournaments').delete().eq('id',id);
-    toast('삭제 완료','warning');renderBracketPage();
+    addLog(`대회 삭제: ${bt.name} (경기 ${relCount}건 포함)`,ME.id);
+    toast(`삭제 완료 (경기 ${relCount}건 포함)`,'warning');
+    renderBracketPage();
   }});
 }
 
 // ══════════════════
 //  STEP 1: 폼 토글 & 참석자 선택
 // ══════════════════
+function toggleBulkImportForm(){
+  if(ME?.role!=='admin'){toast('관리자만 사용 가능합니다','error');return;}
+  const el=document.getElementById('bulk-import-inline');
+  if(!el) return;
+  if(el.style.display!=='none'){el.style.display='none';return;}
+  el.style.display='block';
+  // renderAdminTournamentImport 내용을 이 div에 렌더링
+  _renderBulkImportUI(el);
+}
+
+function _renderBulkImportUI(container){
+  container.innerHTML=`
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+    <div style="font-size:.88rem;font-weight:700;">📋 대회 경기 일괄 입력</div>
+    <button onclick="document.getElementById('bulk-import-inline').style.display='none'" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:2px 6px;">✕</button>
+  </div>
+  <div style="font-size:.76rem;color:var(--text-muted);background:var(--bg2);border-radius:8px;padding:10px 12px;margin-bottom:10px;line-height:1.7;">
+    엑셀에서 <b>탭 구분 텍스트</b>를 복사해서 붙여넣으세요.<br>
+    <b>컬럼 순서:</b> 구분 · 날짜 · 선수A · 선수B · 점수1 · 점수2 · 선수C · 선수D · 단계 · 슬롯 · 라운드 · BYE<br>
+    <b>구분:</b> 개인 / 듀오 / 팀전 &nbsp;|&nbsp; <b>단계:</b> 리그 / 8강 / 4강 / 결승 &nbsp;|&nbsp; <b>슬롯:</b> A조, E1~E4, F1~F2, T
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+    <div style="font-size:.8rem;color:var(--text-muted);white-space:nowrap;">대회명</div>
+    <input id="ti-name" class="form-input" placeholder="예) 새벽민턴 3월 오픈" style="flex:1;font-size:.82rem;padding:6px 10px;">
+  </div>
+  <textarea id="ti-raw" placeholder="여기에 엑셀 데이터를 붙여넣으세요..."
+    style="width:100%;min-height:180px;box-sizing:border-box;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:.78rem;font-family:monospace;resize:vertical;"></textarea>
+  <button onclick="tiParsePreview()" class="btn btn-primary" style="width:100%;margin-top:8px;margin-bottom:10px;">🔍 미리보기</button>
+  <div id="ti-preview"></div>`;
+}
+
 function toggleBracketForm(){
   const el=document.getElementById('bracket-form-inline');
   if(!el) return;
