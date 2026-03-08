@@ -28,8 +28,11 @@ body.ready{visibility:visible}
 #login-page{display:none;position:fixed;inset:0;z-index:200;background:radial-gradient(ellipse at 30% 20%,rgba(41,121,255,.15) 0%,transparent 60%),var(--bg);overflow-y:auto}
 .login-container{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px}
 .login-hero{text-align:center;margin-bottom:32px}
-.login-emoji{font-size:4.5rem;display:block;margin-bottom:12px;animation:shuttle 2s ease-in-out infinite alternate}
-.login-title{font-family:'Black Han Sans',sans-serif;font-size:2rem;color:var(--primary);margin-bottom:6px;letter-spacing:1px}
+.login-logo-wrap{display:flex;justify-content:center;align-items:center;margin-bottom:8px;}
+.login-logo-img{width:260px;max-width:82vw;height:auto;filter:invert(1) drop-shadow(0 2px 18px rgba(41,121,255,.35));animation:logoFloat 3s ease-in-out infinite alternate;display:block;}
+body.light-mode .login-logo-img{filter:none drop-shadow(0 2px 18px rgba(41,121,255,.25));}
+@keyframes logoFloat{from{transform:translateY(-4px) scale(1.01)}to{transform:translateY(6px) scale(.99)}}
+.login-title{display:none}
 .login-subtitle{color:var(--text-muted);font-size:.88rem}
 .login-card{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:28px 24px;width:100%;max-width:400px;box-shadow:var(--shadow)}
 .login-tab-row{display:flex;gap:0;margin-bottom:20px;background:var(--bg2);border-radius:10px;padding:3px}
@@ -106,14 +109,14 @@ body.ready{visibility:visible}
 .type-mixed{color:var(--primary)}
 .type-doubles{color:var(--primary)}
 /* ── 경기 카드 ── */
-.match-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;margin-bottom:7px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden;}
+.match-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:0.5px 10px 0.5px 12px;margin-bottom:7px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden;border-left:4px solid var(--border)}
 .match-card:hover{border-color:var(--border-strong)}
 .match-card.my-match{border-color:rgba(41,121,255,.45);background:linear-gradient(135deg,rgba(41,121,255,.05),var(--surface))}
 .match-card.my-match .my-badge{display:inline-block}
-.match-card.mc-mixed{}
-.match-card.mc-men{}
-.match-card.mc-women{}
-.match-card.mc-doubles{}
+.match-card.mc-mixed{border-left:4px solid #2979FF}
+.match-card.mc-men{border-left:4px solid #2979FF}
+.match-card.mc-women{border-left:4px solid #2979FF}
+.match-card.mc-doubles{border-left:4px solid #2979FF}
 .my-badge{display:none;font-size:.68rem;color:var(--primary);font-weight:700;background:rgba(41,121,255,.1);border:1px solid rgba(41,121,255,.25);padding:1px 7px;border-radius:8px;margin-left:6px;vertical-align:middle}
 /* 경기카드 점수행 */
 .match-score-row{display:flex;align-items:center;gap:4px;margin:4px 0}
@@ -352,10 +355,10 @@ body.light-mode .type-men{color:var(--primary)}
 body.light-mode .type-women{color:var(--primary)}
 body.light-mode .type-mixed{color:var(--primary)}
 body.light-mode .type-doubles{color:var(--primary)}
-
-
-
-
+body.light-mode .match-card.mc-mixed{border-left-color:#1565C0}
+body.light-mode .match-card.mc-men{border-left-color:#1565C0}
+body.light-mode .match-card.mc-women{border-left-color:#1565C0}
+body.light-mode .match-card.mc-doubles{border-left-color:#1565C0}
 
 /* 스크롤바 (라이트모드) */
 body.light-mode ::-webkit-scrollbar-track{background:var(--bg2);}
