@@ -22,10 +22,37 @@ let _directInputA=false, _directInputB=false;
 
 /* ── BOOT ── */
 window.addEventListener('DOMContentLoaded',async()=>{
+  // 로고 이미지 주입 (logo.js의 base64 사용)
+  const _applyLogo = () => {
+    if(!window.AM_LOGO_B64) return;
+    ['login-logo','loading-logo'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el && !el.src) el.src=window.AM_LOGO_B64;
+    });
+  };
+  _applyLogo();
+  // 다크모드 토글 시 필터 재적용
+  window._logoApplyFn = _applyLogo;
   let handled=false;
+  // 안전 타이머: 5초 안에 ready 클래스가 안 붙으면 강제로 화면 표시
+  const _safetyTimer=setTimeout(()=>{
+    if(!handled){
+      console.warn('[AMBM] safety timer triggered - forcing ready');
+      handled=true;
+      initTheme();document.body.classList.add('ready');
+      fadeOutLoading();
+      ME?showApp():showLogin();
+    }
+  },5000);
   sb.auth.onAuthStateChange(async(event,session)=>{
     if(event==='INITIAL_SESSION'){
-      if(session?.user) await loadProfile(session.user);
+      try{
+        if(session?.user) await loadProfile(session.user);
+      } catch(e){
+        console.error('[AMBM] loadProfile error on INITIAL_SESSION',e);
+        ME=null;
+      }
+      clearTimeout(_safetyTimer);
       handled=true;
       initTheme();document.body.classList.add('ready');
       await fadeOutLoading();
@@ -35,7 +62,12 @@ window.addEventListener('DOMContentLoaded',async()=>{
       else{await sb.auth.signOut();showLogin();}
     } else if(event==='SIGNED_IN'){
       if(session?.user?.app_metadata?.provider==='email') return;
-      if(session?.user) await loadProfile(session.user);
+      try{
+        if(session?.user) await loadProfile(session.user);
+      } catch(e){
+        console.error('[AMBM] loadProfile error on SIGNED_IN',e);
+        ME=null;
+      }
       document.body.classList.add('ready');
       await fadeOutLoading();
       if(!ME){showLogin();return;}
@@ -161,6 +193,8 @@ function toggleDarkMode(){
   localStorage.setItem('theme', isLight?'light':'dark');
   _updateDmUI(isLight);
   setTimeout(()=>document.body.style.transition='',350);
+  // 로고 필터 재적용
+  if(window._logoApplyFn) setTimeout(window._logoApplyFn,10);
 }
 function _updateDmUI(isLight){
   const icon=document.getElementById('dm-icon'); const btn=document.getElementById('btn-darkmode');
