@@ -1629,24 +1629,53 @@ function switchAdminTab(tab){
   switch(tab){case 'pending':renderAdminPending();break;case 'members':renderAdminMembers();break;case 'logs':renderAdminLogs();break;}
 }
 async function renderAdminPending(){
-  const{data:matches}=await sb.from('matches').select('*').eq('status','pending').order('created_at',{ascending:false});
   const el=document.getElementById('admin-content');
-  if(!matches||!matches.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">✅</div><div>승인 대기 없음</div></div>`;return;}
-  el.innerHTML=`
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap;">
+  // 가입 대기 회원
+  const{data:pendingUsers}=await sb.from('profiles').select('*').eq('status','pending').order('created_at',{ascending:false});
+  // 경기 승인 대기
+  const{data:matches}=await sb.from('matches').select('*').eq('status','pending').order('created_at',{ascending:false});
+
+  let html='';
+
+  // 가입 대기 회원 섹션
+  if(pendingUsers&&pendingUsers.length){
+    html+=`<div style="margin-bottom:16px;">
+      <div style="font-size:.82rem;font-weight:700;color:var(--accent);margin-bottom:8px;">👤 가입 승인 대기 (${pendingUsers.length}명)</div>`;
+    pendingUsers.forEach(u=>{
+      html+=`<div class="card" style="margin-bottom:6px;padding:10px 12px;border-left:3px solid var(--accent);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div>
+            <div style="font-weight:700;font-size:.9rem;">${u.name}</div>
+            <div style="font-size:.75rem;color:var(--text-muted);">${u.email||'이메일없음'} · ${u.provider||'kakao'}</div>
+          </div>
+          <button class="btn btn-success btn-sm" onclick="approveUser('${u.id}')">✅ 승인</button>
+        </div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+
+  // 경기 승인 대기 섹션
+  if(matches&&matches.length){
+    html+=`<div style="font-size:.82rem;font-weight:700;color:var(--text-muted);margin-bottom:8px;">🏸 경기 승인 대기 (${matches.length}건)</div>`;
+    html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;">
       <div style="display:flex;align-items:center;gap:8px;">
         <input type="checkbox" id="chk-all-pending" onchange="toggleAllPending(this.checked)" style="width:16px;height:16px;cursor:pointer;">
-        <span style="font-size:.82rem;color:var(--text-muted);">대기 중 ${matches.length}건 <span class="pending-dot"></span></span>
+        <span style="font-size:.82rem;color:var(--text-muted);">전체 선택</span>
       </div>
       <button onclick="bulkApprovePending()" class="btn btn-success btn-sm" id="btn-bulk-approve" style="display:none;">✅ 선택 일괄승인</button>
     </div>
-    <div id="pending-cards">`+
-    matches.map(m=>`
+    <div id="pending-cards">`;
+    html+=matches.map(m=>`
       <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:4px;">
         <input type="checkbox" class="pending-chk" data-id="${m.id}" onchange="onPendingChkChange()" style="width:16px;height:16px;margin-top:14px;cursor:pointer;flex-shrink:0;">
         <div style="flex:1;">${matchCardHTML(m,true)}</div>
-      </div>`).join('')+
-    `</div>`;
+      </div>`).join('');
+    html+=`</div>`;
+  }
+
+  if(!html) html=`<div class="empty-state"><div class="empty-icon">✅</div><div>모든 승인 완료</div></div>`;
+  el.innerHTML=html;
 }
 function toggleAllPending(checked){
   document.querySelectorAll('.pending-chk').forEach(c=>c.checked=checked);
@@ -1694,12 +1723,11 @@ async function renderAdminMembers(){
       <div style="display:flex;align-items:center;gap:8px;">
         <div style="flex:1;min-width:0;">
           <div style="font-weight:700;font-size:.92rem;">${u.name}${u.role==='writer'?'<span class="admin-tag" style="background:rgba(92,107,192,.12);border-color:rgba(92,107,192,.3);color:#5C6BC0;">작성자</span>':u.role==='admin'?'<span class="admin-tag">ADMIN</span>':''} ${u.exclude_stats?'<span class="admin-tag" style="background:rgba(255,152,0,.12);border-color:rgba(255,152,0,.3);color:#E65100;">통계제외</span>':''} <span style="font-size:.72rem;color:${u.status==='approved'?'var(--primary)':u.status==='pending'?'var(--accent)':'var(--danger)'}">${u.status==='approved'?'승인':u.status==='pending'?'대기':'정지'}</span></div>
-          <div style="font-size:.74rem;color:var(--text-muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${u.email}</div>
+          <div style="font-size:.74rem;color:var(--text-muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${u.email||''}</div>
         </div>
         <div style="display:flex;flex-direction:row;gap:4px;flex-shrink:0;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
-          <button class="btn btn-ghost btn-xs" onclick="openEditUser('${u.id}','${escHtml(u.name)}','${u.gender}','${u.status}','${u.role}',${!!u.exclude_stats})">✏️ 수정</button>
+          <button class="btn btn-ghost btn-xs" onclick="openEditUser('${u.id}','${escHtml(u.name)}','${u.gender||''}','${u.status}','${u.role}',${!!u.exclude_stats})">✏️ 수정</button>
           ${u.status==='pending'?`<button class="btn btn-success btn-xs" onclick="approveUser('${u.id}')">✅ 승인</button>`:''}
-        </div>
         </div>
       </div>
     </div>`).join('');
@@ -2661,12 +2689,20 @@ async function _loadBfAttendees(){
   wrap.innerHTML='<span style="font-size:.82rem;color:var(--text-muted);">불러오는 중...</span>';
   const{data:users}=await sb.from('profiles').select('id,name,wins,losses,games,ci').eq('status','approved').order('name');
   _bfUserOpts=(users||[]).map(u=>`<option value="${u.id}" data-name="${u.name}">${u.name}</option>`).join('');
+  // 전역 배열에 유저 데이터 저장해서 click 핸들러를 단순하게
+  window._bfUsersMap = {};
+  (users||[]).forEach(u=>{
+    const wr=u.games>0?Math.round((u.wins||0)/u.games*100):0;
+    window._bfUsersMap[u.id]={id:u.id,name:u.name,score:u.ci||wr,wr};
+  });
   wrap.innerHTML=(users||[]).map(u=>{
     const wr=u.games>0?Math.round((u.wins||0)/u.games*100):0;
-    const score=u.ci||wr;
-    return `<label id="bf-label-${u.id}" style="display:flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 10px;cursor:pointer;font-size:.82rem;transition:.15s;" onclick="bfToggleAttendee('${u.id}','${u.name}',${score},document.getElementById('bf-label-${u.id}'))">
-      <span id="bf-chk-${u.id}" style="font-size:.9rem;pointer-events:none;">⬜</span><span style="pointer-events:none;">${u.name}</span><span style="font-size:.7rem;color:var(--text-dim);pointer-events:none;">(${wr}%)</span>
-    </label>`;
+    return `<div id="bf-label-${u.id}" data-uid="${u.id}" onclick="bfToggleAttendee('${u.id}')"
+      style="display:flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:.82rem;transition:.15s;user-select:none;">
+      <span id="bf-chk-${u.id}" style="font-size:.85rem;">⬜</span>
+      <span>${u.name}</span>
+      <span style="font-size:.7rem;color:var(--text-dim);">${wr}%</span>
+    </div>`;
   }).join('');
 }
 
@@ -2687,18 +2723,20 @@ function bfSetType(type){
   if(captainSection) captainSection.style.display=(type==='team')?'block':'none';
 }
 
-function bfToggleAttendee(id,name,score,el){
-  // el이 자식 span일 수도 있으므로 label 루트를 찾음
-  const label=el.closest?el.closest('label'):el;
-  const idx=_bfAttendees.findIndex(a=>a.id===id);
+function bfToggleAttendee(id){
+  const u=window._bfUsersMap?window._bfUsersMap[id]:null;
+  const name=u?.name||id;
+  const score=u?.score||0;
+  const el=document.getElementById('bf-label-'+id);
   const chk=document.getElementById('bf-chk-'+id);
+  const idx=_bfAttendees.findIndex(a=>a.id===id);
   if(idx>=0){
     _bfAttendees.splice(idx,1);
-    label.style.background='var(--bg3)';label.style.borderColor='var(--border)';label.style.color='var(--text)';
+    if(el){el.style.background='var(--bg3)';el.style.borderColor='var(--border)';el.style.color='';}
     if(chk)chk.textContent='⬜';
   }else{
     _bfAttendees.push({id,name,score});
-    label.style.background='rgba(41,121,255,.18)';label.style.borderColor='var(--primary)';label.style.color='var(--primary)';
+    if(el){el.style.background='rgba(41,121,255,.18)';el.style.borderColor='var(--primary)';el.style.color='var(--primary)';}
     if(chk)chk.textContent='✅';
   }
   const cnt=document.getElementById('bf-attendee-count');
