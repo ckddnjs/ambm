@@ -305,9 +305,8 @@
             <button onclick="bfRenderArrangement()" style="font-size:.75rem;padding:4px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text-muted);">🔄 자동배분</button>
           </div>
           <div id="bf-arrange-wrap" style="margin-bottom:12px;"></div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-ghost" style="flex:1;" onclick="_bfType==='duo'?(_bfStep===2?bfRenderDuoPairing():bfGoStep(1)):bfGoStep(1)">← 뒤로</button>
-            <button class="btn btn-ghost" style="flex:1;color:var(--accent);border-color:var(--accent);" onclick="bfSaveDraft()">💾 임시저장</button>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost" style="flex:1;" onclick="_bfDuoBack()">← 뒤로</button>
             <button class="btn btn-primary" style="flex:1;" onclick="bfConfirmArrangement()">✅ 구성 확정</button>
           </div>
         </div>
