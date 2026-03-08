@@ -219,6 +219,7 @@
         <button class="sub-tab" onclick="switchAdminTab('members')">회원</button>
         <button class="sub-tab" onclick="switchAdminTab('logs')">로그</button>
         <button class="sub-tab" onclick="switchAdminTab('tournamentImport')">🏆 대회입력</button>
+        <button class="sub-tab" onclick="switchAdminTab('matchDelete')">🗑️ 경기삭제</button>
       </div>
       <div id="admin-content"></div>
     </div>
@@ -227,8 +228,14 @@
     <div class="page" id="page-tournament">
       <div class="flex-between mb-2">
         <div><div class="page-title">🏆 자체대회</div><div class="page-sub">조별리그 · 본선토너먼트</div></div>
-        <button id="btn-add-bracket" class="btn btn-primary btn-sm" onclick="toggleBracketForm()" style="display:none;">+ 대회 만들기</button>
+        <div style="display:flex;gap:6px;">
+          <button id="btn-bulk-import" class="btn btn-ghost btn-sm" onclick="toggleBulkImportForm()" style="display:none;">📋 일괄입력</button>
+          <button id="btn-add-bracket" class="btn btn-primary btn-sm" onclick="toggleBracketForm()" style="display:none;">+ 대회 만들기</button>
+        </div>
       </div>
+
+      <!-- ── 일괄입력 폼 (관리자 전용) ── -->
+      <div id="bulk-import-inline" style="display:none;" class="card mb-3"></div>
 
       <!-- ── STEP 폼 (인라인) ── -->
       <div id="bracket-form-inline" style="display:none;" class="card mb-3">
