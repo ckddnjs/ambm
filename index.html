@@ -269,6 +269,14 @@
           </div>
 
           <!-- 팀전: 팀장 지정 -->
+
+          <div class="form-group mb-3">
+            <label class="form-label">참석자 선택 <span class="req">*</span></label>
+            <div id="bf-attendee-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:44px;background:var(--bg2);border-radius:10px;padding:10px;"></div>
+            <div id="bf-attendee-count" style="font-size:.75rem;color:var(--text-muted);margin-top:6px;text-align:right;">0명 선택됨</div>
+          </div>
+
+          
           <div id="bf-team-captain-section" style="display:none;" class="form-group mb-2">
             <label class="form-label">팀장 지정</label>
             <div style="display:flex;gap:8px;">
@@ -283,12 +291,6 @@
             </div>
           </div>
 
-          <div class="form-group mb-3">
-            <label class="form-label">참석자 선택 <span class="req">*</span></label>
-            <div id="bf-attendee-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:44px;background:var(--bg2);border-radius:10px;padding:10px;"></div>
-            <div id="bf-attendee-count" style="font-size:.75rem;color:var(--text-muted);margin-top:6px;text-align:right;">0명 선택됨</div>
-          </div>
-
           <div style="display:flex;gap:8px;">
             <button class="btn btn-ghost" style="flex:1;" onclick="toggleBracketForm()">취소</button>
             <button class="btn btn-primary" style="flex:1;" onclick="bfNextStep()">다음 →</button>
@@ -299,7 +301,7 @@
         <div id="bf-step2" style="display:none;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
             <div class="card-title" style="margin:0;">⚙️ 참석자 배분</div>
-            <button onclick="bfRenderArrangement()" style="font-size:.75rem;padding:4px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text-muted);">🔄 자동 재배분</button>
+            <button onclick="bfRenderArrangement()" style="font-size:.75rem;padding:4px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text-muted);">🔄 이름 자동배분으로 수정</button>
           </div>
           <div id="bf-arrange-wrap" style="margin-bottom:12px;"></div>
           <div style="display:flex;gap:8px;">
