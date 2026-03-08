@@ -562,8 +562,8 @@ function renderMyTypeStats(stats, allM){
     return myIdx>=0?{rank:myIdx+1,total:list.length}:null;
   };
 
-  const cats=['doubles','total'];
-  const catLabel={doubles:'복식',total:'합계'};
+  const cats=['total'];
+  const catLabel={total:'합계'};
   const catIcon={[sameType]:typeIcon[sameType],mixed:'🟡',total:'📊'};
 
   let rows='';
@@ -579,8 +579,8 @@ function renderMyTypeStats(stats, allM){
     rows+=`<tr style="${isTotal?'border-top:2px solid var(--border);font-weight:700;background:var(--bg3);':''}">
       <td style="padding:7px 6px;font-size:.78rem;">${catIcon[c]} ${catLabel[c]}</td>
       <td style="text-align:center;padding:7px 4px;font-size:.8rem;">${d.games}</td>
-      <td style="text-align:center;padding:7px 4px;font-size:.8rem;color:var(--primary);">${d.wins}</td>
-      <td style="text-align:center;padding:7px 4px;font-size:.8rem;color:var(--danger);">${d.losses}</td>
+      <td style="text-align:center;padding:7px 4px;font-size:.8rem;">${d.wins}</td>
+      <td style="text-align:center;padding:7px 4px;font-size:.8rem;">${d.losses}</td>
       <td style="text-align:center;padding:7px 4px;font-size:.8rem;font-weight:700;">${wr}%</td>
       <td style="text-align:center;padding:7px 4px;font-size:.8rem;color:${diffCol};font-weight:700;">${diffSign}${d.diff||0}</td>
       <td style="text-align:center;padding:7px 4px;font-size:.8rem;color:var(--primary);font-weight:700;">${ci}</td>
@@ -1309,6 +1309,17 @@ function renderScatter(){
 
 /* ── FEED ── */
 let _feedPage=1;
+function _populateFeedDateFilter(matches, currentVal){
+  const sel=document.getElementById('feed-date-filter');
+  if(!sel) return;
+  // 이미 옵션이 있고 현재 값 있으면 유지 (재렌더 시 옵션 유지)
+  const dates=[...new Set((matches||[]).map(m=>m.match_date).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+  const days=['일','월','화','수','목','금','토'];
+  const fmt=d=>{const dt=new Date(d+'T00:00:00');return `${String(dt.getFullYear()).slice(2)}.${dt.getMonth()+1}.${dt.getDate()}(${days[dt.getDay()]})`;};
+  sel.innerHTML='<option value="">전체 날짜</option>'+
+    dates.map(d=>`<option value="${d}" ${d===currentVal?'selected':''}>${fmt(d)}</option>`).join('');
+}
+
 async function renderFeed(forceNameQ){
   _feedPage=1;
   await _renderFeedInner(forceNameQ);
@@ -1316,10 +1327,8 @@ async function renderFeed(forceNameQ){
 
 async function _renderFeedInner(forceNameQ){
   const el=document.getElementById('feed-list');
-  // 범례 버튼 상태 동기화
-  const _typeF=document.getElementById('feed-type-filter')?.value||'';
   if(_feedPage===1) el.innerHTML=`<div class="skeleton sk-card"></div>`.repeat(4);
-  const typeF=document.getElementById('feed-type-filter')?.value||'';
+  const dateF=document.getElementById('feed-date-filter')?.value||'';
   const statF=document.getElementById('feed-status-filter')?.value;
   const rawName=forceNameQ!==undefined?forceNameQ:(document.getElementById('feed-name-search')?.value||'');
   const nameQ=rawName.trim().toLowerCase();
@@ -1327,9 +1336,11 @@ async function _renderFeedInner(forceNameQ){
   if(clearBtn) clearBtn.style.display=nameQ?'block':'none';
   const sortF=document.getElementById('feed-sort-filter')?.value||'desc';
   let q=sb.from('matches').select('*').limit(500);
-  if(typeF) q=q.eq('match_type',typeF);
   if(statF!=='') q=q.eq('status',statF||'approved');
+  if(dateF) q=q.eq('match_date',dateF);
   let{data:matches}=await q;
+  // 날짜 필터 옵션 채우기 (최초 로드 또는 날짜 미선택 시)
+  _populateFeedDateFilter(matches,dateF);
 
   (matches||[]).sort((a,b)=>{
     const dd=(b.match_date||'').localeCompare(a.match_date||'');
@@ -2630,7 +2641,7 @@ async function renderBracketPage(){
     el.innerHTML=`<div class="empty-state"><div class="empty-icon">🎯</div><div>등록된 대회가 없어요</div></div>`;
     return;
   }
-  const typeLabel={individual:'👤 개인전',duo:'👥 듀오전',team:'🚩 팀전'};
+  const typeLabel={individual:'👤 개인전',duo:'👥 듀오전',team:'🚩 팀장전'};
   el.innerHTML=list.map(bt=>{
     const isDone=bt.status==='done';
     const isLeague=bt.status==='league'||bt.status==='active';
@@ -2689,21 +2700,26 @@ async function _loadBfAttendees(){
   wrap.innerHTML='<span style="font-size:.82rem;color:var(--text-muted);">불러오는 중...</span>';
   const{data:users}=await sb.from('profiles').select('id,name,wins,losses,games,ci').eq('status','approved').order('name');
   _bfUserOpts=(users||[]).map(u=>`<option value="${u.id}" data-name="${u.name}">${u.name}</option>`).join('');
-  // 전역 배열에 유저 데이터 저장해서 click 핸들러를 단순하게
-  window._bfUsersMap = {};
+  window._bfUsersMap={};
   (users||[]).forEach(u=>{
     const wr=u.games>0?Math.round((u.wins||0)/u.games*100):0;
     window._bfUsersMap[u.id]={id:u.id,name:u.name,score:u.ci||wr,wr};
   });
   wrap.innerHTML=(users||[]).map(u=>{
     const wr=u.games>0?Math.round((u.wins||0)/u.games*100):0;
-    return `<div id="bf-label-${u.id}" data-uid="${u.id}" onclick="bfToggleAttendee('${u.id}')"
+    return `<div data-uid="${u.id}"
       style="display:flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:.82rem;transition:.15s;user-select:none;">
-      <span id="bf-chk-${u.id}" style="font-size:.85rem;">⬜</span>
-      <span>${u.name}</span>
-      <span style="font-size:.7rem;color:var(--text-dim);">${wr}%</span>
+      <span class="bf-chk" style="font-size:.85rem;pointer-events:none;">⬜</span>
+      <span style="pointer-events:none;">${u.name}</span>
+      <span style="font-size:.7rem;color:var(--text-dim);pointer-events:none;">${wr}%</span>
     </div>`;
   }).join('');
+  // 이벤트 델리게이션 - wrap 한 곳에만 리스너
+  wrap.onclick=function(e){
+    const el=e.target.closest('[data-uid]');
+    if(!el) return;
+    bfToggleAttendee(el.dataset.uid, el);
+  };
 }
 
 function bfSetType(type){
@@ -2715,7 +2731,7 @@ function bfSetType(type){
   const desc={
     individual:'👤 개인전: 4~5명씩 조 편성 → 조별 풀리그 → 각 조 1·2위 본선 토너먼트',
     duo:'👥 듀오전: 고정 파트너 팀으로 조 편성 → 조별 풀리그 → 본선 토너먼트',
-    team:'🚩 팀전: A팀/B팀으로 나눠 1:1 매치 진행 → 승수(동률시 득실차)로 우승 결정'
+    team:'🚩 팀장전: 팀장 A/B가 각 팀원을 이끌고 1:1 매치 진행 → 승수(동률시 득실차)로 우승 결정'
   };
   const descEl=document.getElementById('bf-type-desc');
   if(descEl) descEl.textContent=desc[type]||'';
@@ -2723,12 +2739,11 @@ function bfSetType(type){
   if(captainSection) captainSection.style.display=(type==='team')?'block':'none';
 }
 
-function bfToggleAttendee(id){
+function bfToggleAttendee(id, el){
   const u=window._bfUsersMap?window._bfUsersMap[id]:null;
   const name=u?.name||id;
   const score=u?.score||0;
-  const el=document.getElementById('bf-label-'+id);
-  const chk=document.getElementById('bf-chk-'+id);
+  const chk=el?el.querySelector('.bf-chk'):null;
   const idx=_bfAttendees.findIndex(a=>a.id===id);
   if(idx>=0){
     _bfAttendees.splice(idx,1);
@@ -3020,7 +3035,7 @@ function _renderBracketDetail(data){
   const groups=JSON.parse(data.groups||'[]');
   const rounds=JSON.parse(data.rounds||'[]');
   const isLeague=status==='league'||status==='active';
-  const typeLabel={individual:'👤 개인전',duo:'👥 듀오전',team:'🚩 팀전'};
+  const typeLabel={individual:'👤 개인전',duo:'👥 듀오전',team:'🚩 팀장전'};
 
   let html=`<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:12px;">
     ${typeLabel[data.tournament_type]||''} · ${fmtMatchDate(data.match_date)}
