@@ -19,11 +19,12 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="app.css?v=1772860537">
   <script src="logo.js"></script>
+  <script>document.addEventListener("DOMContentLoaded",function(){if(window.AM_LOGO_B64){["login-logo","loading-logo"].forEach(function(id){var el=document.getElementById(id);if(el)el.src=window.AM_LOGO_B64;});}})</script>
 </head>
 <body>
 
 <div id="loading-screen">
-  <img id="loading-logo" src="" alt="AM BADMINTON" style="width:260px;max-width:75vw;margin-bottom:18px;">
+  <img id="loading-logo" alt="AM BADMINTON" style="width:260px;max-width:75vw;margin-bottom:18px;">
   <div class="spinner"></div>
 </div>
 
@@ -36,7 +37,7 @@
   </div>
   <div class="login-container">
     <div class="login-hero">
-      <img id="login-logo" src="" alt="AM BADMINTON" style="width:300px;max-width:85vw;margin-bottom:8px;">
+      <img id="login-logo" alt="AM BADMINTON" style="width:300px;max-width:85vw;margin-bottom:8px;">
     </div>
     <div class="login-card">
       <div class="login-tab-row">
@@ -217,6 +218,7 @@
         <button class="sub-tab active" onclick="switchAdminTab('pending')">승인대기</button>
         <button class="sub-tab" onclick="switchAdminTab('members')">회원</button>
         <button class="sub-tab" onclick="switchAdminTab('logs')">로그</button>
+        <button class="sub-tab" onclick="switchAdminTab('tournamentImport')">🏆 대회입력</button>
       </div>
       <div id="admin-content"></div>
     </div>
