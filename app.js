@@ -1636,8 +1636,8 @@ async function submitMatch(){
 function renderAdminPage(){switchAdminTab(adminTab);}
 function switchAdminTab(tab){
   adminTab=tab;
-  document.querySelectorAll('#page-admin .sub-tab').forEach((el,i)=>el.classList.toggle('active',['pending','members','logs'][i]===tab));
-  switch(tab){case 'pending':renderAdminPending();break;case 'members':renderAdminMembers();break;case 'logs':renderAdminLogs();break;}
+  document.querySelectorAll('#page-admin .sub-tab').forEach((el,i)=>el.classList.toggle('active',['pending','members','batch','logs'][i]===tab));
+  switch(tab){case 'pending':renderAdminPending();break;case 'members':renderAdminMembers();break;case 'batch':renderAdminBatch();break;case 'logs':renderAdminLogs();break;}
 }
 async function renderAdminPending(){
   const el=document.getElementById('admin-content');
@@ -1743,6 +1743,160 @@ async function renderAdminMembers(){
       </div>
     </div>`).join('');
 }
+async function renderAdminBatch(){
+  // 이름→ID 매핑을 위해 유저 데이터 로드
+  if(!window._bfUsersMap||!Object.keys(window._bfUsersMap).length){
+    const{data:users}=await sb.from('profiles').select('id,name').eq('status','approved');
+    window._bfUsersMap={};
+    (users||[]).forEach(u=>{window._bfUsersMap[u.id]={id:u.id,name:u.name,score:0};});
+  }
+  const el=document.getElementById('admin-content');
+  el.innerHTML=`
+    <div style="margin-bottom:12px;">
+      <div style="font-size:.85rem;font-weight:700;margin-bottom:6px;">📋 경기 일괄 등록</div>
+      <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px;line-height:1.6;background:var(--bg2);padding:10px;border-radius:8px;">
+        <b>형식:</b> <code>날짜 A선수1 A선수2 A점수:B점수 B선수1 B선수2</code><br>
+        (한 줄에 경기 1개, 날짜 생략 시 오늘 날짜 사용)<br>
+        예시:<br>
+        <code>26-03-08 김민수 강민지 25:23 김민철 감민처</code><br>
+        <code>김민수 강민지 24:23 김민철 감민처</code>
+      </div>
+      <textarea id="batch-input" placeholder="여기에 경기 데이터를 붙여넣으세요..."
+        style="width:100%;min-height:160px;box-sizing:border-box;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:.82rem;font-family:monospace;resize:vertical;"></textarea>
+    </div>
+    <button onclick="batchParsePreview()" class="btn btn-primary" style="width:100%;margin-bottom:10px;">🔍 파싱 미리보기</button>
+    <div id="batch-preview"></div>`;
+}
+
+function batchParsePreview(){
+  const raw=document.getElementById('batch-input')?.value||'';
+  const lines=raw.split('\n').map(l=>l.trim()).filter(l=>l);
+  const today=new Date().toISOString().slice(0,10);
+  const results=[];
+  const errors=[];
+  lines.forEach((line,li)=>{
+    try{
+      const parsed=_batchParseLine(line,today);
+      if(parsed) results.push(parsed);
+      else errors.push({line:li+1,text:line,reason:'파싱 실패'});
+    }catch(e){
+      errors.push({line:li+1,text:line,reason:e.message});
+    }
+  });
+  const wrap=document.getElementById('batch-preview');
+  if(!wrap) return;
+  if(!results.length&&!errors.length){wrap.innerHTML='<div style="color:var(--text-muted);font-size:.82rem;">내용을 입력하세요</div>';return;}
+  let html='';
+  if(results.length){
+    html+=`<div style="font-size:.82rem;font-weight:700;margin-bottom:8px;color:var(--primary);">✅ 파싱 성공 ${results.length}건</div>`;
+    html+=`<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">`;
+    results.forEach((r,i)=>{
+      html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:.8rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:var(--text-muted);">${r.match_date}</span>
+          <span style="font-weight:700;color:var(--primary);">${r.score_a} : ${r.score_b}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;">
+          <span style="color:${r.score_a>r.score_b?'var(--text)':'var(--text-muted)'};">${[r.a1_name,r.a2_name].filter(Boolean).join(' / ')}</span>
+          <span style="color:${r.score_b>r.score_a?'var(--text)':'var(--text-muted)'};">${[r.b1_name,r.b2_name].filter(Boolean).join(' / ')}</span>
+        </div>
+      </div>`;
+    });
+    html+=`</div>`;
+    html+=`<button onclick="batchSubmit()" class="btn btn-primary" style="width:100%;margin-bottom:12px;">📨 ${results.length}건 일괄 등록</button>`;
+    // 결과 임시 저장
+    window._batchParsed=results;
+  }
+  if(errors.length){
+    html+=`<div style="font-size:.82rem;font-weight:700;margin-bottom:6px;color:var(--danger);">⚠️ 파싱 실패 ${errors.length}건</div>`;
+    errors.forEach(e=>{
+      html+=`<div style="font-size:.78rem;color:var(--danger);padding:4px 8px;background:rgba(255,82,82,.08);border-radius:6px;margin-bottom:4px;">${e.line}번줄: ${e.text} → ${e.reason}</div>`;
+    });
+  }
+  wrap.innerHTML=html;
+}
+
+function _batchParseLine(line, today){
+  // 토큰 분리
+  const tokens=line.trim().split(/\s+/);
+  if(tokens.length<4) throw new Error('토큰 부족 (최소 4개)');
+  
+  let idx=0;
+  let match_date=today;
+  
+  // 날짜 감지: YY-MM-DD 또는 YYYY-MM-DD
+  if(/^\d{2,4}-\d{1,2}-\d{1,2}$/.test(tokens[0])){
+    const parts=tokens[0].split('-');
+    const yy=parts[0].length===2?'20'+parts[0]:parts[0];
+    const mm=parts[1].padStart(2,'0');
+    const dd=parts[2].padStart(2,'0');
+    match_date=`${yy}-${mm}-${dd}`;
+    idx=1;
+  }
+  
+  const remaining=tokens.slice(idx);
+  // 점수 찾기: X:Y 형식
+  const scoreIdx=remaining.findIndex(t=>/^\d+:\d+$/.test(t));
+  if(scoreIdx<0) throw new Error('점수(X:Y) 없음');
+  if(scoreIdx<1) throw new Error('A팀 선수 없음');
+  
+  const aNames=remaining.slice(0,scoreIdx);
+  const scoreStr=remaining[scoreIdx];
+  const bNames=remaining.slice(scoreIdx+1);
+  
+  if(bNames.length<1) throw new Error('B팀 선수 없음');
+  
+  const [sa,sb]=scoreStr.split(':').map(Number);
+  if(isNaN(sa)||isNaN(sb)) throw new Error('점수 숫자 오류');
+  if(sa===sb) throw new Error('동점 불가');
+  
+  // 이름 → ID 매핑 (있으면 매핑, 없으면 null)
+  const nameToId=(nm)=>{
+    const found=Object.values(window._bfUsersMap||{}).find(u=>u.name===nm);
+    return found?found.id:null;
+  };
+  
+  return {
+    match_date,
+    match_type:'doubles',
+    a1_name:aNames[0]||null, a1_id:nameToId(aNames[0]),
+    a2_name:aNames[1]||null, a2_id:nameToId(aNames[1]),
+    b1_name:bNames[0]||null, b1_id:nameToId(bNames[0]),
+    b2_name:bNames[1]||null, b2_id:nameToId(bNames[1]),
+    score_a:sa, score_b:sb,
+    status:'approved',
+    source:'batch'
+  };
+}
+
+async function batchSubmit(){
+  const records=window._batchParsed||[];
+  if(!records.length){toast('등록할 데이터 없음','error');return;}
+  const btn=document.querySelector('#batch-preview .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='등록 중...';}
+  const now=new Date().toISOString();
+  const inserts=records.map(r=>({
+    ...r,
+    approved_by:ME.id,
+    approved_at:now,
+    created_at:now,
+    source:'batch'
+  }));
+  const{error}=await sb.from('matches').insert(inserts);
+  if(error){
+    toast('등록 실패: '+error.message,'error');
+    if(btn){btn.disabled=false;btn.textContent=`📨 ${records.length}건 일괄 등록`;}
+    return;
+  }
+  // 선수 프로필 업데이트는 기존 승인 로직이 처리하므로 생략
+  addLog(`일괄 등록 ${records.length}건`,ME.id);
+  toast(`✅ ${records.length}건 등록 완료`,'success');
+  window._batchParsed=[];
+  document.getElementById('batch-input').value='';
+  document.getElementById('batch-preview').innerHTML='';
+  renderAdminBatch();
+}
+
 async function renderAdminLogs(){
   const{data:logs}=await sb.from('logs').select('*').order('created_at',{ascending:false}).limit(100);
   const el=document.getElementById('admin-content');
@@ -2698,28 +2852,61 @@ async function _loadBfAttendees(){
   const wrap=document.getElementById('bf-attendee-list');
   if(!wrap) return;
   wrap.innerHTML='<span style="font-size:.82rem;color:var(--text-muted);">불러오는 중...</span>';
-  const{data:users}=await sb.from('profiles').select('id,name,wins,losses,games,ci').eq('status','approved').order('name');
-  _bfUserOpts=(users||[]).map(u=>`<option value="${u.id}" data-name="${u.name}">${u.name}</option>`).join('');
+  const{data:users}=await sb.from('profiles').select('id,name,wins,losses,games').eq('status','approved').order('name');
   window._bfUsersMap={};
+  window._bfAllUsers=users||[];
   (users||[]).forEach(u=>{
     const wr=u.games>0?Math.round((u.wins||0)/u.games*100):0;
-    window._bfUsersMap[u.id]={id:u.id,name:u.name,score:u.ci||wr,wr};
+    window._bfUsersMap[u.id]={id:u.id,name:u.name,score:wr,wr};
   });
-  wrap.innerHTML=(users||[]).map(u=>{
+  _bfRenderAttendeeUI(wrap,'');
+}
+
+function _bfRenderAttendeeUI(wrap, searchVal){
+  const users=window._bfAllUsers||[];
+  const q=searchVal.toLowerCase().trim();
+  const filtered=q?users.filter(u=>u.name.toLowerCase().includes(q)):users;
+  let html=`<div style="margin-bottom:8px;display:flex;gap:6px;">
+    <input id="bf-attendee-search" type="search" placeholder="🔍 이름 검색..." value="${searchVal}"
+      oninput="_bfRenderAttendeeUI(document.getElementById('bf-attendee-list'),this.value)"
+      style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:.82rem;color:var(--text);font-family:inherit;">
+    <button onclick="_bfAddGuest()" style="white-space:nowrap;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:.78rem;color:var(--text-muted);cursor:pointer;font-family:inherit;">+ 직접 입력</button>
+  </div>`;
+  html+=`<div id="bf-chips-wrap" style="display:flex;flex-wrap:wrap;gap:5px;">`;
+  filtered.forEach(u=>{
     const wr=u.games>0?Math.round((u.wins||0)/u.games*100):0;
-    return `<div data-uid="${u.id}"
-      style="display:flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:.82rem;transition:.15s;user-select:none;">
-      <span class="bf-chk" style="font-size:.85rem;pointer-events:none;">⬜</span>
-      <span style="pointer-events:none;">${u.name}</span>
-      <span style="font-size:.7rem;color:var(--text-dim);pointer-events:none;">${wr}%</span>
+    const sel=_bfAttendees.some(a=>a.id===u.id);
+    html+=`<div data-uid="${u.id}"
+      style="display:inline-flex;align-items:center;gap:4px;border-radius:20px;padding:5px 12px;cursor:pointer;font-size:.82rem;user-select:none;transition:.15s;
+        background:${sel?'rgba(41,121,255,.2)':'var(--bg3)'};
+        border:1px solid ${sel?'var(--primary)':'var(--border)'};
+        color:${sel?'var(--primary)':'var(--text)'};">
+      <span style="pointer-events:none;">${sel?'✅ ':''}${u.name}</span>
+      <span style="font-size:.7rem;color:${sel?'var(--primary)':'var(--text-dim)'};pointer-events:none;">${wr}%</span>
     </div>`;
-  }).join('');
-  // 이벤트 델리게이션 - wrap 한 곳에만 리스너
+  });
+  if(!filtered.length&&q) html+=`<div style="font-size:.8rem;color:var(--text-muted);padding:8px;">검색 결과 없음</div>`;
+  html+=`</div>`;
+  wrap.innerHTML=html;
   wrap.onclick=function(e){
     const el=e.target.closest('[data-uid]');
     if(!el) return;
     bfToggleAttendee(el.dataset.uid, el);
   };
+}
+
+function _bfAddGuest(){
+  const name=prompt('직접 입력할 이름:','');
+  if(!name||!name.trim()) return;
+  const nm=name.trim();
+  const gid='guest_'+Date.now();
+  if(window._bfUsersMap) window._bfUsersMap[gid]={id:gid,name:nm,score:0,wr:0};
+  if(window._bfAllUsers) window._bfAllUsers.push({id:gid,name:nm,wins:0,losses:0,games:0});
+  _bfAttendees.push({id:gid,name:nm,score:0});
+  const wrap=document.getElementById('bf-attendee-list');
+  if(wrap) _bfRenderAttendeeUI(wrap, document.getElementById('bf-attendee-search')?.value||'');
+  const cnt=document.getElementById('bf-attendee-count');
+  if(cnt) cnt.textContent=`${_bfAttendees.length}명 선택됨`;
 }
 
 function bfSetType(type){
@@ -2743,16 +2930,21 @@ function bfToggleAttendee(id, el){
   const u=window._bfUsersMap?window._bfUsersMap[id]:null;
   const name=u?.name||id;
   const score=u?.score||0;
-  const chk=el?el.querySelector('.bf-chk'):null;
   const idx=_bfAttendees.findIndex(a=>a.id===id);
   if(idx>=0){
     _bfAttendees.splice(idx,1);
-    if(el){el.style.background='var(--bg3)';el.style.borderColor='var(--border)';el.style.color='';}
-    if(chk)chk.textContent='⬜';
   }else{
     _bfAttendees.push({id,name,score});
-    if(el){el.style.background='rgba(41,121,255,.18)';el.style.borderColor='var(--primary)';el.style.color='var(--primary)';}
-    if(chk)chk.textContent='✅';
+  }
+  // chip 스타일 즉시 업데이트
+  if(el){
+    const sel=idx<0; // 방금 추가됨
+    el.style.background=sel?'rgba(41,121,255,.2)':'var(--bg3)';
+    el.style.borderColor=sel?'var(--primary)':'var(--border)';
+    el.style.color=sel?'var(--primary)':'var(--text)';
+    const nameSpan=el.querySelector('span');
+    const uName=u?.name||id;
+    if(nameSpan) nameSpan.textContent=(sel?'✅ ':'')+uName;
   }
   const cnt=document.getElementById('bf-attendee-count');
   if(cnt) cnt.textContent=`${_bfAttendees.length}명 선택됨`;
