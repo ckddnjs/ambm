@@ -4159,42 +4159,42 @@ function balGoStep(n){
 
 // ── 참석자 로딩 (CI 포함) ──
 async function _balLoadAttendees(){
-  await _loadBfAttendees(); // scored/conceded/CI 로딩됨
+  // 독립적으로 DB 직접 조회 (CI 포함)
+  const{data:users}=await sb.from('profiles').select('id,name,wins,losses,games,scored,conceded').eq('status','approved').order('name');
+  window._balUserPool=[];
+  (users||[]).forEach(u=>{
+    const diff=(u.scored||0)-(u.conceded||0);
+    const ci=Math.round(calcCI(u.wins||0,u.games||0,diff));
+    window._balUserPool.push({id:u.id,name:u.name,wins:u.wins||0,losses:u.losses||0,games:u.games||0,diff,score:ci,ci});
+  });
   _balRenderAttendees();
 }
 function _balRenderAttendees(){
   const wrap=document.getElementById('bal-attendee-list');
   const cnt=document.getElementById('bal-attendee-count');
   if(!wrap) return;
-  const all=window._bfAllUsers||[];
+  const all=window._balUserPool||[];
   wrap.innerHTML=all.map(u=>{
     const sel=_balAttendees.some(a=>a.id===u.id);
-    const ci=Math.round(u.ci||u.score||0);
-    const ciLabel=u.games>0?ci:'신규';
     return `<button onclick="balToggleAttendee('${u.id}')" style="
       padding:5px 11px;border-radius:20px;font-size:.78rem;cursor:pointer;
       font-family:inherit;font-weight:600;transition:all .12s;
       background:${sel?'var(--primary)':'var(--bg3)'};
       color:${sel?'#fff':'var(--text-muted)'};
       border:1.5px solid ${sel?'var(--primary)':'var(--border)'};
-    ">${u.name}<span style="font-size:.63rem;opacity:.7;margin-left:3px;">${ciLabel}</span></button>`;
+    ">${u.name}<span style="font-size:.63rem;opacity:.7;margin-left:3px;">${u.score}</span></button>`;
   }).join('')||'<div style="color:var(--text-muted);font-size:.8rem;">불러오는 중…</div>';
   if(cnt) cnt.textContent=`${_balAttendees.length}명 선택됨`;
-  _balUpdateCaptainSelects();
 }
 function balToggleAttendee(id){
-  const raw=(window._bfAllUsers||[]).find(x=>x.id===id);
+  const raw=(window._balUserPool||[]).find(x=>x.id===id);
   if(!raw) return;
   const idx=_balAttendees.findIndex(a=>a.id===id);
   if(idx>=0) _balAttendees.splice(idx,1);
-  else{
-    const diff=(raw.scored||0)-(raw.conceded||0);
-    const ci=raw.ci||calcCI(raw.wins||0,raw.games||0,diff);
-    _balAttendees.push({...raw,diff,ci,score:Math.round(ci)});
-  }
+  else _balAttendees.push({...raw});
   _balAttendees.sort((a,b)=>b.score-a.score);
   _balRenderAttendees();
-  if(_balType==='duo') _balRenderDuoPairUI(); // 듀오전이면 페어 UI 갱신
+  if(_balType==='duo') _balRenderDuoPairUI();
 }
 
 function balSetType(t){
@@ -4204,9 +4204,8 @@ function balSetType(t){
     const b=document.getElementById('bal-type-'+k);
     if(b) b.className='btn btn-sm '+(k===t?'btn-primary':'btn-ghost');
   });
-  document.getElementById('bal-captain-section').style.display=t==='team'?'block':'none';
+  document.getElementById('bal-captain-section').style.display='none'; // 팀장 지정 미사용
   document.getElementById('bal-duo-section').style.display=t==='duo'?'block':'none';
-  _balUpdateCaptainSelects();
   if(t==='duo') _balRenderDuoPairUI();
 }
 function _balUpdateCaptainSelects(){
@@ -4357,17 +4356,15 @@ function _balArrangeDuo(){
   return {teams};
 }
 
-// 팀장전: 팀장 기준 뱀배열
+// 팀장전: CI 기반 균형 2분할 (팀장 지정 불필요)
 function _balArrangeTeam(){
-  const capAid=document.getElementById('bal-captain-a')?.value||'';
-  const capBid=document.getElementById('bal-captain-b')?.value||'';
-  if(!capAid||!capBid){toast('두 팀장을 선택해주세요','error');return null;}
-  const capA=_balAttendees.find(a=>a.id===capAid);
-  const capB=_balAttendees.find(a=>a.id===capBid);
-  const others=[..._balAttendees].filter(a=>a.id!==capAid&&a.id!==capBid).sort((a,b)=>b.score-a.score);
-  const teamA=[{...capA,captain:true}],teamB=[{...capB,captain:true}];
-  others.forEach(p=>{
-    if(teamA.length<=teamB.length) teamA.push(p); else teamB.push(p);
+  const sorted=[..._balAttendees].sort((a,b)=>b.score-a.score);
+  const teamA=[],teamB=[];
+  // 뱀배열: 1위→A, 2위→B, 3위→B, 4위→A, 5위→A ...
+  sorted.forEach((p,i)=>{
+    const row=Math.floor(i/2);
+    const col=i%2;
+    (row%2===0?col===0:col===1)?teamA.push(p):teamB.push(p);
   });
   return {teamA,teamB};
 }
