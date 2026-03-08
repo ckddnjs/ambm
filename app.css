@@ -208,6 +208,14 @@ body.ready{visibility:visible}
 /* 조별 경기 2열 그리드 */
 .league-matches-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
 @media(max-width:380px){.league-matches-grid{grid-template-columns:1fr;}}
+/* ── 대회 스텝 인디케이터 ── */
+.bf-step-dot{display:flex;flex-direction:column;align-items:center;gap:3px;width:40px;height:40px;border-radius:50%;background:var(--bg3);border:2px solid var(--border);font-size:.82rem;font-weight:700;color:var(--text-muted);cursor:default;justify-content:center;transition:.2s;flex-shrink:0;}
+.bf-step-dot span{font-size:.6rem;font-weight:400;position:absolute;margin-top:48px;white-space:nowrap;color:var(--text-muted);}
+.bf-step-dot.active{background:var(--primary);border-color:var(--primary);color:#fff;}
+.bf-step-dot.done{background:rgba(41,121,255,.15);border-color:var(--primary);color:var(--primary);}
+.bf-step-line{flex:1;height:2px;background:var(--border);margin:0 4px;align-self:center;transition:.2s;}
+.bf-step-line.done{background:var(--primary);}
+#bf-step-indicator{position:relative;padding-bottom:20px;}
 @media(min-width:600px){.app-body{max-width:600px;margin:0 auto}.bottom-nav{max-width:600px;left:50%;transform:translateX(-50%)}}
 @media(max-width:380px){.form-row-2{grid-template-columns:1fr}}
 
