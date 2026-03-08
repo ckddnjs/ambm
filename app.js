@@ -4059,8 +4059,7 @@ async function bdSaveMatchScore(btId,gi,mi){
 
 // ── 목록 렌더 ──
 async function renderBracketPage(){
-  const addBtn=document.getElementById('btn-add-bracket');
-  if(addBtn) addBtn.style.display=ME?.role==='admin'?'block':'none';
+  // btn-add-bracket 미사용 (대회만들기 비활성)
   const importBtn=document.getElementById('btn-bulk-import');
   if(importBtn) importBtn.style.display=ME?.role==='admin'?'block':'none';
   const balBtn=document.getElementById('btn-balance');
@@ -4170,14 +4169,15 @@ function _balRenderAttendees(){
   const all=window._bfAllUsers||[];
   wrap.innerHTML=all.map(u=>{
     const sel=_balAttendees.some(a=>a.id===u.id);
-    const ci=Math.round(u.ci||calcCI(u.wins||0,u.games||0,(u.scored||0)-(u.conceded||0)));
+    const ci=Math.round(u.ci||u.score||0);
+    const ciLabel=u.games>0?ci:'신규';
     return `<button onclick="balToggleAttendee('${u.id}')" style="
       padding:5px 11px;border-radius:20px;font-size:.78rem;cursor:pointer;
       font-family:inherit;font-weight:600;transition:all .12s;
       background:${sel?'var(--primary)':'var(--bg3)'};
       color:${sel?'#fff':'var(--text-muted)'};
       border:1.5px solid ${sel?'var(--primary)':'var(--border)'};
-    ">${u.name}<span style="font-size:.63rem;opacity:.7;margin-left:3px;">${ci}</span></button>`;
+    ">${u.name}<span style="font-size:.63rem;opacity:.7;margin-left:3px;">${ciLabel}</span></button>`;
   }).join('')||'<div style="color:var(--text-muted);font-size:.8rem;">불러오는 중…</div>';
   if(cnt) cnt.textContent=`${_balAttendees.length}명 선택됨`;
   _balUpdateCaptainSelects();
@@ -4712,6 +4712,8 @@ async function _loadBfAttendees(){
     window._bfAllUsers.push({id:'guest:'+nm,name:nm,isGuest:true,games:0,wins:0,losses:0});
   });
   _bfRenderAttendeeUI();
+  // 밸런스 폼이 열려있으면 참석자 목록도 갱신
+  if(document.getElementById('balance-form-inline')?.style.display!=='none') _balRenderAttendees();
 }
 
 function _bfRenderAttendeeUI(){
