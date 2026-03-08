@@ -2826,9 +2826,49 @@ async function openBracketDetail(id){
   openModal('modal-bracket-detail');
 }
 
+
+// ── 토너먼트 헬퍼 ──
+function _tl(t){
+  if(!t) return '?';
+  // 개인전: {id, name}
+  if(t.name&&!t.p1_name) return t.name;
+  // 팀전: {p1_name, p2_name}
+  if(t.p1_name&&t.p2_name) return `${t.p1_name} / ${t.p2_name}`;
+  if(t.p1_name) return t.p1_name;
+  return '?';
+}
+function _isMyTeam(t){
+  if(!t||!ME) return false;
+  return t.id===ME.id||t.p1_id===ME.id||t.p2_id===ME.id;
+}
+function bdCalcStandings(groups, isIndividual){
+  groups.forEach(g=>{
+    const items = isIndividual ? (g.players||[]) : (g.teams||[]);
+    const keyFn = isIndividual ? (x=>x.id) : (x=>x.p1_id);
+    const st={};
+    items.forEach(t=>{ st[keyFn(t)]={team:t,wins:0,losses:0,diff:0,pf:0,pa:0,played:0}; });
+    (g.matches||[]).forEach(m=>{
+      if(!m.done) return;
+      const s1=parseInt(m.s1),s2=parseInt(m.s2);
+      const k1=isIndividual?m.p1.id:m.t1.p1_id;
+      const k2=isIndividual?m.p2.id:m.t2.p1_id;
+      if(!st[k1]||!st[k2]) return;
+      st[k1].played++;st[k2].played++;
+      st[k1].pf+=s1;st[k1].pa+=s2;
+      st[k2].pf+=s2;st[k2].pa+=s1;
+      st[k1].diff=st[k1].pf-st[k1].pa;
+      st[k2].diff=st[k2].pf-st[k2].pa;
+      if(s1>s2){st[k1].wins++;st[k2].losses++;}
+      else{st[k2].wins++;st[k1].losses++;}
+    });
+    g.standings=Object.values(st).sort((a,b)=>b.wins!==a.wins?b.wins-a.wins:b.diff-a.diff);
+  });
+}
+
 function _renderBracketDetail(data){
   const isAdmin=ME?.role==='admin';
   const status=data.status||'league';
+  const isIndividual=(data.tournament_type==='individual');
   const groups=JSON.parse(data.groups||'[]');
   const rounds=JSON.parse(data.rounds||'[]');
   const isLeague=status==='league'||status==='active';
@@ -2837,27 +2877,39 @@ function _renderBracketDetail(data){
 
   html+=`<div style="display:flex;gap:0;background:var(--bg3);border-radius:10px;padding:3px;margin-bottom:14px;">
     <button id="bd-tab-league" onclick="bdSwitchTab('league')"
-      style="flex:1;border:none;cursor:pointer;padding:8px;border-radius:8px;font-size:.83rem;font-weight:600;background:var(--primary);color:#000;">📊 조별 리그</button>
+      style="flex:1;border:none;cursor:pointer;padding:8px;border-radius:8px;font-size:.83rem;font-weight:600;background:var(--primary);color:#fff;">📊 조별 리그</button>
     <button id="bd-tab-bracket" onclick="bdSwitchTab('bracket')"
       style="flex:1;border:none;cursor:pointer;padding:8px;border-radius:8px;font-size:.83rem;font-weight:600;background:transparent;color:var(--text-muted);">🏆 본선 대진</button>
   </div>`;
 
+  // ── 조별 리그 뷰 ──
   html+=`<div id="bd-league-view">`;
   groups.forEach((g,gi)=>{
-    const myGroupTeam=g.teams.find(t=>_isMyTeam(t));
-    const myGroupHL=myGroupTeam?'border-color:var(--primary);box-shadow:0 0 0 2px rgba(0,200,150,.2);':'';
-    html+=`<div style="margin-bottom:16px;background:var(--surface);border:1px solid var(--border);${myGroupHL}border-radius:12px;padding:12px;">`;
-    html+=`<div style="font-size:.85rem;font-weight:700;color:var(--primary);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-      ${g.name}${myGroupTeam?`<span style="font-size:.7rem;background:rgba(0,200,150,.15);color:var(--primary);padding:2px 7px;border-radius:8px;">내 조</span>`:''}
+    const members = isIndividual ? (g.players||[]) : (g.teams||[]);
+    const isMine = members.some(m=>_isMyTeam(m));
+    const hl = isMine?'border-color:var(--primary);box-shadow:0 0 0 2px rgba(41,121,255,.15);':'';
+    html+=`<div style="margin-bottom:16px;background:var(--surface);border:1px solid var(--border);${hl}border-radius:12px;padding:12px;">`;
+    html+=`<div style="font-size:.88rem;font-weight:700;color:var(--primary);margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+      ${g.name}${isMine?`<span style="font-size:.7rem;background:rgba(41,121,255,.12);color:var(--primary);padding:2px 7px;border-radius:8px;">내 조</span>`:''}
+      <span style="font-size:.72rem;color:var(--text-muted);margin-left:auto;">${members.length}명</span>
     </div>`;
 
+    // 참가자 배지
+    html+=`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;">`;
+    members.forEach((m,mi)=>{
+      const isMe=_isMyTeam(m);
+      html+=`<span style="font-size:.78rem;padding:3px 10px;border-radius:14px;background:${isMe?'rgba(41,121,255,.15)':'var(--bg2)'};border:1px solid ${isMe?'var(--primary)':'var(--border)'};color:${isMe?'var(--primary)':'var(--text)'};">${_tl(m)}${isMe?' ◀':''}</span>`;
+    });
+    html+=`</div>`;
+
+    // 순위표
     if(g.standings&&g.standings.length){
       html+=`<div style="overflow-x:auto;margin-bottom:10px;" id="bd-standings-${gi}"><table style="width:100%;border-collapse:collapse;font-size:.78rem;text-align:center;">
-        <thead><tr style="background:var(--bg3);"><th style="padding:6px 4px;">순위</th><th style="padding:6px;text-align:left;">팀</th><th>경기</th><th>승</th><th>득실</th></tr></thead>
+        <thead><tr style="background:var(--bg3);"><th style="padding:6px 4px;">순위</th><th style="padding:6px;text-align:left;">이름</th><th>경기</th><th>승</th><th>득실</th></tr></thead>
         <tbody>`;
       g.standings.forEach((s,ri)=>{
         const isMe=_isMyTeam(s.team);
-        const hl=isMe?'background:rgba(0,200,150,.07);font-weight:700;':'';
+        const hl=isMe?'background:rgba(41,121,255,.07);font-weight:700;':'';
         const diff=s.diff>0?`+${s.diff}`:s.diff;
         html+=`<tr style="${hl}">
           <td style="padding:6px 4px;font-weight:700;color:${ri===0?'var(--primary)':ri===1?'var(--accent)':'var(--text-muted)'};">${ri+1}</td>
@@ -2868,22 +2920,24 @@ function _renderBracketDetail(data){
       html+=`</tbody></table></div>`;
     }
 
-    const doneMatches=g.matches.filter(m=>m.done);
-    const pendingMatches=g.matches.filter(m=>!m.done);
+    // 경기 목록
+    const doneCount=(g.matches||[]).filter(m=>m.done).length;
     html+=`<button onclick="bdToggleMatches(${gi})" id="bd-toggle-${gi}"
       style="width:100%;padding:6px;background:transparent;border:1px solid var(--border);border-radius:8px;font-size:.78rem;color:var(--text-muted);cursor:pointer;margin-bottom:6px;">
-      📋 경기 내역 보기 (완료 ${doneMatches.length}/${g.matches.length})
+      📋 경기 내역 보기 (완료 ${doneCount}/${(g.matches||[]).length})
     </button>
     <div id="bd-matches-${gi}" style="display:none;">`;
-
     html+=`<div class="league-matches-grid">`;
-    g.matches.forEach((m,mi)=>{
+
+    (g.matches||[]).forEach((m,mi)=>{
+      const lbl1 = isIndividual ? m.p1?.name : _tl(m.t1);
+      const lbl2 = isIndividual ? m.p2?.name : _tl(m.t2);
       if(m.done){
         const aWin=parseInt(m.s1)>parseInt(m.s2);
         html+=`<div id="bl-cell-${gi}-${mi}" style="display:flex;align-items:center;gap:4px;padding:6px 8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);font-size:.78rem;">
           <div style="flex:1;min-width:0;">
-            <div style="font-weight:${aWin?700:400};color:${aWin?'var(--text)':'var(--text-muted)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_tl(m.t1)}</div>
-            <div style="font-weight:${!aWin?700:400};color:${!aWin?'var(--text)':'var(--text-muted)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_tl(m.t2)}</div>
+            <div style="font-weight:${aWin?700:400};color:${aWin?'var(--text)':'var(--text-muted)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${lbl1}</div>
+            <div style="font-weight:${!aWin?700:400};color:${!aWin?'var(--text)':'var(--text-muted)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${lbl2}</div>
           </div>
           <div style="text-align:center;flex-shrink:0;min-width:38px;">
             <div style="font-weight:700;color:${aWin?'var(--primary)':'var(--text-muted)'};">${m.s1}</div>
@@ -2894,9 +2948,9 @@ function _renderBracketDetail(data){
       } else if(isAdmin&&isLeague){
         html+=`<div id="bl-cell-${gi}-${mi}" style="background:var(--surface2);border-radius:8px;padding:8px;border:1px solid var(--border);">
           <div style="font-size:.74rem;margin-bottom:4px;display:flex;justify-content:space-between;color:var(--text-muted);">
-            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:48%;">${_tl(m.t1)}</span>
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:48%;">${lbl1}</span>
             <span>vs</span>
-            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:48%;text-align:right;">${_tl(m.t2)}</span>
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:48%;text-align:right;">${lbl2}</span>
           </div>
           <div style="display:grid;grid-template-columns:1fr 14px 1fr auto;gap:4px;align-items:center;">
             <input type="number" inputmode="numeric" min="0" max="30" id="bl-${gi}-${mi}-1"
@@ -2905,66 +2959,66 @@ function _renderBracketDetail(data){
             <input type="number" inputmode="numeric" min="0" max="30" id="bl-${gi}-${mi}-2"
               style="background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px;font-size:.88rem;text-align:center;width:100%;box-sizing:border-box;">
             <button ontouchend="event.preventDefault();bdConfirmLeague(${gi},${mi});" onclick="bdConfirmLeague(${gi},${mi});"
-              style="padding:5px 8px;background:var(--primary);color:#000;border:none;border-radius:6px;font-size:.75rem;font-weight:700;cursor:pointer;">✓</button>
+              style="padding:5px 8px;background:var(--primary);color:#fff;border:none;border-radius:6px;font-size:.75rem;font-weight:700;cursor:pointer;">✓</button>
           </div>
         </div>`;
       } else {
         html+=`<div id="bl-cell-${gi}-${mi}" style="display:flex;align-items:center;gap:4px;padding:6px 8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);opacity:.6;font-size:.78rem;">
           <div style="flex:1;">
-            <div style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_tl(m.t1)}</div>
-            <div style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_tl(m.t2)}</div>
+            <div style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${lbl1}</div>
+            <div style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${lbl2}</div>
           </div>
           <span style="font-size:.68rem;color:var(--text-dim);">대기</span>
         </div>`;
       }
     });
-    html+=`</div>`; /* /league-matches-grid */
-    html+=`</div>`; /* /bd-matches-gi */
-    html+=`</div>`; /* /group card */
+    html+=`</div>`; // /league-matches-grid
+    html+=`</div>`; // /bd-matches-gi
+    html+=`</div>`; // /group card
   });
 
   if(isAdmin&&isLeague){
-    const allDone=groups.length>0&&groups.every(g=>g.matches.every(m=>m.done));
-    if(allDone){
-      html+=`<div id="bd-knockout-btn-wrap"><button onclick="bdStartKnockout()" style="width:100%;padding:12px;background:var(--primary);color:#000;border:none;border-radius:10px;font-size:.9rem;font-weight:700;cursor:pointer;margin-top:4px;">🏆 본선 대진표 생성 →</button></div>`;
-    } else {
-      html+=`<div id="bd-knockout-btn-wrap"><div style="text-align:center;font-size:.82rem;color:var(--text-muted);padding:8px;margin-top:4px;">모든 조별 경기 완료 후 본선 진출 가능</div></div>`;
-    }
+    const allDone=groups.length>0&&groups.every(g=>(g.matches||[]).every(m=>m.done));
+    html+=`<div id="bd-knockout-btn-wrap">${allDone
+      ?`<button onclick="bdStartKnockout()" style="width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:.9rem;font-weight:700;cursor:pointer;margin-top:4px;">🏆 본선 대진표 생성 →</button>`
+      :`<div style="text-align:center;font-size:.82rem;color:var(--text-muted);padding:8px;margin-top:4px;">모든 조별 경기 완료 후 본선 진출 가능</div>`
+    }</div>`;
   }
-  html+=`</div>`; /* /bd-league-view */
+  html+=`</div>`; // /bd-league-view
 
+  // ── 본선 대진 뷰 ──
   html+=`<div id="bd-bracket-view" style="display:none;">`;
   if(rounds.length>0){
     html+=_renderBracketVisual(rounds);
     if(isAdmin&&status==='knockout') html+=_renderBracketInput(rounds);
-  } else if(isLeague&&groups.length>0){
-    // 조별리그 중 미리보기: 현재 순위 기반으로 예상 대진 표시
-    html+=_renderBracketPreview(groups);
   } else {
     html+=`<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:.88rem;">조별 리그 완료 후 본선 대진표가 생성됩니다.</div>`;
   }
-  /* ── 1위/2위/3위로 변경 ── */
   if(data.winner_name){
-    html+=`<div style="text-align:center;padding:16px;background:rgba(0,200,150,.08);border-radius:12px;border:1px solid rgba(0,200,150,.25);margin-top:12px;">
+    html+=`<div style="text-align:center;padding:16px;background:rgba(41,121,255,.08);border-radius:12px;border:1px solid rgba(41,121,255,.25);margin-top:12px;">
       <div style="font-size:1.4rem;">🏆</div>
-      <div style="font-weight:700;color:var(--primary);font-size:1rem;margin-top:4px;">🥇 1위: ${data.winner_name}</div>
-      ${data.runner_up?`<div style="font-size:.88rem;color:var(--text-muted);margin-top:4px;">🥈 2위: ${data.runner_up}</div>`:''}
-      ${data.third_place?`<div style="font-size:.88rem;color:var(--text-muted);margin-top:2px;">🥉 3위: ${data.third_place}</div>`:''}
+      <div style="font-weight:700;font-size:1rem;margin-top:4px;">${data.winner_name}</div>
+      ${data.runner_up?`<div style="font-size:.82rem;color:var(--text-muted);margin-top:4px;">🥈 ${data.runner_up}</div>`:''}
+      ${data.third_place?`<div style="font-size:.82rem;color:var(--text-muted);">🥉 ${data.third_place}</div>`:''}
     </div>`;
   }
-  html+=`</div>`; /* /bd-bracket-view */
+  html+=`</div>`; // /bd-bracket-view
 
   let actionBtns=`<button class="btn btn-ghost" onclick="closeModal('modal-bracket-detail')">닫기</button>`;
-  if(isAdmin&&rounds.length>0&&status==='knockout'){
-    const cur=rounds[rounds.length-1];
-    if(cur.every(m=>m.done)){
-      actionBtns+=cur.length===1
-        ?`<button class="btn btn-primary" onclick="bdFinish()">🏆 순위 확정</button>`
-        :`<button class="btn btn-primary" onclick="bdNextRound()">다음 라운드 ➡️</button>`;
+  if(isAdmin){
+    if(status==='knockout'){
+      const rds=rounds;
+      const last=rds[rds.length-1]||[];
+      const allDoneKO=last.length>0&&last.every(m=>m.done);
+      if(allDoneKO){
+        actionBtns+=last.length===1
+          ?`<button class="btn btn-primary" onclick="bdFinish()">🏆 순위 확정</button>`
+          :`<button class="btn btn-primary" onclick="bdNextRound()">다음 라운드 ➡️</button>`;
+      }
     }
   }
+  document.getElementById('bd-content').innerHTML=html;
   document.getElementById('bd-actions').innerHTML=actionBtns;
-  document.getElementById('bd-body').innerHTML=html;
 }
 
 function bdToggleMatches(gi){
@@ -3116,9 +3170,10 @@ async function bdConfirmLeague(gi,mi){
   const n1=parseInt(s1v),n2=parseInt(s2v);
   if(isNaN(n1)||isNaN(n2)||n1===n2){toast(n1===n2?'동점 불가':'숫자 입력','error');return;}
   const groups=JSON.parse(_bdData.groups);
+  const isIndividual=(_bdData.tournament_type==='individual');
   const m=groups[gi].matches[mi];
   m.s1=n1;m.s2=n2;m.done=true;
-  bdCalcStandings(groups);
+  bdCalcStandings(groups,isIndividual);
   await sb.from('bracket_tournaments').update({groups:JSON.stringify(groups)}).eq('id',_bdId);
   _bdData.groups=JSON.stringify(groups);
 
@@ -3165,8 +3220,9 @@ async function bdConfirmLeague(gi,mi){
 
 async function bdEditLeague(gi,mi){
   const groups=JSON.parse(_bdData.groups);
+  const isIndividual=(_bdData.tournament_type==='individual');
   groups[gi].matches[mi].done=false;groups[gi].matches[mi].s1='';groups[gi].matches[mi].s2='';
-  bdCalcStandings(groups);
+  bdCalcStandings(groups,isIndividual);
   await sb.from('bracket_tournaments').update({groups:JSON.stringify(groups)}).eq('id',_bdId);
   _bdData.groups=JSON.stringify(groups);
 
@@ -3390,6 +3446,7 @@ function bdCalcStandings(groups){
 
 async function bdStartKnockout(){
   const groups=JSON.parse(_bdData.groups);
+  const isIndividual=(_bdData.tournament_type==='individual');
   const G=groups.length;
   let pool=[];
   if(G===1){
