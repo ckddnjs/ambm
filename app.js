@@ -999,6 +999,7 @@ async function renderRankTable(allMatches){
       if(p.win)userStats[key].wins++;else userStats[key].losses++;
       userStats[key].scored+=p.s;userStats[key].conceded+=p.c;
     });
+  });
   Object.values(userStats).forEach(u=>{u.diff=u.scored-u.conceded;u.ci=calcCI(u.wins,u.games,u.diff);});
   let sorted=Object.values(userStats).filter(u=>u.games>0);
   const wr=u=>u.games>0?u.wins/u.games:0;
