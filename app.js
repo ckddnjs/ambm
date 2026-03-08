@@ -3019,13 +3019,85 @@ function bfNextStep(){
     const date=document.getElementById('bf-auto-date').value;
     if(!name){toast('대회명 입력','error');return;}
     if(!date){toast('날짜 선택','error');return;}
-    if(_bfType==='individual'||_bfType==='duo'){
-      if(_bfAttendees.length<4){toast('참석자 4명 이상 선택','error');return;}
-    } else {
-      if(_bfAttendees.length<4){toast('참석자 4명 이상 선택','error');return;}
+    if(_bfAttendees.length<4){toast('참석자 4명 이상 선택','error');return;}
+    if(_bfType==='duo'){
+      // 듀오전은 파트너 페어링 단계(1.5)로 먼저 이동
+      _bfStep=1.5;
+      bfGoStep(2); // step2 패널 표시
+      bfRenderDuoPairing(); // 페어링 UI 렌더
+      return;
     }
     bfGoStep(2);
+  } else if(_bfStep===1.5){
+    // 듀오전: 페어링 완료 후 자동 조편성으로
+    if(_bfDuoPairs.length<2){toast('팀을 2팀 이상 구성해주세요','error');return;}
+    const pairedCount=_bfDuoPairs.reduce((s,p)=>s+(p.p2?2:1),0);
+    if(pairedCount<_bfAttendees.length){
+      toast(`미배정 선수 ${_bfAttendees.length-pairedCount}명이 있습니다. 모두 배정해주세요`,'error');return;
+    }
+    bfRenderArrangement();
   }
+}
+
+// ══════════════════
+//  STEP 1.5: 듀오전 파트너 페어링
+// ══════════════════
+let _bfDuoPairs=[]; // [{p1:{id,name,score}, p2:{id,name,score}|null}]
+
+function bfRenderDuoPairing(){
+  _bfDuoPairs=[];
+  _bfRenderDuoPairingUI();
+}
+
+function _bfRenderDuoPairingUI(){
+  const wrap=document.getElementById('bf-arrange-wrap');
+  if(!wrap) return;
+  const paired=new Set(_bfDuoPairs.flatMap(p=>[p.p1.id, p.p2?.id].filter(Boolean)));
+  const unpaired=_bfAttendees.filter(a=>!paired.has(a.id));
+  const opts=unpaired.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  const pairListHtml=_bfDuoPairs.map((p,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;">
+      <span style="font-size:.78rem;color:var(--text-muted);white-space:nowrap;">팀${i+1}</span>
+      <span style="flex:1;font-size:.88rem;font-weight:600;">${p.p1.name}${p.p2?' / '+p.p2.name:' (단독)'}</span>
+      <button onclick="bfRemovePair(${i})" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:0 4px;">✕</button>
+    </div>`).join('');
+  wrap.innerHTML=`
+    <div style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px;">
+      👥 파트너를 2명씩 묶어주세요. 아래에서 선수1과 파트너를 선택 후 + 추가를 누르세요.
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;" id="duo-pair-list">
+      ${pairListHtml||'<div style="font-size:.8rem;color:var(--text-muted);padding:8px;">아직 페어가 없습니다.</div>'}
+    </div>
+    ${unpaired.length>0?`
+    <div style="display:flex;gap:8px;align-items:center;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px;">
+      <select id="duo-sel-p1" class="form-select" style="flex:1;">
+        <option value="">선수1 *</option>${opts}
+      </select>
+      <select id="duo-sel-p2" class="form-select" style="flex:1;">
+        <option value="">파트너 (없으면 단독)</option>${opts}
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="bfAddPair()" style="white-space:nowrap;">+ 추가</button>
+    </div>`:''}
+    <div style="font-size:.75rem;color:var(--text-muted);margin-top:8px;">
+      미배정: ${unpaired.length}명 남음 · 총 ${_bfDuoPairs.length}팀 구성됨
+    </div>`;
+}
+
+function bfAddPair(){
+  const id1=document.getElementById('duo-sel-p1')?.value;
+  const id2=document.getElementById('duo-sel-p2')?.value;
+  if(!id1){toast('선수1을 선택해주세요','error');return;}
+  if(id1===id2){toast('같은 선수를 선택했습니다','error');return;}
+  const p1=_bfAttendees.find(a=>a.id===id1);
+  const p2=id2?_bfAttendees.find(a=>a.id===id2):null;
+  if(!p1){toast('선수 정보 오류','error');return;}
+  _bfDuoPairs.push({p1,p2});
+  _bfRenderDuoPairingUI();
+}
+
+function bfRemovePair(i){
+  _bfDuoPairs.splice(i,1);
+  _bfRenderDuoPairingUI();
 }
 
 // ══════════════════
@@ -3037,8 +3109,10 @@ function bfRenderArrangement(){
   const wrap=document.getElementById('bf-arrange-wrap');
   if(!wrap) return;
 
-  if(_bfType==='individual'||_bfType==='duo'){
+  if(_bfType==='individual'){
     _bfArrangement=_bfAutoArrange();
+  } else if(_bfType==='duo'){
+    _bfArrangement=_bfDuoArrange();
   } else {
     _bfArrangement=_bfTeamArrange();
   }
@@ -3069,6 +3143,34 @@ function _bfAutoArrange(){
   return {groups};
 }
 
+function _bfDuoArrange(){
+  // 듀오전: _bfDuoPairs를 실력순 뱀배열로 조편성
+  const avgScore=p=>((p.p1.score||0)+(p.p2?p.p2.score||0:0))/(p.p2?2:1);
+  const sorted=[..._bfDuoPairs].sort((a,b)=>avgScore(b)-avgScore(a));
+  const n=sorted.length;
+  const groupCount=_calcGroupCount(n);
+  const groups=Array.from({length:groupCount},(_,gi)=>({
+    name:`${String.fromCharCode(65+gi)}조`,
+    teams:[],matches:[],standings:[]
+  }));
+  sorted.forEach((pair,i)=>{
+    const row=Math.floor(i/groupCount);
+    const col=i%groupCount;
+    const gi=row%2===0?col:groupCount-1-col;
+    groups[gi].teams.push({
+      p1_id:pair.p1.id,p1_name:pair.p1.name,
+      p2_id:pair.p2?.id||null,p2_name:pair.p2?.name||null
+    });
+  });
+  groups.forEach(g=>{
+    g.matches=[];
+    for(let i=0;i<g.teams.length;i++)
+      for(let j=i+1;j<g.teams.length;j++)
+        g.matches.push({t1:g.teams[i],t2:g.teams[j],s1:'',s2:'',done:false});
+  });
+  return {groups};
+}
+
 function _bfTeamArrange(){
   // 팀전: 팀장 A/B 지정 후 실력 뱀배열로 나머지 분배
   const capAid=document.getElementById('bf-captain-a')?.value;
@@ -3092,7 +3194,11 @@ function _bfRenderArrangeUI(wrap){
     _bfRenderTeamArrangeUI(wrap);
     return;
   }
-  // 개인전/듀오전 조편성
+  if(_bfType==='duo'){
+    _bfRenderDuoArrangeUI(wrap);
+    return;
+  }
+  // 개인전 조편성
   const {groups}=_bfArrangement;
   const isAdmin=ME?.role==='admin';
   let html=`<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px;">
@@ -3124,6 +3230,30 @@ function _bfRenderArrangeUI(wrap){
       html+=`</select>`;
     }
     html+=`</div>`;
+  });
+  html+=`</div>`;
+  wrap.innerHTML=html;
+}
+
+function _bfRenderDuoArrangeUI(wrap){
+  // 듀오전 조편성 결과 렌더 (teams[] 구조)
+  const {groups}=_bfArrangement;
+  const isAdmin=ME?.role==='admin';
+  let html=`<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px;">
+    🤖 팀 실력 균형을 고려해 자동 배분했습니다.
+  </div>`;
+  html+=`<div style="display:flex;flex-direction:column;gap:10px;">`;
+  groups.forEach(g=>{
+    html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;">
+      <div style="font-weight:700;font-size:.85rem;color:var(--primary);margin-bottom:8px;">${g.name} (${g.teams.length}팀)</div>
+      <div style="display:flex;flex-direction:column;gap:5px;">`;
+    g.teams.forEach(t=>{
+      const label=t.p2_name?`${t.p1_name} / ${t.p2_name}`:t.p1_name;
+      html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:.85rem;font-weight:600;">
+        👥 ${label}
+      </div>`;
+    });
+    html+=`</div></div>`;
   });
   html+=`</div>`;
   wrap.innerHTML=html;
@@ -3202,8 +3332,13 @@ async function bfConfirmArrangement(){
       matches:[],
       standings:{A:{wins:0,losses:0,diff:0},B:{wins:0,losses:0,diff:0}}
     }]);
+  } else if(_bfType==='duo'){
+    // 듀오전: teams[] 구조로 저장, 조당 2팀 이상 검사
+    const badGroup=_bfArrangement.groups.find(g=>g.teams.length<2);
+    if(badGroup){toast(`${badGroup.name}이 2팀 미만입니다. 파트너 배정을 확인해주세요.`,'error');return;}
+    insertData.groups=JSON.stringify(_bfArrangement.groups);
   } else {
-    // 3명 조 검사
+    // 개인전: players[] 구조, 조당 4명 이상 검사
     const badGroup=_bfArrangement.groups.find(g=>g.players.length<4);
     if(badGroup){toast(`${badGroup.name}이 4명 미만입니다. 조를 조정해주세요.`,'error');return;}
     insertData.groups=JSON.stringify(_bfArrangement.groups);
