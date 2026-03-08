@@ -1818,48 +1818,77 @@ async function renderAdminMembers(){
       </div>
     </div>`).join('');
 
-  // 비회원 관리 섹션 (회원 목록 아래)
-  const guestSection=guestArr.length?`
-    <div style="margin-top:16px;">
-      <div style="font-size:.84rem;font-weight:700;color:var(--text);margin-bottom:10px;padding-top:12px;border-top:1px solid var(--border);">👻 비회원 관리 (${guestArr.length}명)</div>
+  // 비회원 관리 섹션 (회원 목록 아래) - 테이블 형태
+  const approvedUsers=(users||[]).filter(u=>u.status==='approved');
+  const memberOptHtml=approvedUsers.map(u=>`<option value="${u.id}|${escHtml(u.name)}">${u.name}</option>`).join('');
 
-      <!-- 기록 연계 -->
-      <div style="background:rgba(41,121,255,.05);border:1px solid rgba(41,121,255,.15);border-radius:10px;padding:10px 12px;margin-bottom:10px;">
-        <div style="font-size:.78rem;font-weight:700;color:var(--info);margin-bottom:6px;">🔗 기록 연계</div>
-        <div style="font-size:.73rem;color:var(--text-muted);margin-bottom:8px;">비회원 이름을 회원과 연계하면 해당 경기 기록이 회원 이름으로 변경됩니다.</div>
-        <div style="display:flex;flex-direction:column;gap:5px;">
-          ${guestArr.map(nm=>{
-            const safeId=nm.replace(/[^a-zA-Z0-9가-힣]/g,'_');
-            return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;">
-              <span style="flex:0 0 auto;font-size:.82rem;font-weight:600;min-width:60px;">${escHtml(nm)}</span>
-              <select class="form-select" id="link-sel-${safeId}" style="flex:1;font-size:.76rem;padding:3px 7px;">
-                <option value="">회원 선택...</option>
-                ${(users||[]).filter(u=>u.status==='approved').map(u=>`<option value="${u.id}|${escHtml(u.name)}">${u.name}</option>`).join('')}
-              </select>
-              <button onclick="linkGuestToMember('${escHtml(nm)}','link-sel-${safeId}')" style="font-size:.73rem;padding:3px 8px;background:var(--primary);border:none;border-radius:6px;cursor:pointer;color:#fff;white-space:nowrap;flex-shrink:0;">연계</button>
-            </div>`;
-          }).join('')}
-        </div>
+  const guestSection=guestArr.length?`
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+      <div style="font-size:.84rem;font-weight:700;color:var(--text);margin-bottom:10px;">👻 비회원 관리 <span style="font-size:.74rem;font-weight:400;color:var(--text-muted);">(${guestArr.length}명)</span></div>
+      <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:10px;line-height:1.6;">
+        연계 버튼을 눌러 회원을 선택하면 해당 비회원의 경기 기록이 회원 이름으로 변경됩니다.<br>
+        게스트모드 체크 시 경기 기록은 유지되지만 전체 랭킹에서 제외됩니다.
       </div>
 
-      <!-- 게스트 모드 (랭킹 미반영) -->
-      <div style="background:rgba(255,152,0,.05);border:1px solid rgba(255,152,0,.2);border-radius:10px;padding:10px 12px;">
-        <div style="font-size:.78rem;font-weight:700;color:#E65100;margin-bottom:6px;">👻 게스트 모드 (랭킹 미반영)</div>
-        <div style="font-size:.73rem;color:var(--text-muted);margin-bottom:8px;">체크된 이름은 경기 기록은 유지되지만 전체 랭킹에서 제외됩니다.</div>
-        <div style="display:flex;flex-direction:column;gap:5px;">
-          ${guestArr.map(nm=>{
-            const isGM=guestModeNames.has(nm);
-            const safeId='gm-'+nm.replace(/[^a-zA-Z0-9가-힣]/g,'_');
-            return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;">
-              <input type="checkbox" id="${safeId}" ${isGM?'checked':''} onchange="toggleGuestMode('${escHtml(nm)}',this.checked)" style="width:16px;height:16px;cursor:pointer;flex-shrink:0;">
-              <label for="${safeId}" style="font-size:.82rem;cursor:pointer;flex:1;">${escHtml(nm)}</label>
-              <span style="font-size:.7rem;color:${isGM?'#E65100':'var(--text-dim)'};">${isGM?'👻 랭킹 제외':'랭킹 반영'}</span>
-            </div>`;
-          }).join('')}
-        </div>
+      <!-- 헤더 -->
+      <div style="display:grid;grid-template-columns:1fr 32px 80px;gap:0;align-items:center;padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px 8px 0 0;font-size:.72rem;font-weight:700;color:var(--text-muted);">
+        <span>비회원 이름</span>
+        <span style="text-align:center;">👻</span>
+        <span style="text-align:center;">연계</span>
+      </div>
+
+      <!-- 행 목록 -->
+      <div style="border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;overflow:hidden;">
+        ${guestArr.map((nm,idx)=>{
+          const isGM=guestModeNames.has(nm);
+          const safeId='gm-'+nm.replace(/[^a-zA-Z0-9가-힣]/g,'_');
+          const isLast=idx===guestArr.length-1;
+          return `<div style="display:grid;grid-template-columns:1fr 32px 80px;gap:0;align-items:center;padding:8px 10px;background:var(--surface);${!isLast?'border-bottom:1px solid var(--border);':''}">
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <span style="font-size:.84rem;font-weight:600;color:var(--text);">${escHtml(nm)}</span>
+              ${isGM?'<span style="font-size:.66rem;color:#E65100;">👻 랭킹 제외 중</span>':''}
+            </div>
+            <div style="display:flex;justify-content:center;">
+              <input type="checkbox" id="${safeId}" ${isGM?'checked':''} onchange="toggleGuestMode('${escHtml(nm)}',this.checked)"
+                style="width:16px;height:16px;cursor:pointer;accent-color:var(--primary);">
+            </div>
+            <div style="display:flex;justify-content:center;">
+              <button onclick="openLinkGuestModal('${escHtml(nm)}')"
+                style="font-size:.72rem;padding:4px 10px;background:var(--primary);border:none;border-radius:6px;cursor:pointer;color:#fff;white-space:nowrap;font-family:inherit;font-weight:600;">
+                연계
+              </button>
+            </div>
+          </div>`;
+        }).join('')}
       </div>
     </div>`:
     '<div style="margin-top:8px;font-size:.8rem;color:var(--text-muted);text-align:center;padding:8px 0;">비회원 기록 없음</div>';
+
+  // 연계용 회원 선택 모달 HTML (동적으로 body에 삽입)
+  if(!document.getElementById('modal-link-guest')){
+    const modalEl=document.createElement('div');
+    modalEl.id='modal-link-guest';
+    modalEl.className='modal-overlay center';
+    modalEl.innerHTML=`<div class="modal center-modal" style="max-width:340px;">
+      <div class="modal-title">🔗 기록 연계</div>
+      <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:12px;">
+        <span id="link-guest-name" style="font-weight:700;color:var(--text);"></span>의 기록을 연계할 회원을 선택하세요.
+      </div>
+      <select class="form-select" id="link-guest-select" style="margin-bottom:16px;">
+        <option value="">회원 선택...</option>
+        ${memberOptHtml}
+      </select>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('modal-link-guest')">취소</button>
+        <button class="btn btn-primary" onclick="confirmLinkGuest()">연계</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modalEl);
+  } else {
+    // 이미 있으면 셀렉트 옵션만 갱신
+    const sel=document.getElementById('link-guest-select');
+    if(sel) sel.innerHTML='<option value="">회원 선택...</option>'+memberOptHtml;
+  }
 
   el.innerHTML=memberSection+guestSection;
 }
@@ -1912,12 +1941,25 @@ async function toggleGuestMode(name, enabled){
 }
 
 // 비회원 기록을 기존 회원에 연계
-async function linkGuestToMember(guestName, selId){
-  const sel=document.getElementById(selId);
-  if(!sel||!sel.value){toast('연계할 회원을 선택하세요','error');return;}
-  const [memberId, memberName]=sel.value.split('|');
+// 연계 모달 열기
+function openLinkGuestModal(guestName){
+  window._linkGuestName=guestName;
+  const nameEl=document.getElementById('link-guest-name');
+  if(nameEl) nameEl.textContent=guestName;
+  const sel=document.getElementById('link-guest-select');
+  if(sel) sel.value='';
+  openModal('modal-link-guest');
+}
+
+// 연계 확인
+async function confirmLinkGuest(){
+  const guestName=window._linkGuestName;
+  if(!guestName){closeModal('modal-link-guest');return;}
+  const sel=document.getElementById('link-guest-select');
+  if(!sel||!sel.value){toast('회원을 선택하세요','error');return;}
+  const [memberId,memberName]=sel.value.split('|');
   if(!memberId||!memberName){toast('회원 정보 오류','error');return;}
-  if(!confirm(`비회원 "${guestName}"의 기록을 회원 "${memberName}"에 연계하시겠습니까?\n기존 "${guestName}" 이름이 "${memberName}"으로 변경됩니다.`)) return;
+  closeModal('modal-link-guest');
   try{
     const cols=[
       {nameCol:'a1_name',idCol:'a1_id'},
@@ -1933,13 +1975,13 @@ async function linkGuestToMember(guestName, selId){
         total+=rows.length;
       }
     }
-    // 게스트 모드에 해당 이름이 있으면 제거
     const gm=await _loadGuestModeNames(); gm.delete(guestName); await _saveGuestModeNames(gm);
     addLog(`비회원 연계: "${guestName}" → "${memberName}" (${total}건)`,ME.id);
     toast(`✅ "${memberName}"에 ${total}건 연계 완료`,'success');
     renderAdminMembers();
   }catch(e){toast('연계 실패: '+e.message,'error');}
 }
+
 
 async function renderAdminBatch(){
   // 이름→ID 매핑을 위해 유저 데이터 로드
