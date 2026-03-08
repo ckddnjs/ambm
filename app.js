@@ -2829,19 +2829,20 @@ async function renderBracketPage(){
     const isDone=bt.status==='done';
     const isLeague=bt.status==='league'||bt.status==='active';
     const isPlan=bt.status==='plan';
+    const isDraft=bt.status==='draft';
     const isAdmin=ME?.role==='admin';
     const tLabel=typeLabel[bt.tournament_type]||'대회';
-    return `<div class="card" style="margin-bottom:12px;cursor:pointer;" onclick="openBracketDetail('${bt.id}')">
+    return `<div class="card" style="margin-bottom:12px;cursor:pointer;${isDraft?'opacity:.75;border-style:dashed;':''}" onclick="openBracketDetail('${bt.id}')">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;font-size:.95rem;margin-bottom:3px;">${bt.name}</div>
+          <div style="font-weight:700;font-size:.95rem;margin-bottom:3px;">${bt.name}${isDraft?` <span style="font-size:.7rem;background:rgba(255,152,0,.15);color:var(--warn);padding:1px 6px;border-radius:6px;font-weight:600;">임시저장</span>`:''}</div>
           <div style="font-size:.78rem;color:var(--text-muted);">📅 ${fmtMatchDate(bt.match_date)} · ${tLabel}</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
           <span style="font-size:.75rem;padding:3px 10px;border-radius:12px;font-weight:700;
-            background:${isDone?'rgba(41,121,255,.12)':isLeague?'rgba(41,121,255,.15)':isPlan?'rgba(255,152,0,.12)':'rgba(255,152,0,.12)'};
+            background:${isDone?'rgba(41,121,255,.12)':isLeague?'rgba(41,121,255,.15)':isDraft?'rgba(255,152,0,.10)':isPlan?'rgba(255,152,0,.12)':'rgba(255,152,0,.12)'};
             color:${isDone?'var(--primary)':isLeague?'var(--info)':'var(--warn)'};">
-            ${isDone?'완료':isLeague?'진행중':isPlan?'배분중':'준비중'}
+            ${isDone?'완료':isLeague?'진행중':isDraft?'임시저장':isPlan?'배분중':'준비중'}
           </span>
           ${isAdmin?`<button onclick="event.stopPropagation();deleteBracket('${bt.id}')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.8rem;padding:2px 6px;">✕</button>`:''}
         </div>
@@ -2986,7 +2987,8 @@ function bfSetType(type){
   // 팀장전은 참석자 선택 완료 후 보이도록 — 항상 숨김 처리 후 참석자 있을 때만 표시
   const captainSection=document.getElementById('bf-team-captain-section');
   if(captainSection){
-    captainSection.style.display=(type==='team'&&_bfAttendees.length>=2)?'block':'none';
+    captainSection.style.display=(type==='team')?'block':'none';
+    if(type==='team') _bfUpdateCaptainSelects();
   }
 }
 
@@ -3023,7 +3025,7 @@ function bfGoStep(step){
     const line=document.getElementById('bf-line-'+i);
     if(line) line.classList.toggle('done', i<step);
   });
-  if(step===2) bfRenderArrangement();
+  if(step===2 && _bfStep!==1.5) bfRenderArrangement();
 }
 
 function bfNextStep(){
@@ -3049,6 +3051,7 @@ function bfNextStep(){
       toast(`미배정 선수 ${_bfAttendees.length-pairedCount}명이 있습니다. 모두 배정해주세요`,'error');return;
     }
     bfRenderArrangement();
+    _bfStep=2;
   }
 }
 
@@ -3227,10 +3230,8 @@ function _bfRenderArrangeUI(wrap){
       <div style="font-weight:700;font-size:.85rem;color:var(--primary);margin-bottom:8px;">${g.name} (${g.players.length}명)</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;" id="bf-group-players-${gi}">`;
     g.players.forEach((p,pi)=>{
-      const wr=p.score||0;
       html+=`<div style="display:flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:.82rem;">
         <span>${p.name}</span>
-        <span style="font-size:.7rem;color:var(--text-muted);">승률${wr}%</span>
         ${isAdmin?`<button onclick="bfRemoveFromGroup(${gi},${pi})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.8rem;padding:0 2px;">✕</button>`:''}
       </div>`;
     });
@@ -3305,18 +3306,18 @@ function _bfRenderTeamArrangeUI(wrap){
       <div style="display:flex;flex-direction:column;gap:5px;">`;
     team.forEach((p,pi)=>{
       const cap=p.captain?`<span style="font-size:.7rem;background:${colorDanger};color:#fff;padding:1px 6px;border-radius:8px;margin-left:4px;">팀장</span>`:'';
-      const moveBtn=isAdmin&&!p.captain?`<button onclick="bfTeamMove('${teamKey}',${pi})" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:5px;font-size:.7rem;color:var(--text-muted);cursor:pointer;padding:1px 6px;">${otherKey}팀으로</button>`:'';
+      const moveBtn=isAdmin&&!p.captain?`<button onclick="bfTeamMove('${teamKey}',${pi})" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:5px;font-size:.7rem;color:var(--text-muted);cursor:pointer;padding:1px 6px;">${otherKey==='A'?'블루':'레드'}팀으로</button>`:'';
       h+=`<div style="background:var(--surface);border-radius:6px;padding:5px 10px;font-size:.82rem;display:flex;align-items:center;gap:4px;">${p.name}${cap}${moveBtn}</div>`;
     });
     h+=`</div></div>`;
     return h;
   };
   let html=`<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px;">
-    🤖 인원 균형을 고려해 A팀/B팀으로 자동 배분했습니다.${isAdmin?' 팀원 오른쪽 버튼으로 직접 이동할 수 있습니다.':''}
+    🤖 인원 균형을 고려해 블루팀/레드팀으로 자동 배분했습니다.${isAdmin?' 팀원 오른쪽 버튼으로 직접 이동할 수 있습니다.':''}
   </div>`;
   html+=`<div style="display:flex;gap:10px;">
-    ${renderTeam(teamA,'🔵 A팀','var(--info)','var(--info)','A')}
-    ${renderTeam(teamB,'🔴 B팀','var(--danger)','var(--danger)','B')}
+    ${renderTeam(teamA,'🔵 블루팀','var(--info)','var(--info)','A')}
+    ${renderTeam(teamB,'🔴 레드팀','var(--danger)','var(--danger)','B')}
   </div>`;
   const diff=Math.abs(teamA.length-teamB.length);
   if(diff>1) html+=`<div style="font-size:.75rem;color:var(--yellow,#f59e0b);margin-top:8px;padding:6px 10px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:8px;">⚠️ 인원 차이 ${diff}명 — 팀원을 조정해주세요.</div>`;
@@ -3366,6 +3367,35 @@ function _rebuildGroupMatches(){
 // ══════════════════
 //  STEP 2 → DB 저장 (확정)
 // ══════════════════
+async function bfSaveDraft(){
+  const name=document.getElementById('bf-auto-name').value.trim();
+  const date=document.getElementById('bf-auto-date').value;
+  if(!name){toast('대회명을 입력해주세요','error');return;}
+  if(!date){toast('날짜를 선택해주세요','error');return;}
+
+  let draftData={name,match_date:date,status:'draft',tournament_type:_bfType,rounds:JSON.stringify([]),created_by:ME.id};
+
+  if(_bfType==='team'&&_bfArrangement){
+    draftData.groups=JSON.stringify([{name:'팀전',teamA:_bfArrangement.teamA||[],teamB:_bfArrangement.teamB||[],matches:[],standings:{A:{wins:0,losses:0,diff:0},B:{wins:0,losses:0,diff:0}}}]);
+  } else if(_bfArrangement){
+    draftData.groups=JSON.stringify(_bfArrangement.groups||[]);
+  } else {
+    draftData.groups=JSON.stringify([]);
+  }
+
+  if(window._bfEditId){
+    const{error}=await sb.from('bracket_tournaments').update(draftData).eq('id',window._bfEditId);
+    if(error){toast('저장 실패: '+error.message,'error');return;}
+    toast('💾 임시저장 완료 — 나중에 이어서 수정할 수 있습니다','success');
+  } else {
+    const{data,error}=await sb.from('bracket_tournaments').insert(draftData).select().single();
+    if(error){toast('저장 실패: '+error.message,'error');return;}
+    window._bfEditId=data.id;
+    toast('💾 임시저장 완료 — 나중에 이어서 수정할 수 있습니다','success');
+  }
+  renderBracketPage();
+}
+
 async function bfConfirmArrangement(){
   const name=document.getElementById('bf-auto-name').value.trim();
   const date=document.getElementById('bf-auto-date').value;
@@ -3662,15 +3692,16 @@ function _renderTeamLeague(groups, isAdmin, isLeague){
   const {teamA=[],teamB=[],matches=[],standings={}}=g;
   const stA=standings.A||{wins:0,losses:0,diff:0};
   const stB=standings.B||{wins:0,losses:0,diff:0};
+  const fmtDiff=d=>d>0?`+${d}`:String(d);
 
   // 팀 현황 카드
   let html=`<div style="display:flex;gap:8px;margin-bottom:12px;">
     <div style="flex:1;background:rgba(41,121,255,.08);border:1px solid rgba(41,121,255,.2);border-radius:10px;padding:10px;">
-      <div style="font-weight:700;color:var(--info);margin-bottom:6px;font-size:.88rem;">🔵 A팀 <span style="font-size:.78rem;font-weight:400;">${stA.wins}승 ${stA.losses}패</span></div>`;
+      <div style="font-weight:700;color:var(--info);margin-bottom:6px;font-size:.88rem;">🔵 블루팀 <span style="font-size:.78rem;font-weight:400;">${stA.wins}승 ${stA.losses}패 / ${fmtDiff(stA.diff)}</span></div>`;
   teamA.forEach(p=>{html+=`<div style="font-size:.8rem;padding:1px 0;color:var(--text);">${p.captain?'★ ':''} ${p.name}</div>`;});
   html+=`</div>
     <div style="flex:1;background:rgba(255,82,82,.08);border:1px solid rgba(255,82,82,.2);border-radius:10px;padding:10px;">
-      <div style="font-weight:700;color:var(--danger);margin-bottom:6px;font-size:.88rem;">🔴 B팀 <span style="font-size:.78rem;font-weight:400;">${stB.wins}승 ${stB.losses}패</span></div>`;
+      <div style="font-weight:700;color:var(--danger);margin-bottom:6px;font-size:.88rem;">🔴 레드팀 <span style="font-size:.78rem;font-weight:400;">${stB.wins}승 ${stB.losses}패 / ${fmtDiff(stB.diff)}</span></div>`;
   teamB.forEach(p=>{html+=`<div style="font-size:.8rem;padding:1px 0;color:var(--text);">${p.captain?'★ ':''} ${p.name}</div>`;});
   html+=`</div></div>`;
 
@@ -3689,11 +3720,23 @@ function _renderTeamLeague(groups, isAdmin, isLeague){
   } else {
     roundNums.forEach(rn=>{
       const rmatch=byRound[rn];
-      const doneCnt=rmatch.filter(m=>m.done).length;
+      // 라운드 누적 점수
+      let rBlue=0,rRed=0,rBWin=0,rRWin=0;
+      rmatch.forEach(m=>{
+        if(!m.done) return;
+        const s1=parseInt(m.s1)||0,s2=parseInt(m.s2)||0;
+        rBlue+=s1; rRed+=s2;
+        if(s1>s2) rBWin++; else rRWin++;
+      });
+      const allRDone=rmatch.every(m=>m.done);
+      const rLabel=allRDone
+        ?`블루 ${rBlue} : ${rRed} 레드`
+        :`블루 ${rBlue} : ${rRed} 레드 (${rmatch.filter(m=>m.done).length}/${rmatch.length})`;
+      const rColor=allRDone?(rBlue>rRed?'var(--info)':rRed>rBlue?'var(--danger)':'var(--text-muted)'):'var(--text-muted)';
       html+=`<div style="margin-bottom:12px;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
           <div style="flex:1;height:1px;background:var(--border);"></div>
-          <span style="font-size:.75rem;font-weight:700;color:var(--text-muted);padding:2px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;">${rn}라운드 · ${doneCnt}/${rmatch.length}완료</span>
+          <span style="font-size:.75rem;font-weight:700;color:${rColor};padding:2px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;">${rn}라운드 · ${rLabel}</span>
           <div style="flex:1;height:1px;background:var(--border);"></div>
         </div>
         <div class="league-matches-grid">`;
@@ -3709,10 +3752,10 @@ function _renderTeamLeague(groups, isAdmin, isLeague){
   // 우세 & 최종 결과
   const allDone=matches.length>0&&matches.every(m=>m.done);
   if(matches.length>0){
-    const winner=stA.wins>stB.wins?'🔵 A팀':stB.wins>stA.wins?'🔴 B팀':stA.diff>stB.diff?'🔵 A팀 (득실차)':'🔴 B팀 (득실차)';
+    const winner=stA.wins>stB.wins?'🔵 블루팀':stB.wins>stA.wins?'🔴 레드팀':stA.diff>stB.diff?'🔵 블루팀 (득실차)':'🔴 레드팀 (득실차)';
     const scoreColor=allDone?'var(--primary)':'var(--text-muted)';
     html+=`<div style="text-align:center;padding:10px;background:var(--bg2);border-radius:10px;font-size:.85rem;color:${scoreColor};margin-bottom:8px;">
-      ${allDone?'🏆 최종 우승:':'⚡ 현재 우세:'} <b>${winner}</b> (A팀 ${stA.wins}승 / B팀 ${stB.wins}승)
+      ${allDone?'🏆 최종 우승:':'⚡ 현재 우세:'} <b>${winner}</b> (블루 ${stA.wins}승 / 레드 ${stB.wins}승)
     </div>`;
   }
 
@@ -3736,11 +3779,11 @@ async function bdFinalizeTeam(){
   if(!allDone){toast('모든 경기를 완료해야 확정할 수 있습니다','error');return;}
   _bdCalcTeamStandings(g);
   const st=g.standings||{A:{wins:0},B:{wins:0}};
-  const winner=st.A.wins>st.B.wins?'🔵 A팀':st.B.wins>st.A.wins?'🔴 B팀':'무승부';
+  const winner=st.A.wins>st.B.wins?'🔵 블루팀':st.B.wins>st.A.wins?'🔴 레드팀':'무승부';
   if(!confirm(`최종 확정하시겠습니까?
 
 우승: ${winner}
-A팀 ${st.A.wins}승 / B팀 ${st.B.wins}승
+블루팀 ${st.A.wins}승 / 레드팀 ${st.B.wins}승
 
 확정 후에는 경기 수정이 불가합니다.`)) return;
   await sb.from('bracket_tournaments').update({groups:JSON.stringify(groups),status:'done'}).eq('id',_bdId);
@@ -3763,15 +3806,16 @@ function _tlTeam(t){
 function _renderTeamMatchCell(gi,mi,m,lbl1,lbl2,isAdmin){
   const done=m.done;
   const aWin=done&&parseInt(m.s1)>parseInt(m.s2);
+  const bWin=done&&!aWin;
   if(done){
     return `<div id="bl-cell-${gi}-${mi}" style="display:flex;align-items:center;gap:4px;padding:7px 10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);font-size:.8rem;">
       <div style="flex:1;min-width:0;">
-        <div style="font-weight:${aWin?700:400};color:${aWin?'var(--text)':'var(--text-muted)'};">🔵 ${lbl1}</div>
-        <div style="font-weight:${!aWin?700:400};color:${!aWin?'var(--text)':'var(--text-muted)'};">🔴 ${lbl2}</div>
+        <div style="font-weight:${aWin?700:400};padding:2px 4px;border-radius:4px;background:${aWin?'rgba(41,121,255,.12)':'transparent'};color:${aWin?'var(--info)':'var(--text-muted)'};">🔵 ${lbl1}${aWin?' 🏆':''}</div>
+        <div style="font-weight:${bWin?700:400};padding:2px 4px;border-radius:4px;background:${bWin?'rgba(255,82,82,.12)':'transparent'};color:${bWin?'var(--danger)':'var(--text-muted)'};">🔴 ${lbl2}${bWin?' 🏆':''}</div>
       </div>
       <div style="text-align:center;flex-shrink:0;min-width:38px;">
-        <div style="font-weight:700;color:${aWin?'var(--primary)':'var(--text-muted)'};">${m.s1}</div>
-        <div style="font-weight:700;color:${!aWin?'var(--primary)':'var(--text-muted)'};">${m.s2}</div>
+        <div style="font-weight:700;color:${aWin?'var(--info)':'var(--text-muted)'};">${m.s1}</div>
+        <div style="font-weight:700;color:${bWin?'var(--danger)':'var(--text-muted)'};">${m.s2}</div>
       </div>
       ${isAdmin?`<button onclick="bdEditLeague(${gi},${mi})" style="font-size:.65rem;padding:2px 6px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;cursor:pointer;color:var(--text-muted);">수정</button>`:''}
     </div>`;
@@ -3812,14 +3856,14 @@ async function bdAddTeamMatch(){
   wrap.innerHTML=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:8px;">
     <div style="font-size:.85rem;font-weight:700;margin-bottom:10px;color:var(--text);">복식 매치 추가</div>
     <div style="margin-bottom:8px;">
-      <div style="font-size:.75rem;color:var(--info);margin-bottom:4px;">🔵 A팀 (2명)</div>
+      <div style="font-size:.75rem;color:var(--info);margin-bottom:4px;">🔵 블루팀 (2명)</div>
       <div style="display:flex;gap:6px;">
         <select id="bd-tm-a1" class="form-select" style="flex:1;"><option value="">선수1</option>${aOpts}</select>
         <select id="bd-tm-a2" class="form-select" style="flex:1;"><option value="">선수2</option>${aOpts}</select>
       </div>
     </div>
     <div style="margin-bottom:10px;">
-      <div style="font-size:.75rem;color:var(--danger);margin-bottom:4px;">🔴 B팀 (2명)</div>
+      <div style="font-size:.75rem;color:var(--danger);margin-bottom:4px;">🔴 레드팀 (2명)</div>
       <div style="display:flex;gap:6px;">
         <select id="bd-tm-b1" class="form-select" style="flex:1;"><option value="">선수1</option>${bOpts}</select>
         <select id="bd-tm-b2" class="form-select" style="flex:1;"><option value="">선수2</option>${bOpts}</select>
