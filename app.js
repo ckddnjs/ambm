@@ -2000,27 +2000,82 @@ async function openEditMatch(id){
   const{data:m}=await sb.from('matches').select('*').eq('id',id).single();
   if(!m) return;
   const{data:users}=await sb.from('profiles').select('id,name').eq('status','approved');
-  const mkSel=(fid,selId)=>`<select class="form-select" id="${fid}">${(users||[]).map(u=>`<option value="${u.id}" ${u.id===selId?'selected':''}>${u.name}</option>`).join('')}</select>`;
-  const mkSelOpt=(fid,selId)=>`<select class="form-select" id="${fid}"><option value="">없음</option>${(users||[]).map(u=>`<option value="${u.id}" ${u.id===selId?'selected':''}>${u.name}</option>`).join('')}</select>`;
+
+  // 선수 한 명 렌더: 회원 select + 비회원 직접입력 옵션 + 기존값 자동 설정
+  const mkPlayerField=(fid,selId,selName,required)=>{
+    const isGuest=!selId&&selName; // id 없고 이름만 있으면 비회원
+    const noneOpt=required?'':`<option value="">없음</option>`;
+    const memberOpts=(users||[]).map(u=>`<option value="${u.id}" ${u.id===selId?'selected':''}>${u.name}</option>`).join('');
+    const guestSel=isGuest?'selected':'';
+    return `<div>
+      <select class="form-select" id="${fid}" onchange="emToggleGuest('${fid}')" style="margin-bottom:4px;">
+        ${noneOpt}
+        ${memberOpts}
+        <option value="__guest__" ${guestSel}>✏️ 직접 입력</option>
+      </select>
+      <input class="form-input" id="${fid}-guest" placeholder="이름 직접 입력"
+        value="${isGuest?selName:''}"
+        style="display:${isGuest?'block':'none'};margin-top:4px;font-size:.85rem;">
+    </div>`;
+  };
+
   document.getElementById('modal-edit-body').innerHTML=`
     <div class="form-group"><label class="form-label">종목</label><select class="form-select" id="em-type"><option value="doubles">복식</option></select></div>
     <div class="form-group"><label class="form-label">경기 일자</label><input class="form-input" type="date" id="em-date" value="${m.match_date}"></div>
     <hr class="section-divider">
     <div style="font-size:.86rem;font-weight:700;color:var(--primary);margin-bottom:8px;">A팀</div>
-    <div class="form-row-2"><div class="form-group"><label class="form-label">A팀 선수1</label>${mkSel('em-a1',m.a1_id)}</div><div class="form-group"><label class="form-label">A팀 선수2</label>${mkSelOpt('em-a2',m.a2_id)}</div></div>
-    <div class="form-group"><label class="form-label">A팀 점수</label><input class="form-input" type="number" id="em-sa" value="${m.score_a}" max="25" inputmode="numeric"></div>
+    <div class="form-row-2">
+      <div class="form-group"><label class="form-label">A팀 선수1</label>${mkPlayerField('em-a1',m.a1_id,m.a1_name,true)}</div>
+      <div class="form-group"><label class="form-label">A팀 선수2</label>${mkPlayerField('em-a2',m.a2_id,m.a2_name,false)}</div>
+    </div>
+    <div class="form-group"><label class="form-label">A팀 점수</label><input class="form-input" type="number" id="em-sa" value="${m.score_a}" max="30" inputmode="numeric"></div>
     <hr class="section-divider">
     <div style="font-size:.86rem;font-weight:700;color:var(--danger);margin-bottom:8px;">B팀</div>
-    <div class="form-row-2"><div class="form-group"><label class="form-label">B팀 선수1</label>${mkSel('em-b1',m.b1_id)}</div><div class="form-group"><label class="form-label">B팀 선수2</label>${mkSelOpt('em-b2',m.b2_id)}</div></div>
-    <div class="form-group"><label class="form-label">B팀 점수</label><input class="form-input" type="number" id="em-sb" value="${m.score_b}" max="25" inputmode="numeric"></div>
+    <div class="form-row-2">
+      <div class="form-group"><label class="form-label">B팀 선수1</label>${mkPlayerField('em-b1',m.b1_id,m.b1_name,true)}</div>
+      <div class="form-group"><label class="form-label">B팀 선수2</label>${mkPlayerField('em-b2',m.b2_id,m.b2_name,false)}</div>
+    </div>
+    <div class="form-group"><label class="form-label">B팀 점수</label><input class="form-input" type="number" id="em-sb" value="${m.score_b}" max="30" inputmode="numeric"></div>
     <div class="form-group"><label class="form-label">관리자 메모</label><input class="form-input" type="text" id="em-note" value="${m.admin_note||''}"></div>`;
   document.getElementById('modal-edit-actions').innerHTML=`<button class="btn btn-ghost" onclick="closeModal('modal-edit-match')">취소</button><button class="btn btn-warn btn-sm" onclick="saveEditMatch(false)">수정</button><button class="btn btn-success btn-sm" onclick="saveEditMatch(true)">수정+승인</button>`;
   closeModal('modal-match');openModal('modal-edit-match');
 }
+
+function emToggleGuest(fid){
+  const sel=document.getElementById(fid);
+  const inp=document.getElementById(fid+'-guest');
+  if(!inp) return;
+  inp.style.display=sel?.value==='__guest__'?'block':'none';
+  if(sel?.value==='__guest__') inp.focus();
+}
+
 async function saveEditMatch(andApprove){
-  const stn=id=>{const el=document.getElementById(id);const opt=el?.options[el?.selectedIndex];return{id:opt?.value||null,name:opt?.text||null};};
-  const a1=stn('em-a1'),a2=stn('em-a2'),b1=stn('em-b1'),b2=stn('em-b2');
-  const upd={match_type:document.getElementById('em-type').value,match_date:document.getElementById('em-date').value,a1_id:a1.id,a1_name:a1.id?a1.name:null,a2_id:a2.id||null,a2_name:a2.id?a2.name:null,b1_id:b1.id,b1_name:b1.id?b1.name:null,b2_id:b2.id||null,b2_name:b2.id?b2.name:null,score_a:parseInt(document.getElementById('em-sa').value)||0,score_b:parseInt(document.getElementById('em-sb').value)||0,admin_note:document.getElementById('em-note').value||null,updated_at:nowISO()};
+  // id or guest name 읽기
+  const readPlayer=(fid)=>{
+    const sel=document.getElementById(fid);
+    const val=sel?.value||'';
+    if(val==='__guest__'){
+      const nm=(document.getElementById(fid+'-guest')?.value||'').trim();
+      return{id:null,name:nm||null};
+    }
+    if(!val) return{id:null,name:null};
+    const opt=sel.options[sel.selectedIndex];
+    return{id:val,name:opt?.text||null};
+  };
+  const a1=readPlayer('em-a1'),a2=readPlayer('em-a2');
+  const b1=readPlayer('em-b1'),b2=readPlayer('em-b2');
+  const upd={
+    match_type:document.getElementById('em-type').value,
+    match_date:document.getElementById('em-date').value,
+    a1_id:a1.id,a1_name:a1.name,
+    a2_id:a2.id||null,a2_name:a2.name||null,
+    b1_id:b1.id,b1_name:b1.name,
+    b2_id:b2.id||null,b2_name:b2.name||null,
+    score_a:parseInt(document.getElementById('em-sa').value)||0,
+    score_b:parseInt(document.getElementById('em-sb').value)||0,
+    admin_note:document.getElementById('em-note').value||null,
+    updated_at:nowISO()
+  };
   if(andApprove){upd.status='approved';upd.approved_at=nowISO();upd.approved_by=ME.id;}
   await sb.from('matches').update(upd).eq('id',editMatchId);
   addLog(`경기 수정${andApprove?'+승인':''}:${editMatchId}`,ME.id);
