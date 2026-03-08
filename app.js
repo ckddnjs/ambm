@@ -2870,7 +2870,7 @@ function toggleBracketForm(){
   if(!el) return;
   if(el.style.display!=='none'){el.style.display='none';return;}
   el.style.display='block';
-  _bfAttendees=[];_bfType='individual';_bfStep=1;
+  _bfAttendees=[];_bfType='individual';_bfStep=1;window._bfEditId=null;
   const today=new Date().toISOString().slice(0,10);
   const nameEl=document.getElementById('bf-auto-name');
   const dateEl=document.getElementById('bf-auto-date');
@@ -2882,64 +2882,52 @@ function toggleBracketForm(){
 }
 
 async function _loadBfAttendees(){
-  const wrap=document.getElementById('bf-attendee-list');
-  if(!wrap) return;
-  wrap.innerHTML='<span style="font-size:.82rem;color:var(--text-muted);">불러오는 중...</span>';
-  const{data:users}=await sb.from('profiles').select('id,name,wins,losses,games').eq('status','approved').order('name');
+  // 직접입력만 사용 - DB 조회 불필요하나 _bfUsersMap 초기화는 유지
   window._bfUsersMap={};
-  window._bfAllUsers=users||[];
-  (users||[]).forEach(u=>{
-    const wr=u.games>0?Math.round((u.wins||0)/u.games*100):0;
-    window._bfUsersMap[u.id]={id:u.id,name:u.name,score:wr,wr};
-  });
-  _bfRenderAttendeeUI(wrap,'');
+  window._bfAllUsers=[];
+  _bfRenderAttendeeUI();
 }
 
-function _bfRenderAttendeeUI(wrap, searchVal){
-  const users=window._bfAllUsers||[];
-  const q=searchVal.toLowerCase().trim();
-  const filtered=q?users.filter(u=>u.name.toLowerCase().includes(q)):users;
-  let html=`<div style="margin-bottom:8px;display:flex;gap:6px;">
-    <input id="bf-attendee-search" type="search" placeholder="🔍 이름 검색..." value="${searchVal}"
-      oninput="_bfRenderAttendeeUI(document.getElementById('bf-attendee-list'),this.value)"
-      style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:.82rem;color:var(--text);font-family:inherit;">
-    <button onclick="_bfAddGuest()" style="white-space:nowrap;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:.78rem;color:var(--text-muted);cursor:pointer;font-family:inherit;">+ 직접 입력</button>
+function _bfRenderAttendeeUI(){
+  const wrap=document.getElementById('bf-attendee-list');
+  if(!wrap) return;
+  let html=`<div style="display:flex;gap:6px;margin-bottom:8px;">
+    <input id="bf-direct-input" class="form-input" placeholder="이름 직접 입력" style="flex:1;"
+      onkeydown="if(event.key==='Enter')_bfAddGuest()">
+    <button onclick="_bfAddGuest()" class="btn btn-ghost btn-sm" style="white-space:nowrap;">+ 추가</button>
   </div>`;
-  html+=`<div id="bf-chips-wrap" style="display:flex;flex-wrap:wrap;gap:5px;">`;
-  filtered.forEach(u=>{
-    const wr=u.games>0?Math.round((u.wins||0)/u.games*100):0;
-    const sel=_bfAttendees.some(a=>a.id===u.id);
-    html+=`<div data-uid="${u.id}"
-      style="display:inline-flex;align-items:center;gap:4px;border-radius:20px;padding:5px 12px;cursor:pointer;font-size:.82rem;user-select:none;transition:.15s;
-        background:${sel?'rgba(41,121,255,.2)':'var(--bg3)'};
-        border:1px solid ${sel?'var(--primary)':'var(--border)'};
-        color:${sel?'var(--primary)':'var(--text)'};">
-      <span style="pointer-events:none;">${sel?'✅ ':''}${u.name}</span>
-      <span style="font-size:.7rem;color:${sel?'var(--primary)':'var(--text-dim)'};pointer-events:none;">${wr}%</span>
-    </div>`;
-  });
-  if(!filtered.length&&q) html+=`<div style="font-size:.8rem;color:var(--text-muted);padding:8px;">검색 결과 없음</div>`;
-  html+=`</div>`;
+  if(_bfAttendees.length){
+    html+=`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;">`;
+    _bfAttendees.forEach((a,i)=>{
+      html+=`<div style="display:inline-flex;align-items:center;gap:4px;border-radius:20px;padding:4px 10px;background:rgba(41,121,255,.15);border:1px solid var(--primary);color:var(--primary);font-size:.82rem;">
+        <span>${a.name}</span>
+        <button onclick="_bfRemoveAttendee(${i})" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:.85rem;padding:0 0 0 2px;line-height:1;">✕</button>
+      </div>`;
+    });
+    html+=`</div>`;
+  } else {
+    html+=`<div style="font-size:.8rem;color:var(--text-muted);padding:4px 0;">아직 추가된 참석자가 없습니다.</div>`;
+  }
   wrap.innerHTML=html;
-  wrap.onclick=function(e){
-    const el=e.target.closest('[data-uid]');
-    if(!el) return;
-    bfToggleAttendee(el.dataset.uid, el);
-  };
+  const cnt=document.getElementById('bf-attendee-count');
+  if(cnt) cnt.textContent=`${_bfAttendees.length}명 선택됨`;
+  if(_bfType==='team') _bfUpdateCaptainSelects();
+}
+
+function _bfRemoveAttendee(i){
+  _bfAttendees.splice(i,1);
+  _bfRenderAttendeeUI();
 }
 
 function _bfAddGuest(){
-  const name=prompt('직접 입력할 이름:','');
-  if(!name||!name.trim()) return;
-  const nm=name.trim();
+  const input=document.getElementById('bf-direct-input');
+  const name=input?input.value.trim():(prompt('이름 입력:','')||'').trim();
+  if(!name) return;
   const gid='guest_'+Date.now();
-  if(window._bfUsersMap) window._bfUsersMap[gid]={id:gid,name:nm,score:0,wr:0};
-  if(window._bfAllUsers) window._bfAllUsers.push({id:gid,name:nm,wins:0,losses:0,games:0});
-  _bfAttendees.push({id:gid,name:nm,score:0});
-  const wrap=document.getElementById('bf-attendee-list');
-  if(wrap) _bfRenderAttendeeUI(wrap, document.getElementById('bf-attendee-search')?.value||'');
-  const cnt=document.getElementById('bf-attendee-count');
-  if(cnt) cnt.textContent=`${_bfAttendees.length}명 선택됨`;
+  if(window._bfUsersMap) window._bfUsersMap[gid]={id:gid,name:name,score:0,wr:0};
+  _bfAttendees.push({id:gid,name:name,score:0});
+  if(input) input.value='';
+  _bfRenderAttendeeUI();
 }
 
 function bfSetType(type){
@@ -2955,8 +2943,11 @@ function bfSetType(type){
   };
   const descEl=document.getElementById('bf-type-desc');
   if(descEl) descEl.textContent=desc[type]||'';
+  // 팀장전은 참석자 선택 완료 후 보이도록 — 항상 숨김 처리 후 참석자 있을 때만 표시
   const captainSection=document.getElementById('bf-team-captain-section');
-  if(captainSection) captainSection.style.display=(type==='team')?'block':'none';
+  if(captainSection){
+    captainSection.style.display=(type==='team'&&_bfAttendees.length>=2)?'block':'none';
+  }
 }
 
 function bfToggleAttendee(id, el){
@@ -2981,14 +2972,21 @@ function bfToggleAttendee(id, el){
   }
   const cnt=document.getElementById('bf-attendee-count');
   if(cnt) cnt.textContent=`${_bfAttendees.length}명 선택됨`;
-  if(_bfType==='team') _bfUpdateCaptainSelects();
+  if(_bfType==='team'){
+    _bfUpdateCaptainSelects();
+    const sec=document.getElementById('bf-team-captain-section');
+    if(sec) sec.style.display=_bfAttendees.length>=2?'block':'none';
+  }
 }
 function _bfUpdateCaptainSelects(){
-  const opts='<option value="">선택</option>'+_bfAttendees.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  // 기존 선택값 보존
   const ca=document.getElementById('bf-captain-a');
   const cb=document.getElementById('bf-captain-b');
-  if(ca) ca.innerHTML=opts;
-  if(cb) cb.innerHTML=opts;
+  const prevA=ca?.value||'';
+  const prevB=cb?.value||'';
+  const opts='<option value="">선택</option>'+_bfAttendees.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  if(ca){ ca.innerHTML=opts; if(prevA&&_bfAttendees.some(a=>a.id===prevA)) ca.value=prevA; }
+  if(cb){ cb.innerHTML=opts; if(prevB&&_bfAttendees.some(a=>a.id===prevB)) cb.value=prevB; }
 }
 
 function bfGoStep(step){
@@ -3172,7 +3170,7 @@ function _bfDuoArrange(){
 }
 
 function _bfTeamArrange(){
-  // 팀전: 팀장 A/B 지정 후 실력 뱀배열로 나머지 분배
+  // 팀전: 팀장 A/B 지정 후 뱀배열로 인원 균형 분배
   const capAid=document.getElementById('bf-captain-a')?.value;
   const capBid=document.getElementById('bf-captain-b')?.value;
   const teamA=[],teamB=[];
@@ -3181,11 +3179,15 @@ function _bfTeamArrange(){
   const capB=_bfAttendees.find(a=>a.id===capBid);
   if(capA) teamA.push({...capA,captain:true});
   if(capB) teamB.push({...capB,captain:true});
-  // 뱀배열 분배
+  // 뱀배열: 인원 수 균형 최우선
   others.forEach((p,i)=>{
     if(teamA.length<=teamB.length) teamA.push(p); else teamB.push(p);
   });
-  if(!capA) others.splice(0,Math.floor(others.length/2)).forEach(p=>teamA.push(p));
+  // 팀장 없는 경우 fallback
+  if(!capA&&!capB){
+    teamA.length=0; teamB.length=0;
+    others.forEach((p,i)=>{ if(i%2===0) teamA.push(p); else teamB.push(p); });
+  }
   return {teamA, teamB, matches:[], standings:{A:{wins:0,losses:0,diff:0},B:{wins:0,losses:0,diff:0}}};
 }
 
@@ -3236,21 +3238,24 @@ function _bfRenderArrangeUI(wrap){
 }
 
 function _bfRenderDuoArrangeUI(wrap){
-  // 듀오전 조편성 결과 렌더 (teams[] 구조)
   const {groups}=_bfArrangement;
   const isAdmin=ME?.role==='admin';
   let html=`<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px;">
-    🤖 팀 실력 균형을 고려해 자동 배분했습니다.
+    🤖 팀 실력 균형을 고려해 자동 배분했습니다.${isAdmin?' 팀을 다른 조로 이동할 수 있습니다.':''}
   </div>`;
   html+=`<div style="display:flex;flex-direction:column;gap:10px;">`;
-  groups.forEach(g=>{
+  groups.forEach((g,gi)=>{
     html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;">
       <div style="font-weight:700;font-size:.85rem;color:var(--primary);margin-bottom:8px;">${g.name} (${g.teams.length}팀)</div>
       <div style="display:flex;flex-direction:column;gap:5px;">`;
-    g.teams.forEach(t=>{
+    g.teams.forEach((t,ti)=>{
       const label=t.p2_name?`${t.p1_name} / ${t.p2_name}`:t.p1_name;
-      html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:.85rem;font-weight:600;">
-        👥 ${label}
+      html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:.85rem;font-weight:600;display:flex;align-items:center;gap:6px;">
+        <span style="flex:1;">👥 ${label}</span>
+        ${isAdmin&&groups.length>1?`<select onchange="bfDuoMoveTeam(this,${gi},${ti})" style="font-size:.72rem;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:2px 5px;color:var(--text-muted);cursor:pointer;">
+          <option value="">이동</option>
+          ${groups.map((og,ogi)=>ogi!==gi?`<option value="${ogi}">${og.name}으로</option>`:'').join('')}
+        </select>`:''}
       </div>`;
     });
     html+=`</div></div>`;
@@ -3259,31 +3264,59 @@ function _bfRenderDuoArrangeUI(wrap){
   wrap.innerHTML=html;
 }
 
+function bfDuoMoveTeam(sel,fromGi,ti){
+  const toGi=parseInt(sel.value);
+  if(isNaN(toGi)) return;
+  const team=_bfArrangement.groups[fromGi].teams.splice(ti,1)[0];
+  _bfArrangement.groups[toGi].teams.push(team);
+  // 매치 재생성
+  _bfArrangement.groups.forEach(g=>{
+    g.matches=[];
+    for(let i=0;i<g.teams.length;i++)
+      for(let j=i+1;j<g.teams.length;j++)
+        g.matches.push({t1:g.teams[i],t2:g.teams[j],s1:'',s2:'',done:false});
+  });
+  _bfRenderDuoArrangeUI(document.getElementById('bf-arrange-wrap'));
+}
+
 function _bfRenderTeamArrangeUI(wrap){
   const {teamA,teamB}=_bfArrangement;
   const isAdmin=ME?.role==='admin';
-  let html=`<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px;">
-    🤖 실력 균형을 고려해 A팀/B팀으로 자동 배분했습니다. 팀전은 팀원끼리 1:1 매치를 진행하며, 최종 승수로 우승팀을 결정합니다.
-  </div>`;
-  const renderTeam=(team,label,colorInfo,colorDanger)=>{
+  const renderTeam=(team,label,colorInfo,colorDanger,teamKey)=>{
+    const otherKey=teamKey==='A'?'B':'A';
+    const otherTeam=teamKey==='A'?teamB:teamA;
     let h=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;flex:1;">
       <div style="font-weight:700;font-size:.88rem;color:${colorInfo};margin-bottom:8px;">${label} (${team.length}명)</div>
       <div style="display:flex;flex-direction:column;gap:5px;">`;
-    team.forEach(p=>{
+    team.forEach((p,pi)=>{
       const cap=p.captain?`<span style="font-size:.7rem;background:${colorDanger};color:#fff;padding:1px 6px;border-radius:8px;margin-left:4px;">팀장</span>`:'';
-      h+=`<div style="background:var(--surface);border-radius:6px;padding:5px 10px;font-size:.82rem;display:flex;align-items:center;gap:4px;">${p.name}${cap}</div>`;
+      const moveBtn=isAdmin&&!p.captain?`<button onclick="bfTeamMove('${teamKey}',${pi})" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:5px;font-size:.7rem;color:var(--text-muted);cursor:pointer;padding:1px 6px;">${otherKey}팀으로</button>`:'';
+      h+=`<div style="background:var(--surface);border-radius:6px;padding:5px 10px;font-size:.82rem;display:flex;align-items:center;gap:4px;">${p.name}${cap}${moveBtn}</div>`;
     });
     h+=`</div></div>`;
     return h;
   };
-  html+=`<div style="display:flex;gap:10px;">
-    ${renderTeam(teamA,'🔵 A팀','var(--info)','var(--info)')}
-    ${renderTeam(teamB,'🔴 B팀','var(--danger)','var(--danger)')}
+  let html=`<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px;">
+    🤖 인원 균형을 고려해 A팀/B팀으로 자동 배분했습니다.${isAdmin?' 팀원 오른쪽 버튼으로 직접 이동할 수 있습니다.':''}
   </div>`;
+  html+=`<div style="display:flex;gap:10px;">
+    ${renderTeam(teamA,'🔵 A팀','var(--info)','var(--info)','A')}
+    ${renderTeam(teamB,'🔴 B팀','var(--danger)','var(--danger)','B')}
+  </div>`;
+  const diff=Math.abs(teamA.length-teamB.length);
+  if(diff>1) html+=`<div style="font-size:.75rem;color:var(--yellow,#f59e0b);margin-top:8px;padding:6px 10px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:8px;">⚠️ 인원 차이 ${diff}명 — 팀원을 조정해주세요.</div>`;
   html+=`<div style="font-size:.78rem;color:var(--text-muted);margin-top:10px;padding:8px 10px;background:var(--bg2);border-radius:8px;">
     💡 팀전 매치는 대회 확정 후 관리자가 직접 추가할 수 있습니다.
   </div>`;
   wrap.innerHTML=html;
+}
+
+function bfTeamMove(fromTeam, pi){
+  const arr=fromTeam==='A'?_bfArrangement.teamA:_bfArrangement.teamB;
+  const dest=fromTeam==='A'?_bfArrangement.teamB:_bfArrangement.teamA;
+  const p=arr.splice(pi,1)[0];
+  dest.push(p);
+  _bfRenderTeamArrangeUI(document.getElementById('bf-arrange-wrap'));
 }
 
 function bfRemoveFromGroup(gi,pi){
@@ -3344,12 +3377,23 @@ async function bfConfirmArrangement(){
     insertData.groups=JSON.stringify(_bfArrangement.groups);
   }
 
-  const{data,error}=await sb.from('bracket_tournaments').insert(insertData).select().single();
-  if(error){toast('생성 실패: '+error.message,'error');return;}
-  toast('✅ 대회 구성 확정!','success');
+  let resultId;
+  if(window._bfEditId){
+    // 수정 모드: 기존 대회 업데이트
+    const{error}=await sb.from('bracket_tournaments').update(insertData).eq('id',window._bfEditId);
+    if(error){toast('수정 실패: '+error.message,'error');return;}
+    toast('✅ 대회 구성이 수정되었습니다!','success');
+    resultId=window._bfEditId;
+    window._bfEditId=null;
+  } else {
+    const{data,error}=await sb.from('bracket_tournaments').insert(insertData).select().single();
+    if(error){toast('생성 실패: '+error.message,'error');return;}
+    toast('✅ 대회 구성 확정!','success');
+    resultId=data.id;
+  }
   toggleBracketForm();
   renderBracketPage();
-  setTimeout(()=>openBracketDetail(data.id),400);
+  setTimeout(()=>openBracketDetail(resultId),400);
 }
 
 // 팀전용 addTeam (듀오전 직접입력)
@@ -3386,6 +3430,55 @@ async function openBracketDetail(id){
   openModal('modal-bracket-detail');
 }
 
+async function bdEditSetup(){
+  if(!_bdData) return;
+  const d=_bdData;
+  // 모달 닫기
+  closeModal('modal-bracket-detail');
+  // 폼 열기
+  const el=document.getElementById('bracket-form-inline');
+  if(el) el.style.display='block';
+  // 기본값 복원
+  _bfType=d.tournament_type||'individual';
+  _bfAttendees=[];
+  _bfDuoPairs=[];
+  _bfStep=1;
+  const nameEl=document.getElementById('bf-auto-name');
+  const dateEl=document.getElementById('bf-auto-date');
+  if(nameEl) nameEl.value=d.name||'';
+  if(dateEl) dateEl.value=d.match_date||'';
+  bfSetType(_bfType);
+  // 참석자 복원 (groups에서 추출)
+  const groups=JSON.parse(d.groups||'[]');
+  const seen=new Set();
+  if(_bfType==='team'){
+    const g=groups[0]||{};
+    [...(g.teamA||[]),...(g.teamB||[])].forEach(p=>{
+      if(!seen.has(p.id)){seen.add(p.id);_bfAttendees.push({id:p.id,name:p.name,score:p.score||0});}
+    });
+  } else if(_bfType==='duo'){
+    groups.forEach(g=>(g.teams||[]).forEach(t=>{
+      if(!seen.has(t.p1_id)){seen.add(t.p1_id);_bfAttendees.push({id:t.p1_id,name:t.p1_name,score:0});}
+      if(t.p2_id&&!seen.has(t.p2_id)){seen.add(t.p2_id);_bfAttendees.push({id:t.p2_id,name:t.p2_name,score:0});}
+    }));
+    // 듀오 페어 복원
+    groups.forEach(g=>(g.teams||[]).forEach(t=>{
+      _bfDuoPairs.push({p1:{id:t.p1_id,name:t.p1_name,score:0},p2:t.p2_id?{id:t.p2_id,name:t.p2_name,score:0}:null});
+    }));
+  } else {
+    groups.forEach(g=>(g.players||[]).forEach(p=>{
+      if(!seen.has(p.id)){seen.add(p.id);_bfAttendees.push({id:p.id,name:p.name,score:p.score||0});}
+    }));
+  }
+  window._bfUsersMap={};
+  _bfAttendees.forEach(a=>{window._bfUsersMap[a.id]={id:a.id,name:a.name,score:a.score||0};});
+  _bfRenderAttendeeUI();
+  bfGoStep(1);
+  // 수정 모드: 확정 시 기존 데이터 덮어쓰기
+  window._bfEditId=d.id;
+  toast('대회 구성 수정 모드입니다. 수정 후 구성 확정을 누르세요.','info');
+}
+
 function _renderBracketDetail(data){
   const isAdmin=ME?.role==='admin';
   const status=data.status||'league';
@@ -3397,8 +3490,9 @@ function _renderBracketDetail(data){
   const isLeague=status==='league'||status==='active';
   const typeLabel={individual:'👤 개인전',duo:'👥 듀오전',team:'🚩 팀장전'};
 
-  let html=`<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:12px;">
-    ${typeLabel[data.tournament_type]||''} · ${fmtMatchDate(data.match_date)}
+  let html=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+    <div style="font-size:.78rem;color:var(--text-muted);flex:1;">${typeLabel[data.tournament_type]||''} · ${fmtMatchDate(data.match_date)}</div>
+    ${isAdmin?`<button onclick="bdEditSetup()" style="font-size:.72rem;padding:4px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text-muted);">✏️ 구성 수정</button>`:''}
   </div>`;
 
   // 탭 (팀장전은 탭 없음)
@@ -3465,7 +3559,14 @@ function _renderBracketDetail(data){
       <div id="bd-matches-${gi}" style="display:none;">
         <div class="league-matches-grid">`;
       (g.matches||[]).forEach((m,mi)=>{
-        const lbl1=m.p1?.name||'?', lbl2=m.p2?.name||'?';
+        // 개인전: p1/p2, 듀오전: t1/t2 구조
+        let lbl1,lbl2;
+        if(isDuo){
+          lbl1=m.t1?(m.t1.p2_name?`${m.t1.p1_name} / ${m.t1.p2_name}`:m.t1.p1_name||'?'):'?';
+          lbl2=m.t2?(m.t2.p2_name?`${m.t2.p1_name} / ${m.t2.p2_name}`:m.t2.p1_name||'?'):'?';
+        } else {
+          lbl1=m.p1?.name||'?'; lbl2=m.p2?.name||'?';
+        }
         html+=_renderMatchCell(gi,mi,m,lbl1,lbl2,isAdmin,isLeague);
       });
       html+=`</div></div></div>`;
