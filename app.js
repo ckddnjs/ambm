@@ -1893,40 +1893,16 @@ async function renderAdminMembers(){
   el.innerHTML=memberSection+guestSection;
 }
 
-// ── 게스트 모드 이름 저장소 (Supabase logs 테이블 활용 or localStorage fallback) ──
-// 관리자 설정값 KEY: "guest_mode_names" 로 logs 테이블에 단일 JSON 레코드 저장
-const GUEST_MODE_KEY='__guest_mode_config__';
-
+// ── 게스트 모드: localStorage 기반 저장 (logs 테이블 UUID 타입 충돌 방지) ──
 async function _loadGuestModeNames(){
-  try{
-    const{data}=await sb.from('logs').select('message').eq('user_id',GUEST_MODE_KEY).limit(1).single();
-    if(data?.message){
-      const arr=JSON.parse(data.message);
-      return new Set(arr);
-    }
-  }catch(e){}
-  // fallback: localStorage
   try{
     const raw=localStorage.getItem('guest_mode_names');
     if(raw) return new Set(JSON.parse(raw));
   }catch(e){}
   return new Set();
 }
-
 async function _saveGuestModeNames(names){
-  const arr=[...names];
-  const json=JSON.stringify(arr);
-  // localStorage fallback 항상 저장
-  try{ localStorage.setItem('guest_mode_names',json); }catch(e){}
-  // Supabase logs 테이블에 upsert
-  try{
-    const{data:existing}=await sb.from('logs').select('id').eq('user_id',GUEST_MODE_KEY).limit(1).single();
-    if(existing?.id){
-      await sb.from('logs').update({message:json,created_at:nowISO()}).eq('id',existing.id);
-    } else {
-      await sb.from('logs').insert({user_id:GUEST_MODE_KEY,message:json,created_at:nowISO()});
-    }
-  }catch(e){ console.warn('guest mode save error',e); }
+  try{ localStorage.setItem('guest_mode_names',JSON.stringify([...names])); }catch(e){}
 }
 
 async function toggleGuestMode(name, enabled){
@@ -3090,6 +3066,102 @@ function bdCalcStandings(groups, isIndividual){
   });
 }
 
+// ── renderTournamentPage: renderBracketPage alias ──
+function renderTournamentPage(){ renderBracketPage(); }
+
+// ── 대회 상세 모달 ──
+async function openBracketDetail(id){
+  _bdId=id;
+  const{data:bt}=await sb.from('bracket_tournaments').select('*').eq('id',id).single();
+  if(!bt){toast('대회 정보를 불러올 수 없습니다','error');return;}
+  _bdData=bt;
+  const titleEl=document.getElementById('bd-title');
+  const contentEl=document.getElementById('bd-content');
+  const actionsEl=document.getElementById('bd-actions');
+  if(titleEl) titleEl.textContent='🎯 '+bt.name;
+  if(!contentEl) return;
+  const isAdmin=ME?.role==='admin';
+  const typeLabel={individual:'👤 개인전',duo:'👥 듀오전',team:'🚩 팀장전'};
+  const statusLabel={plan:'배분중',active:'진행중',league:'진행중',done:'완료'};
+  const data=typeof bt.bracket_data==='string'?JSON.parse(bt.bracket_data||'{}'):bt.bracket_data||{};
+  const groups=data.groups||[];
+  const tType=bt.tournament_type||'individual';
+  const isIndividual=tType==='individual';
+  let html=`<div style="font-size:.8rem;color:var(--text-muted);margin-bottom:12px;">📅 ${fmtMatchDate(bt.match_date)} · ${typeLabel[tType]||'대회'} · <span style="color:${bt.status==='done'?'var(--primary)':bt.status==='plan'?'var(--warn)':'var(--info)'};">${statusLabel[bt.status]||bt.status}</span></div>`;
+  if(bt.winner_name) html+=`<div style="background:rgba(255,215,0,.1);border:1px solid rgba(255,215,0,.3);border-radius:10px;padding:10px 14px;margin-bottom:12px;text-align:center;"><div style="font-size:.75rem;color:var(--text-muted);margin-bottom:2px;">🏆 우승</div><div style="font-size:1.1rem;font-weight:700;color:#FFD700;">${bt.winner_name}</div></div>`;
+  if(groups.length){
+    html+=`<div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:10px;">📋 조별 리그</div>`;
+    groups.forEach((g,gi)=>{
+      const gMatches=g.matches||[];
+      bdCalcStandings([g],isIndividual);
+      const standings=g.standings||[];
+      html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px;"><div style="font-weight:700;font-size:.88rem;color:var(--primary);margin-bottom:8px;">${g.name}</div>`;
+      if(standings.length){
+        html+=`<table style="width:100%;font-size:.76rem;border-collapse:collapse;margin-bottom:8px;"><thead><tr style="border-bottom:1px solid var(--border);"><th style="padding:4px 2px;text-align:left;color:var(--text-muted);">순위</th><th style="padding:4px 2px;text-align:left;color:var(--text-muted);">선수</th><th style="padding:4px 2px;text-align:center;color:var(--text-muted);">승</th><th style="padding:4px 2px;text-align:center;color:var(--text-muted);">패</th><th style="padding:4px 2px;text-align:center;color:var(--text-muted);">득실</th></tr></thead><tbody>`;
+        standings.forEach((s,si)=>{
+          const nm=isIndividual?s.team.name:(s.team.p2_name?`${s.team.p1_name}/${s.team.p2_name}`:s.team.p1_name);
+          const medal=si===0?'🥇':si===1?'🥈':si===2?'🥉':'';
+          html+=`<tr style="border-bottom:1px solid var(--border);${si<2?'color:var(--primary);font-weight:600;':''}"><td style="padding:4px 2px;">${medal||si+1}</td><td style="padding:4px 2px;">${nm}</td><td style="padding:4px 2px;text-align:center;">${s.wins}</td><td style="padding:4px 2px;text-align:center;">${s.losses}</td><td style="padding:4px 2px;text-align:center;">${s.diff>0?'+':''}${s.diff}</td></tr>`;
+        });
+        html+=`</tbody></table>`;
+      }
+      const doneMatches=gMatches.filter(m=>m.done);
+      if(doneMatches.length){
+        html+=`<div style="font-size:.74rem;color:var(--text-muted);margin-bottom:4px;">경기 결과 (${doneMatches.length}/${gMatches.length})</div>`;
+        doneMatches.forEach(m=>{
+          const n1=isIndividual?m.p1.name:(m.t1.p2_name?`${m.t1.p1_name}/${m.t1.p2_name}`:m.t1.p1_name);
+          const n2=isIndividual?m.p2.name:(m.t2.p2_name?`${m.t2.p1_name}/${m.t2.p2_name}`:m.t2.p1_name);
+          const w1=parseInt(m.s1)>parseInt(m.s2);
+          html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:3px 4px;font-size:.74rem;border-bottom:1px solid var(--border);"><span style="${w1?'font-weight:700;color:var(--text);':'color:var(--text-muted);'}">${n1}</span><span style="padding:0 8px;font-weight:700;color:var(--primary);">${m.s1}:${m.s2}</span><span style="${!w1?'font-weight:700;color:var(--text);':'color:var(--text-muted);'}">${n2}</span></div>`;
+        });
+      }
+      if(isAdmin){
+        const pendingMatches=gMatches.filter(m=>!m.done);
+        if(pendingMatches.length){
+          html+=`<div style="font-size:.74rem;color:var(--accent);margin-top:6px;margin-bottom:4px;">⏳ 미완료 (${pendingMatches.length}경기)</div>`;
+          pendingMatches.forEach(m=>{
+            const n1=isIndividual?m.p1.name:(m.t1.p2_name?`${m.t1.p1_name}/${m.t1.p2_name}`:m.t1.p1_name);
+            const n2=isIndividual?m.p2.name:(m.t2.p2_name?`${m.t2.p1_name}/${m.t2.p2_name}`:m.t2.p1_name);
+            const realMi=gMatches.indexOf(m);
+            html+=`<div style="display:flex;align-items:center;gap:4px;padding:4px 0;font-size:.78rem;border-bottom:1px solid var(--border);"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n1}</span><input type="number" placeholder="0" min="0" max="30" id="bd-s1-${gi}-${realMi}" style="width:42px;text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px;font-size:.78rem;color:var(--text);"><span style="color:var(--text-muted);">:</span><input type="number" placeholder="0" min="0" max="30" id="bd-s2-${gi}-${realMi}" style="width:42px;text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px;font-size:.78rem;color:var(--text);"><span style="flex:1;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n2}</span><button onclick="bdSaveMatchScore('${id}',${gi},${realMi})" style="background:var(--primary);border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:.72rem;cursor:pointer;flex-shrink:0;">저장</button></div>`;
+          });
+        }
+      }
+      html+=`</div>`;
+    });
+  }
+  const knockout=data.knockout||[];
+  if(knockout.length){
+    html+=`<div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:10px;margin-top:4px;">🏆 본선 토너먼트</div><div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px;">`;
+    knockout.forEach((round,ri)=>{
+      html+=`<div style="font-size:.78rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;">${round.label||`라운드${ri+1}`}</div>`;
+      (round.matches||[]).forEach(m=>{
+        const n1=_tl(m.t1)||'TBD',n2=_tl(m.t2)||'TBD';
+        const done=m.done,w1=done&&parseInt(m.s1)>parseInt(m.s2);
+        html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;font-size:.8rem;border-bottom:1px solid var(--border);"><span style="flex:1;${w1?'font-weight:700;color:var(--text);':'color:var(--text-muted);'}">${n1}</span><span style="padding:0 8px;font-weight:700;color:${done?'var(--primary)':'var(--text-muted)'};">${done?`${m.s1}:${m.s2}`:'vs'}</span><span style="flex:1;text-align:right;${done&&!w1?'font-weight:700;color:var(--text);':'color:var(--text-muted);'}">${n2}</span></div>`;
+      });
+    });
+    html+=`</div>`;
+  }
+  if(!groups.length&&!knockout.length) html+=`<div class="empty-state"><div class="empty-icon">📋</div><div>아직 대회 데이터가 없습니다</div></div>`;
+  contentEl.innerHTML=html;
+  if(actionsEl) actionsEl.innerHTML=`<button class="btn btn-ghost" onclick="closeModal('modal-bracket-detail')">닫기</button>`;
+  openModal('modal-bracket-detail');
+}
+
+async function bdSaveMatchScore(btId,gi,mi){
+  const s1=parseInt(document.getElementById(`bd-s1-${gi}-${mi}`)?.value);
+  const s2=parseInt(document.getElementById(`bd-s2-${gi}-${mi}`)?.value);
+  if(isNaN(s1)||isNaN(s2)){toast('점수를 입력하세요','error');return;}
+  if(s1===s2){toast('동점은 불가','error');return;}
+  const{data:bt}=await sb.from('bracket_tournaments').select('bracket_data').eq('id',btId).single();
+  if(!bt){toast('대회 정보 없음','error');return;}
+  const data=typeof bt.bracket_data==='string'?JSON.parse(bt.bracket_data||'{}'):bt.bracket_data||{};
+  data.groups[gi].matches[mi].s1=s1;data.groups[gi].matches[mi].s2=s2;data.groups[gi].matches[mi].done=true;
+  await sb.from('bracket_tournaments').update({bracket_data:JSON.stringify(data)}).eq('id',btId);
+  toast('✅ 저장 완료','success');openBracketDetail(btId);
+}
+
 // ── 목록 렌더 ──
 async function renderBracketPage(){
   const addBtn=document.getElementById('btn-add-bracket');
@@ -3158,11 +3230,24 @@ function toggleBracketForm(){
 async function _loadBfAttendees(){
   window._bfUsersMap={};
   window._bfAllUsers=[];
+  // 정회원 로드
   const{data:users}=await sb.from('profiles').select('id,name,wins,losses,games').eq('status','approved').order('name');
   (users||[]).forEach(u=>{
     const wr=u.games>0?Math.round((u.wins||0)/u.games*100):0;
     window._bfUsersMap[u.id]={id:u.id,name:u.name,score:wr,wr};
-    window._bfAllUsers.push(u);
+    window._bfAllUsers.push({...u,isGuest:false});
+  });
+  // 비회원 로드 (게스트모드 제외)
+  const guestModeNames=await _loadGuestModeNames();
+  const memberNames=new Set((users||[]).map(u=>u.name));
+  const{data:gMatches}=await sb.from('matches').select('a1_name,a2_name,b1_name,b2_name,a1_id,a2_id,b1_id,b2_id').eq('status','approved');
+  const guestSet=new Set();
+  (gMatches||[]).forEach(m=>{
+    [{n:m.a1_name,id:m.a1_id},{n:m.a2_name,id:m.a2_id},{n:m.b1_name,id:m.b1_id},{n:m.b2_name,id:m.b2_id}]
+    .forEach(p=>{if(p.n&&!p.id&&!memberNames.has(p.n)&&!guestModeNames.has(p.n)) guestSet.add(p.n);});
+  });
+  [...guestSet].sort().forEach(nm=>{
+    window._bfAllUsers.push({id:'guest:'+nm,name:nm,isGuest:true,games:0,wins:0,losses:0});
   });
   _bfRenderAttendeeUI();
 }
@@ -3178,19 +3263,34 @@ function _bfRenderAttendeeUI(){
     <button onclick="_bfAddGuest()" class="btn btn-ghost btn-sm" style="white-space:nowrap;">+ 추가</button>
   </div>`;
 
-  // 등록된 선수 클릭 선택
-  const users=window._bfAllUsers||[];
-  if(users.length){
+  // 등록된 선수 클릭 선택 (정회원 + 비회원 구분 표시)
+  const allUsers=window._bfAllUsers||[];
+  const members=allUsers.filter(u=>!u.isGuest);
+  const guests=allUsers.filter(u=>u.isGuest);
+  if(members.length){
+    html+=`<div style="font-size:.72rem;color:var(--text-muted);margin-bottom:4px;">👤 회원</div>`;
     html+=`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">`;
-    users.forEach(u=>{
-      const wr=u.games>0?Math.round((u.wins||0)/u.games*100):0;
+    members.forEach(u=>{
       const sel=_bfAttendees.some(a=>a.id===u.id);
       html+=`<div data-uid="${u.id}" style="display:inline-flex;align-items:center;gap:3px;border-radius:20px;padding:4px 10px;cursor:pointer;font-size:.82rem;user-select:none;
         background:${sel?'rgba(41,121,255,.2)':'var(--bg3)'};
         border:1px solid ${sel?'var(--primary)':'var(--border)'};
         color:${sel?'var(--primary)':'var(--text)'};">
         <span style="pointer-events:none;">${sel?'✅ ':''}${u.name}</span>
-
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+  if(guests.length){
+    html+=`<div style="font-size:.72rem;color:var(--text-muted);margin-bottom:4px;">👻 비회원</div>`;
+    html+=`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">`;
+    guests.forEach(u=>{
+      const sel=_bfAttendees.some(a=>a.id===u.id);
+      html+=`<div data-uid="${u.id}" style="display:inline-flex;align-items:center;gap:3px;border-radius:20px;padding:4px 10px;cursor:pointer;font-size:.82rem;user-select:none;
+        background:${sel?'rgba(255,152,0,.2)':'var(--bg3)'};
+        border:1px solid ${sel?'rgba(255,152,0,.6)':'var(--border)'};
+        color:${sel?'#E65100':'var(--text-muted)'};">
+        <span style="pointer-events:none;">${sel?'✅ ':''}${u.name}</span>
       </div>`;
     });
     html+=`</div>`;
