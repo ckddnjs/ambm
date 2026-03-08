@@ -137,13 +137,7 @@
         <div id="partner-list"></div>
       </div>
       <div class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <div class="card-title" style="margin-bottom:0;">🏆 전체 랭킹 <span style="font-size:.68rem;font-weight:400;color:var(--text-muted);">5경기 이상 반영</span></div>
-          <div style="display:flex;gap:6px;align-items:center;">
-            <span style="font-size:.65rem;background:rgba(255,152,0,.15);border:1px solid rgba(255,152,0,.3);color:#E65100;border-radius:5px;padding:2px 5px;white-space:nowrap;">비 = 비회원</span>
-            <span style="font-size:.65rem;background:rgba(255,152,0,.12);border:1px solid rgba(255,152,0,.25);color:#E65100;border-radius:5px;padding:2px 5px;white-space:nowrap;">👻 = 게스트</span>
-          </div>
-        </div>
+        <div class="card-title">🏆 전체 랭킹 <span style="font-size:.68rem;font-weight:400;color:var(--text-muted);">5경기 이상 반영</span></div>
         <div class="sort-row">
           <button class="sort-pill active" onclick="setSort('ci')">종합</button>
           <button class="sort-pill" onclick="setSort('winrate')">승률</button>
@@ -274,7 +268,13 @@
             <input class="form-input" type="date" id="bf-auto-date">
           </div>
 
-          <!-- 팀전: 팀장 지정 -->
+          <div class="form-group mb-3">
+            <label class="form-label">참석자 선택 <span class="req">*</span></label>
+            <div id="bf-attendee-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:44px;background:var(--bg2);border-radius:10px;padding:10px;"></div>
+            <div id="bf-attendee-count" style="font-size:.75rem;color:var(--text-muted);margin-top:6px;text-align:right;">0명 선택됨</div>
+          </div>
+
+          <!-- 팀전: 팀장 지정 (참석자 아래) -->
           <div id="bf-team-captain-section" style="display:none;" class="form-group mb-2">
             <label class="form-label">팀장 지정</label>
             <div style="display:flex;gap:8px;">
@@ -287,12 +287,6 @@
                 <select class="form-select" id="bf-captain-b"><option value="">선택</option></select>
               </div>
             </div>
-          </div>
-
-          <div class="form-group mb-3">
-            <label class="form-label">참석자 선택 <span class="req">*</span></label>
-            <div id="bf-attendee-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:44px;background:var(--bg2);border-radius:10px;padding:10px;"></div>
-            <div id="bf-attendee-count" style="font-size:.75rem;color:var(--text-muted);margin-top:6px;text-align:right;">0명 선택됨</div>
           </div>
 
           <div style="display:flex;gap:8px;">
