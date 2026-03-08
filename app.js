@@ -1718,7 +1718,7 @@ function switchAdminTab(tab){
     const m=el.getAttribute('onclick')?.match(/switchAdminTab\('(\w+)'\)/);
     el.classList.toggle('active', m&&m[1]===tab);
   });
-  switch(tab){case 'pending':renderAdminPending();break;case 'members':renderAdminMembers();break;case 'logs':renderAdminLogs();break;}
+  switch(tab){case 'pending':renderAdminPending();break;case 'members':renderAdminMembers();break;case 'logs':renderAdminLogs();break;case 'tournamentImport':renderAdminTournamentImport();break;}
 }
 async function renderAdminPending(){
   const el=document.getElementById('admin-content');
@@ -2134,6 +2134,305 @@ async function batchSubmit(){
   document.getElementById('batch-input').value='';
   document.getElementById('batch-preview').innerHTML='';
   renderAdminBatch();
+}
+
+
+// ══════════════════════════════════════════════
+//  대회 일괄 데이터 입력 (관리자 전용)
+//  컬럼: 구분|날짜|선수A|선수B|점수1|점수2|선수C|선수D|단계|슬롯|라운드|BYE
+// ══════════════════════════════════════════════
+
+function renderAdminTournamentImport(){
+  const el=document.getElementById('admin-content');
+  if(!el) return;
+  el.innerHTML=`
+  <div style="margin-bottom:12px;">
+    <div style="font-size:.88rem;font-weight:700;margin-bottom:6px;">🏆 대회 경기 일괄 입력</div>
+    <div style="font-size:.76rem;color:var(--text-muted);background:var(--bg2);border-radius:8px;padding:10px 12px;margin-bottom:10px;line-height:1.7;">
+      엑셀에서 <b>탭 구분 텍스트</b>를 복사해서 붙여넣으세요.<br>
+      <b>컬럼 순서:</b> 구분 · 날짜 · 선수A · 선수B · 점수1 · 점수2 · 선수C · 선수D · 단계 · 슬롯 · 라운드 · BYE<br>
+      <b>구분:</b> 개인 / 듀오 / 팀전 &nbsp;|&nbsp; <b>단계:</b> 리그 / 8강 / 4강 / 결승 &nbsp;|&nbsp; <b>슬롯:</b> A조, E1~E4, F1~F2, T<br>
+      <b>부전승(BYE):</b> 마지막 컬럼에 BYE 입력 시 자동 처리
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+      <div style="font-size:.8rem;color:var(--text-muted);">대회명</div>
+      <input id="ti-name" class="form-input" placeholder="예) 새벽민턴 3월 오픈" style="flex:1;font-size:.82rem;padding:6px 10px;">
+    </div>
+    <textarea id="ti-raw" placeholder="여기에 엑셀 데이터를 붙여넣으세요..."
+      style="width:100%;min-height:200px;box-sizing:border-box;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:.78rem;font-family:monospace;resize:vertical;"></textarea>
+  </div>
+  <button onclick="tiParsePreview()" class="btn btn-primary" style="width:100%;margin-bottom:10px;">🔍 미리보기</button>
+  <div id="ti-preview"></div>`;
+}
+
+function tiParsePreview(){
+  const raw=(document.getElementById('ti-raw')?.value||'').trim();
+  if(!raw){toast('데이터를 입력하세요','error');return;}
+  const lines=raw.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('구분'));
+  const result=_tiParseAll(lines);
+  window._tiParsed=result;
+  _tiRenderPreview(result);
+}
+
+function _tiParseAll(lines){
+  // 결과 구조
+  const out={
+    type:null,     // individual|duo|team
+    date:null,
+    league:[],     // 조별 리그 [{gi,slot,row}]
+    knockout:[],   // 본선 [{round,slot,row}]
+    team:[],       // 팀전 라운드별
+    errors:[]
+  };
+  lines.forEach((line,li)=>{
+    try{
+      const cols=line.split('\t').map(s=>s.trim());
+      if(cols.length<6) return; // 빈 줄 무시
+      const [kind,date,pA,pB,s1raw,s2raw,pC,pD,stage,slot,round,byeFlag]=cols;
+      if(!kind) return;
+
+      // 종목 감지
+      const kindN=kind.trim();
+      if(!out.type){
+        if(kindN==='개인') out.type='individual';
+        else if(kindN==='듀오') out.type='duo';
+        else if(kindN==='팀전') out.type='team';
+      }
+      // 날짜
+      if(date&&!out.date){
+        const parts=date.split('-');
+        if(parts.length===3){
+          const yy=parts[0].length===2?'20'+parts[0]:parts[0];
+          out.date=`${yy}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
+        }
+      }
+      // 부전승
+      const isBye=(byeFlag||'').toUpperCase()==='BYE';
+      // 점수
+      const s1=parseInt(s1raw), s2=parseInt(s2raw);
+      const hasScore=!isNaN(s1)&&!isNaN(s2);
+
+      const row={pA:pA||'',pB:pB||'',pC:pC||'',pD:pD||'',s1:hasScore?s1:null,s2:hasScore?s2:null,isBye,slot:slot||'',round:round||''};
+
+      const stageN=(stage||'').trim();
+      if(stageN==='리그') out.league.push(row);
+      else if(['8강','4강','결승'].includes(stageN)) out.knockout.push({...row,stage:stageN});
+      else if(kindN==='팀전') out.team.push({...row,round:round||''});
+    }catch(e){
+      out.errors.push({line:li+1,text:line,reason:e.message});
+    }
+  });
+  return out;
+}
+
+function _tiRenderPreview(result){
+  const wrap=document.getElementById('ti-preview');
+  if(!wrap) return;
+  const typeLabel={individual:'👤 개인전',duo:'👥 듀오전',team:'🚩 팀전'};
+  let html=`<div style="background:var(--bg2);border-radius:10px;padding:12px;margin-bottom:10px;">`;
+  html+=`<div style="font-weight:700;font-size:.85rem;margin-bottom:8px;">${typeLabel[result.type]||'종목 미감지'} · 날짜: ${result.date||'미감지'}</div>`;
+
+  // 조별 리그
+  if(result.league.length){
+    // 슬롯별 그룹핑
+    const bySlot={};
+    result.league.forEach(r=>{
+      const k=r.slot||'?';
+      if(!bySlot[k]) bySlot[k]=[];
+      bySlot[k].push(r);
+    });
+    html+=`<div style="font-size:.82rem;font-weight:700;color:var(--primary);margin-bottom:6px;">📋 조별 리그 (${result.league.length}경기)</div>`;
+    Object.entries(bySlot).forEach(([slot,rows])=>{
+      html+=`<div style="margin-bottom:8px;"><div style="font-size:.78rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;">${slot}</div>`;
+      rows.forEach(r=>{
+        if(r.isBye) html+=`<div style="font-size:.76rem;padding:3px 6px;color:var(--warn);">🟡 부전승: ${r.pA}${r.pB?' / '+r.pB:''}</div>`;
+        else html+=`<div style="font-size:.76rem;padding:3px 6px;display:flex;gap:8px;"><span>${r.pA}${r.pB?' / '+r.pB:''}</span><b style="color:var(--primary);">${r.s1??'?'}:${r.s2??'?'}</b><span>${r.pC}${r.pD?' / '+r.pD:''}</span></div>`;
+      });
+      html+=`</div>`;
+    });
+  }
+
+  // 본선
+  if(result.knockout.length){
+    html+=`<div style="font-size:.82rem;font-weight:700;color:var(--info);margin-bottom:6px;margin-top:8px;">🏆 본선 토너먼트 (${result.knockout.length}경기)</div>`;
+    const stageOrder=['8강','4강','결승'];
+    stageOrder.forEach(st=>{
+      const rows=result.knockout.filter(r=>r.stage===st);
+      if(!rows.length) return;
+      html+=`<div style="font-size:.78rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;">${st}</div>`;
+      rows.forEach(r=>{
+        if(r.isBye) html+=`<div style="font-size:.76rem;padding:3px 6px;color:var(--warn);">🟡 부전승(${r.slot}): ${r.pA}${r.pB?' / '+r.pB:''}</div>`;
+        else html+=`<div style="font-size:.76rem;padding:3px 6px;display:flex;gap:8px;"><span style="min-width:60px;">[${r.slot}]</span><span>${r.pA}${r.pB?' / '+r.pB:''}</span><b style="color:var(--primary);">${r.s1??'?'}:${r.s2??'?'}</b><span>${r.pC}${r.pD?' / '+r.pD:''}</span></div>`;
+      });
+    });
+  }
+
+  // 팀전
+  if(result.team.length){
+    html+=`<div style="font-size:.82rem;font-weight:700;color:var(--warn);margin-bottom:6px;margin-top:8px;">🚩 팀전 (${result.team.length}경기)</div>`;
+    result.team.forEach(r=>{
+      html+=`<div style="font-size:.76rem;padding:3px 6px;display:flex;gap:8px;"><span style="min-width:32px;color:var(--text-muted);">${r.round}</span><span>${r.pA}${r.pB?' / '+r.pB:''}</span><b style="color:var(--primary);">${r.s1??'?'}:${r.s2??'?'}</b><span>${r.pC}${r.pD?' / '+r.pD:''}</span></div>`;
+    });
+  }
+
+  if(result.errors.length){
+    html+=`<div style="font-size:.78rem;color:var(--danger);margin-top:8px;">${result.errors.length}줄 파싱 오류</div>`;
+    result.errors.forEach(e=>html+=`<div style="font-size:.72rem;color:var(--danger);padding:2px 0;">${e.line}번줄: ${e.reason}</div>`);
+  }
+  html+=`</div>`;
+
+  const total=result.league.length+result.knockout.length+result.team.length;
+  if(total>0){
+    html+=`<button onclick="tiSubmit()" class="btn btn-primary" style="width:100%;margin-bottom:8px;">📥 ${total}경기 대회 생성 + 경기내역 등록</button>`;
+  }
+  wrap.innerHTML=html;
+}
+
+async function tiSubmit(){
+  const result=window._tiParsed;
+  if(!result) return;
+  const nameInput=document.getElementById('ti-name');
+  const name=(nameInput?.value||'').trim()||(result.date?result.date+' 대회':'대회');
+  const btn=document.querySelector('#ti-preview .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='등록 중...';}
+  try{
+    // 1. bracket_tournament 생성
+    const typeMap={'개인전':'individual','듀오전':'duo','팀전':'team'};
+    const tType=result.type||'individual';
+    const bracket=_tiBuildBracket(result);
+    const{data:bt,error:btErr}=await sb.from('bracket_tournaments').insert({
+      name,
+      match_date:result.date||new Date().toISOString().slice(0,10),
+      status: (result.knockout.length>0)?'done':'league',
+      tournament_type:tType,
+      rounds:JSON.stringify([]),
+      groups:JSON.stringify(bracket.groups),
+      created_by:ME.id
+    }).select().single();
+    if(btErr) throw new Error('대회 생성 실패: '+btErr.message);
+
+    // 2. 경기내역 일괄 등록 (matches 테이블)
+    const matchRecords=_tiExtractMatches(result);
+    if(matchRecords.length){
+      const now=new Date().toISOString();
+      const inserts=matchRecords.map(r=>({...r,approved_by:ME.id,approved_at:now,created_at:now,status:'approved'}));
+      const{error:mErr}=await sb.from('matches').insert(inserts);
+      if(mErr) console.warn('경기내역 등록 부분실패:',mErr.message);
+    }
+
+    addLog(`대회 일괄 입력: ${name} (${matchRecords.length}경기)`,ME.id);
+    toast(`✅ 대회 생성 완료! (경기 ${matchRecords.length}건 등록)`,'success');
+    window._tiParsed=null;
+    document.getElementById('ti-raw').value='';
+    document.getElementById('ti-preview').innerHTML='';
+    if(nameInput) nameInput.value='';
+    // 대회 탭으로 이동
+    setTimeout(()=>navigateTo('tournament'),600);
+  }catch(e){
+    toast(e.message,'error');
+    if(btn){btn.disabled=false;btn.textContent='📥 대회 생성 + 경기내역 등록';}
+  }
+}
+
+function _tiBuildBracket(result){
+  // groups: 조별 리그 데이터 구조화
+  const isIndividual=result.type==='individual';
+  const isDuo=result.type==='duo';
+
+  // 슬롯별 조별 리그 그룹핑
+  const bySlot={};
+  result.league.forEach(r=>{
+    const k=r.slot||'A조';
+    if(!bySlot[k]) bySlot[k]=[];
+    bySlot[k].push(r);
+  });
+
+  const groups=Object.entries(bySlot).map(([slot,rows])=>{
+    // 선수/팀 목록 수집
+    const playerSet={};
+    rows.forEach(r=>{
+      if(!r.isBye){
+        // 팀 A
+        const ka=r.pA+(isDuo&&r.pB?'/'+r.pB:'');
+        if(!playerSet[ka]) playerSet[ka]={name:r.pA,p2_name:r.pB||null,id:ka,p1_id:ka};
+        // 팀 B
+        const kc=r.pC+(isDuo&&r.pD?'/'+r.pD:'');
+        if(!playerSet[kc]) playerSet[kc]={name:r.pC,p2_name:r.pD||null,id:kc,p1_id:kc};
+      }
+    });
+    const players=Object.values(playerSet);
+
+    // 경기 목록 구조화
+    const matches=rows.filter(r=>!r.isBye&&r.s1!==null).map(r=>{
+      const t1={name:r.pA,id:r.pA+(isDuo&&r.pB?'/'+r.pB:''),p1_id:r.pA,p1_name:r.pA,p2_name:r.pB||null};
+      const t2={name:r.pC,id:r.pC+(isDuo&&r.pD?'/'+r.pD:''),p1_id:r.pC,p1_name:r.pC,p2_name:r.pD||null};
+      return{p1:t1,p2:t2,t1:t1,t2:t2,s1:r.s1,s2:r.s2,done:true};
+    });
+
+    // 순위 계산
+    const st={};
+    players.forEach(p=>{st[p.id]={team:p,wins:0,losses:0,diff:0,pf:0,pa:0};});
+    matches.forEach(m=>{
+      const k1=m.p1.id, k2=m.p2.id;
+      if(!st[k1]||!st[k2]) return;
+      st[k1].pf+=m.s1;st[k1].pa+=m.s2;st[k1].diff=st[k1].pf-st[k1].pa;
+      st[k2].pf+=m.s2;st[k2].pa+=m.s1;st[k2].diff=st[k2].pf-st[k2].pa;
+      if(m.s1>m.s2){st[k1].wins++;st[k2].losses++;}else{st[k2].wins++;st[k1].losses++;}
+    });
+    const standings=Object.values(st).sort((a,b)=>b.wins!==a.wins?b.wins-a.wins:b.diff-a.diff);
+
+    return{name:slot,players,teams:players,matches,standings};
+  });
+
+  // 본선 knockout 구조
+  const stageOrder=['8강','4강','결승'];
+  const knockout=stageOrder.map(st=>{
+    const rows=result.knockout.filter(r=>r.stage===st);
+    if(!rows.length) return null;
+    const matches=rows.map(r=>{
+      const t1={name:r.pA+(r.pB?' / '+r.pB:''),p1_name:r.pA,p2_name:r.pB||null};
+      const t2={name:r.isBye?'BYE':(r.pC+(r.pD?' / '+r.pD:'')),p1_name:r.pC,p2_name:r.pD||null};
+      return{slot:r.slot,t1,t2,s1:r.isBye?null:r.s1,s2:r.isBye?null:r.s2,done:r.isBye||r.s1!==null,bye:r.isBye};
+    });
+    return{label:st,matches};
+  }).filter(Boolean);
+
+  // 팀전 rounds
+  const rounds=[];
+  if(result.team.length){
+    const byRound={};
+    result.team.forEach(r=>{const k=r.round||'R1';if(!byRound[k]) byRound[k]=[];byRound[k].push(r);});
+    Object.entries(byRound).forEach(([rnd,rows])=>{
+      const matches=rows.map(r=>({t1:{name:r.pA+(r.pB?' / '+r.pB:''),p1_name:r.pA,p2_name:r.pB||null},t2:{name:r.pC+(r.pD?' / '+r.pD:''),p1_name:r.pC,p2_name:r.pD||null},s1:r.s1,s2:r.s2,done:r.s1!==null}));
+      rounds.push({label:rnd,matches});
+    });
+  }
+
+  return{groups,knockout,rounds};
+}
+
+function _tiExtractMatches(result){
+  const date=result.date||new Date().toISOString().slice(0,10);
+  const nameToId=(nm)=>{
+    if(!nm) return null;
+    const found=Object.values(window._bfUsersMap||{}).find(u=>u.name===nm);
+    return found?found.id:null;
+  };
+  const records=[];
+  const allRows=[...result.league,...result.knockout,...result.team];
+  allRows.forEach(r=>{
+    if(r.isBye||r.s1===null||r.s2===null) return;
+    records.push({
+      match_date:date,
+      match_type:'doubles',
+      a1_name:r.pA||null, a1_id:nameToId(r.pA),
+      a2_name:r.pB||null, a2_id:nameToId(r.pB),
+      b1_name:r.pC||null, b1_id:nameToId(r.pC),
+      b2_name:r.pD||null, b2_id:nameToId(r.pD),
+      score_a:r.s1, score_b:r.s2
+    });
+  });
+  return records;
 }
 
 async function renderAdminLogs(){
@@ -3118,7 +3417,10 @@ async function openBracketDetail(id){
   const typeLabel={individual:'👤 개인전',duo:'👥 듀오전',team:'🚩 팀장전'};
   const statusLabel={plan:'배분중',active:'진행중',league:'진행중',done:'완료'};
   const data=typeof bt.bracket_data==='string'?JSON.parse(bt.bracket_data||'{}'):bt.bracket_data||{};
-  const groups=data.groups||[];
+  // groups 컬럼 (일괄입력 방식) 또는 bracket_data.groups (기존 방식) 통합
+  const rawGroups=bt.groups?(typeof bt.groups==='string'?JSON.parse(bt.groups):bt.groups):null;
+  const rawKnockout=rawGroups?null:(data.knockout||[]);
+  const groups=rawGroups||data.groups||[];
   const tType=bt.tournament_type||'individual';
   const isIndividual=tType==='individual';
   let html=`<div style="font-size:.8rem;color:var(--text-muted);margin-bottom:12px;">📅 ${fmtMatchDate(bt.match_date)} · ${typeLabel[tType]||'대회'} · <span style="color:${bt.status==='done'?'var(--primary)':bt.status==='plan'?'var(--warn)':'var(--info)'};">${statusLabel[bt.status]||bt.status}</span></div>`;
@@ -3164,23 +3466,121 @@ async function openBracketDetail(id){
       html+=`</div>`;
     });
   }
-  const knockout=data.knockout||[];
+  const knockout=rawKnockout||data.knockout||[];
+  // 팀전 라운드
+  const teamRounds=data.rounds||[];
   if(knockout.length){
-    html+=`<div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:10px;margin-top:4px;">🏆 본선 토너먼트</div><div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px;">`;
-    knockout.forEach((round,ri)=>{
-      html+=`<div style="font-size:.78rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;">${round.label||`라운드${ri+1}`}</div>`;
-      (round.matches||[]).forEach(m=>{
-        const n1=_tl(m.t1)||'TBD',n2=_tl(m.t2)||'TBD';
-        const done=m.done,w1=done&&parseInt(m.s1)>parseInt(m.s2);
-        html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;font-size:.8rem;border-bottom:1px solid var(--border);"><span style="flex:1;${w1?'font-weight:700;color:var(--text);':'color:var(--text-muted);'}">${n1}</span><span style="padding:0 8px;font-weight:700;color:${done?'var(--primary)':'var(--text-muted)'};">${done?`${m.s1}:${m.s2}`:'vs'}</span><span style="flex:1;text-align:right;${done&&!w1?'font-weight:700;color:var(--text);':'color:var(--text-muted);'}">${n2}</span></div>`;
-      });
-    });
-    html+=`</div>`;
+    html+=`<div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:10px;margin-top:4px;">🏆 본선 토너먼트</div>`;
+    html+=_renderKnockoutBracket(knockout);
   }
+  if(teamRounds.length){
+    html+=`<div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:10px;margin-top:4px;">🚩 팀전 라운드</div>`;
+    html+=_renderTeamRounds(teamRounds);
+  }
+  if(!groups.length&&!knockout.length&&!teamRounds.length) html+=`<div class="empty-state"><div class="empty-icon">📋</div><div>아직 대회 데이터가 없습니다</div></div>`;
   if(!groups.length&&!knockout.length) html+=`<div class="empty-state"><div class="empty-icon">📋</div><div>아직 대회 데이터가 없습니다</div></div>`;
   contentEl.innerHTML=html;
   if(actionsEl) actionsEl.innerHTML=`<button class="btn btn-ghost" onclick="closeModal('modal-bracket-detail')">닫기</button>`;
   openModal('modal-bracket-detail');
+}
+
+
+// ── 본선 토너먼트 시각화 ──
+function _renderKnockoutBracket(knockout){
+  // 라운드별 카드 레이아웃
+  let html=`<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px;">`;
+  knockout.forEach(round=>{
+    const label=round.label||'라운드';
+    const stageColor={'8강':'var(--info)','4강':'var(--warn)','결승':'#FFD700'}[label]||'var(--primary)';
+    html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">`;
+    html+=`<div style="font-weight:700;font-size:.82rem;color:${stageColor};margin-bottom:8px;display:flex;align-items:center;gap:6px;">`;
+    html+=`<span style="background:${stageColor};color:#fff;border-radius:4px;padding:1px 8px;font-size:.72rem;">${label}</span></div>`;
+    html+=`<div style="display:flex;flex-direction:column;gap:6px;">`;
+    (round.matches||[]).forEach(m=>{
+      const n1=_tl(m.t1)||'TBD', n2=_tl(m.t2)||'TBD';
+      const isBye=m.bye||(n2==='BYE');
+      const done=m.done&&!isBye;
+      const w1=done&&parseInt(m.s1)>parseInt(m.s2);
+      const w2=done&&!w1;
+      if(isBye){
+        html+=`<div style="display:flex;align-items:center;gap:8px;background:var(--surface);border-radius:8px;padding:8px 10px;border:1px dashed var(--border);">
+          <span style="font-size:.8rem;font-weight:700;flex:1;">${n1}</span>
+          <span style="font-size:.72rem;background:rgba(255,152,0,.15);color:var(--warn);border-radius:12px;padding:2px 8px;">부전승 🟡</span>
+        </div>`;
+      } else {
+        const slotBadge=m.slot?`<span style="font-size:.68rem;color:var(--text-muted);background:var(--bg3);border-radius:4px;padding:1px 5px;margin-left:4px;">${m.slot}</span>`:'';
+        html+=`<div style="background:var(--surface);border-radius:8px;border:1px solid var(--border);overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:6px;padding:7px 10px;border-bottom:1px solid var(--border);${w1?'background:rgba(41,121,255,.06);':''}">
+            <span style="font-size:.8rem;flex:1;${w1?'font-weight:700;color:var(--text);':'color:var(--text-muted);'}">${n1}${slotBadge}</span>
+            <span style="font-size:.9rem;font-weight:900;color:${done?'var(--primary)':'var(--text-muted)'};min-width:28px;text-align:right;">${done?m.s1:'—'}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;padding:7px 10px;${w2?'background:rgba(41,121,255,.06);':''}">
+            <span style="font-size:.8rem;flex:1;${w2?'font-weight:700;color:var(--text);':'color:var(--text-muted);'}">${n2}</span>
+            <span style="font-size:.9rem;font-weight:900;color:${done?'var(--primary)':'var(--text-muted)'};min-width:28px;text-align:right;">${done?m.s2:'—'}</span>
+          </div>
+        </div>`;
+      }
+    });
+    html+=`</div></div>`;
+  });
+  html+=`</div>`;
+  return html;
+}
+
+// ── 팀전 라운드 시각화 ──
+function _renderTeamRounds(rounds){
+  let html=`<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px;">`;
+  // 팀별 승수 집계
+  const teamWins={};
+  rounds.forEach(round=>{
+    (round.matches||[]).forEach(m=>{
+      if(!m.done||m.s1===null) return;
+      const n1=_tl(m.t1),n2=_tl(m.t2);
+      if(!teamWins[n1]) teamWins[n1]={wins:0,diff:0};
+      if(!teamWins[n2]) teamWins[n2]={wins:0,diff:0};
+      const s1=parseInt(m.s1),s2=parseInt(m.s2);
+      teamWins[n1].diff+=s1-s2;
+      teamWins[n2].diff+=s2-s1;
+      if(s1>s2) teamWins[n1].wins++;
+      else teamWins[n2].wins++;
+    });
+  });
+  // 라운드별
+  rounds.forEach(round=>{
+    html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">`;
+    html+=`<div style="font-weight:700;font-size:.82rem;color:var(--warn);margin-bottom:8px;">${round.label||'라운드'}</div>`;
+    html+=`<div style="display:flex;flex-direction:column;gap:5px;">`;
+    (round.matches||[]).forEach(m=>{
+      const n1=_tl(m.t1)||'TBD',n2=_tl(m.t2)||'TBD';
+      const done=m.done&&m.s1!==null;
+      const w1=done&&parseInt(m.s1)>parseInt(m.s2);
+      html+=`<div style="background:var(--surface);border-radius:8px;border:1px solid var(--border);overflow:hidden;">
+        <div style="display:flex;align-items:center;padding:6px 10px;border-bottom:1px solid var(--border);${w1?'background:rgba(41,121,255,.06);':''}">
+          <span style="flex:1;font-size:.8rem;${w1?'font-weight:700;':'color:var(--text-muted);'}">${n1}</span>
+          <span style="font-weight:900;font-size:.9rem;color:${done?'var(--primary)':'var(--text-muted)'};">${done?m.s1:'—'}</span>
+        </div>
+        <div style="display:flex;align-items:center;padding:6px 10px;${!w1&&done?'background:rgba(41,121,255,.06);':''}">
+          <span style="flex:1;font-size:.8rem;${!w1&&done?'font-weight:700;':'color:var(--text-muted);'}">${n2}</span>
+          <span style="font-weight:900;font-size:.9rem;color:${done?'var(--primary)':'var(--text-muted)'};">${done?m.s2:'—'}</span>
+        </div>
+      </div>`;
+    });
+    html+=`</div></div>`;
+  });
+  // 최종 팀 집계
+  const sortedTeams=Object.entries(teamWins).sort((a,b)=>b[1].wins!==a[1].wins?b[1].wins-a[1].wins:b[1].diff-a[1].diff);
+  if(sortedTeams.length){
+    html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">`;
+    html+=`<div style="font-weight:700;font-size:.82rem;margin-bottom:8px;">📊 최종 팀 집계</div>`;
+    html+=`<table style="width:100%;font-size:.78rem;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid var(--border);"><th style="padding:4px;text-align:left;color:var(--text-muted);">팀</th><th style="padding:4px;text-align:center;color:var(--text-muted);">승</th><th style="padding:4px;text-align:center;color:var(--text-muted);">득실</th></tr></thead><tbody>`;
+    sortedTeams.forEach(([name,stat],i)=>{
+      const medal=i===0?'🏆 ':i===1?'🥈 ':i===2?'🥉 ':'';
+      html+=`<tr style="border-bottom:1px solid var(--border);${i===0?'color:var(--primary);font-weight:700;':''}"><td style="padding:5px 4px;">${medal}${name}</td><td style="padding:5px 4px;text-align:center;">${stat.wins}</td><td style="padding:5px 4px;text-align:center;">${stat.diff>0?'+':''}${stat.diff}</td></tr>`;
+    });
+    html+=`</tbody></table></div>`;
+  }
+  html+=`</div>`;
+  return html;
 }
 
 async function bdSaveMatchScore(btId,gi,mi){
