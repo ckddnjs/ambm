@@ -245,14 +245,14 @@ function refreshHeader(){if(!ME) return; document.getElementById('hdr-name').tex
 const USER_NAVS=[
   {id:'dashboard',icon:'📊',label:'통계'},
   {id:'feed',icon:'📋',label:'경기내역'},
-  {id:'compare',icon:'⚔️',label:'상대전적'},
+  {id:'compare',icon:'⚔️',label:'조회'},
   {id:'tournament',icon:'🏆',label:'대회'},
   {id:'community',icon:'📢',label:'공지'}
 ];
 const ADMIN_NAVS=[
   {id:'dashboard',icon:'📊',label:'통계'},
   {id:'feed',icon:'📋',label:'경기내역'},
-  {id:'compare',icon:'⚔️',label:'상대전적'},
+  {id:'compare',icon:'⚔️',label:'조회'},
   {id:'tournament',icon:'🏆',label:'대회'},
   {id:'community',icon:'📢',label:'공지'},
   {id:'admin',icon:'🛡️',label:'관리'}
@@ -2829,20 +2829,19 @@ async function renderBracketPage(){
     const isDone=bt.status==='done';
     const isLeague=bt.status==='league'||bt.status==='active';
     const isPlan=bt.status==='plan';
-    const isDraft=bt.status==='draft';
     const isAdmin=ME?.role==='admin';
     const tLabel=typeLabel[bt.tournament_type]||'대회';
-    return `<div class="card" style="margin-bottom:12px;cursor:pointer;${isDraft?'opacity:.75;border-style:dashed;':''}" onclick="openBracketDetail('${bt.id}')">
+    return `<div class="card" style="margin-bottom:12px;cursor:pointer;" onclick="openBracketDetail('${bt.id}')">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;font-size:.95rem;margin-bottom:3px;">${bt.name}${isDraft?` <span style="font-size:.7rem;background:rgba(255,152,0,.15);color:var(--warn);padding:1px 6px;border-radius:6px;font-weight:600;">임시저장</span>`:''}</div>
+          <div style="font-weight:700;font-size:.95rem;margin-bottom:3px;">${bt.name}</div>
           <div style="font-size:.78rem;color:var(--text-muted);">📅 ${fmtMatchDate(bt.match_date)} · ${tLabel}</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
           <span style="font-size:.75rem;padding:3px 10px;border-radius:12px;font-weight:700;
-            background:${isDone?'rgba(41,121,255,.12)':isLeague?'rgba(41,121,255,.15)':isDraft?'rgba(255,152,0,.10)':isPlan?'rgba(255,152,0,.12)':'rgba(255,152,0,.12)'};
+            background:${isDone?'rgba(41,121,255,.12)':isLeague?'rgba(41,121,255,.15)':isPlan?'rgba(255,152,0,.12)':'rgba(255,152,0,.12)'};
             color:${isDone?'var(--primary)':isLeague?'var(--info)':'var(--warn)'};">
-            ${isDone?'완료':isLeague?'진행중':isDraft?'임시저장':isPlan?'배분중':'준비중'}
+            ${isDone?'완료':isLeague?'진행중':isPlan?'배분중':'준비중'}
           </span>
           ${isAdmin?`<button onclick="event.stopPropagation();deleteBracket('${bt.id}')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.8rem;padding:2px 6px;">✕</button>`:''}
         </div>
@@ -3006,7 +3005,32 @@ function _bfUpdateCaptainSelects(){
   if(cb){ cb.innerHTML=opts; if(prevB&&_bfAttendees.some(a=>a.id===prevB)) cb.value=prevB; }
 }
 
+
+function _bfDuoBack(){
+  if(_bfType!=='duo'){
+    bfGoStep(1);
+    return;
+  }
+  if(_bfStep===2){
+    // 조편성 → 페어링으로 (참석자, 페어 유지)
+    _bfStep=1.5;
+    const s1=document.getElementById('bf-step1');
+    const s2=document.getElementById('bf-step2');
+    if(s1) s1.style.display='none';
+    if(s2) s2.style.display='block';
+    bfRenderDuoPairing(); // 기존 _bfDuoPairs 그대로 렌더
+  } else {
+    // 페어링 → 참석자로
+    _bfStep=1;
+    const s1=document.getElementById('bf-step1');
+    const s2=document.getElementById('bf-step2');
+    if(s1) s1.style.display='block';
+    if(s2) s2.style.display='none';
+  }
+}
+
 function bfGoStep(step){
+  const prevStep=_bfStep;
   _bfStep=step;
   const s1=document.getElementById('bf-step1');
   const s2=document.getElementById('bf-step2');
@@ -3025,7 +3049,8 @@ function bfGoStep(step){
     const line=document.getElementById('bf-line-'+i);
     if(line) line.classList.toggle('done', i<step);
   });
-  if(step===2 && _bfStep!==1.5) bfRenderArrangement();
+  // 듀오 페어링 단계(1.5)에서 넘어올 때는 bfRenderArrangement 호출 안 함 (bfNextStep에서 직접 호출)
+  if(step===2 && prevStep!==1.5) bfRenderArrangement();
 }
 
 function bfNextStep(){
@@ -3128,6 +3153,16 @@ function bfRenderArrangement(){
   if(_bfType==='individual'){
     _bfArrangement=_bfAutoArrange();
   } else if(_bfType==='duo'){
+    // 듀오 자동배분: _bfDuoPairs가 있으면 그걸 기반으로, 없으면 전체 참석자로 자동 페어링 후 배분
+    if(!_bfDuoPairs||_bfDuoPairs.length<2){
+      // 참석자 전체를 자동 페어링
+      _bfDuoPairs=[];
+      const sorted=[..._bfAttendees].sort((a,b)=>b.score-a.score);
+      for(let i=0;i<sorted.length-1;i+=2){
+        _bfDuoPairs.push({p1:sorted[i],p2:sorted[i+1]||null});
+      }
+      if(sorted.length%2===1) _bfDuoPairs.push({p1:sorted[sorted.length-1],p2:null});
+    }
     _bfArrangement=_bfDuoArrange();
   } else {
     _bfArrangement=_bfTeamArrange();
@@ -3257,7 +3292,7 @@ function _bfRenderDuoArrangeUI(wrap){
   const {groups}=_bfArrangement;
   const isAdmin=ME?.role==='admin';
   let html=`<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px;">
-    🤖 팀 실력 균형을 고려해 자동 배분했습니다.${isAdmin?' 팀을 다른 조로 이동할 수 있습니다.':''}
+    🤖 팀 실력 균형을 고려해 자동 배분했습니다.${isAdmin?' 팀을 다른 조로 이동하거나 순서를 바꿀 수 있습니다.':''}
   </div>`;
   html+=`<div style="display:flex;flex-direction:column;gap:10px;">`;
   groups.forEach((g,gi)=>{
@@ -3266,18 +3301,28 @@ function _bfRenderDuoArrangeUI(wrap){
       <div style="display:flex;flex-direction:column;gap:5px;">`;
     g.teams.forEach((t,ti)=>{
       const label=t.p2_name?`${t.p1_name} / ${t.p2_name}`:t.p1_name;
-      html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:.85rem;font-weight:600;display:flex;align-items:center;gap:6px;">
+      html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:.85rem;font-weight:600;display:flex;align-items:center;gap:6px;">
         <span style="flex:1;">👥 ${label}</span>
-        ${isAdmin&&groups.length>1?`<select onchange="bfDuoMoveTeam(this,${gi},${ti})" style="font-size:.72rem;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:2px 5px;color:var(--text-muted);cursor:pointer;">
-          <option value="">이동</option>
-          ${groups.map((og,ogi)=>ogi!==gi?`<option value="${ogi}">${og.name}으로</option>`:'').join('')}
-        </select>`:''}
+        ${isAdmin?`<div style="display:flex;gap:3px;align-items:center;">
+          ${ti>0?`<button onclick="bfDuoSwapTeam(${gi},${ti},${ti-1})" style="background:none;border:1px solid var(--border);border-radius:4px;font-size:.7rem;cursor:pointer;padding:1px 5px;color:var(--text-muted);">▲</button>`:'<span style="width:22px;"></span>'}
+          ${ti<g.teams.length-1?`<button onclick="bfDuoSwapTeam(${gi},${ti},${ti+1})" style="background:none;border:1px solid var(--border);border-radius:4px;font-size:.7rem;cursor:pointer;padding:1px 5px;color:var(--text-muted);">▼</button>`:'<span style="width:22px;"></span>'}
+          ${groups.length>1?`<select onchange="bfDuoMoveTeam(this,${gi},${ti})" style="font-size:.72rem;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:2px 5px;color:var(--text-muted);cursor:pointer;">
+            <option value="">이동</option>
+            ${groups.map((og,ogi)=>ogi!==gi?`<option value="${ogi}">${og.name}으로</option>`:'').join('')}
+          </select>`:''}
+        </div>`:''}
       </div>`;
     });
     html+=`</div></div>`;
   });
   html+=`</div>`;
   wrap.innerHTML=html;
+}
+
+function bfDuoSwapTeam(gi,ti,ti2){
+  const teams=_bfArrangement.groups[gi].teams;
+  [teams[ti],teams[ti2]]=[teams[ti2],teams[ti]];
+  _bfRenderDuoArrangeUI(document.getElementById('bf-arrange-wrap'));
 }
 
 function bfDuoMoveTeam(sel,fromGi,ti){
@@ -3367,34 +3412,6 @@ function _rebuildGroupMatches(){
 // ══════════════════
 //  STEP 2 → DB 저장 (확정)
 // ══════════════════
-async function bfSaveDraft(){
-  const name=document.getElementById('bf-auto-name').value.trim();
-  const date=document.getElementById('bf-auto-date').value;
-  if(!name){toast('대회명을 입력해주세요','error');return;}
-  if(!date){toast('날짜를 선택해주세요','error');return;}
-
-  let draftData={name,match_date:date,status:'draft',tournament_type:_bfType,rounds:JSON.stringify([]),created_by:ME.id};
-
-  if(_bfType==='team'&&_bfArrangement){
-    draftData.groups=JSON.stringify([{name:'팀전',teamA:_bfArrangement.teamA||[],teamB:_bfArrangement.teamB||[],matches:[],standings:{A:{wins:0,losses:0,diff:0},B:{wins:0,losses:0,diff:0}}}]);
-  } else if(_bfArrangement){
-    draftData.groups=JSON.stringify(_bfArrangement.groups||[]);
-  } else {
-    draftData.groups=JSON.stringify([]);
-  }
-
-  if(window._bfEditId){
-    const{error}=await sb.from('bracket_tournaments').update(draftData).eq('id',window._bfEditId);
-    if(error){toast('저장 실패: '+error.message,'error');return;}
-    toast('💾 임시저장 완료 — 나중에 이어서 수정할 수 있습니다','success');
-  } else {
-    const{data,error}=await sb.from('bracket_tournaments').insert(draftData).select().single();
-    if(error){toast('저장 실패: '+error.message,'error');return;}
-    window._bfEditId=data.id;
-    toast('💾 임시저장 완료 — 나중에 이어서 수정할 수 있습니다','success');
-  }
-  renderBracketPage();
-}
 
 async function bfConfirmArrangement(){
   const name=document.getElementById('bf-auto-name').value.trim();
@@ -3790,7 +3807,11 @@ async function bdFinalizeTeam(){
   _bdData.groups=JSON.stringify(groups);
   _bdData.status='done';
   _renderBracketDetail(_bdData);
-  toast(`🏆 ${winner} 우승! 대회가 최종 확정되었습니다.`,'success');
+  const fmtD=d=>d>0?`+${d}`:String(d||0);
+  const blueInfo=`${st.A.wins}승 ${st.A.losses}패 / ${fmtD(st.A.diff)}`;
+  const redInfo=`${st.B.wins}승 ${st.B.losses}패 / ${fmtD(st.B.diff)}`;
+  const winnerFull=st.A.wins>st.B.wins?`🔵 블루팀 (${blueInfo})`:st.B.wins>st.A.wins?`🔴 레드팀 (${redInfo})`:`무승부`;
+  toast(`🏆 ${winnerFull} 우승! 대회가 최종 확정되었습니다.`,'success');
 }
 
 // 팀 라벨 (2명 표시)
