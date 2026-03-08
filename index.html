@@ -170,9 +170,8 @@
         </div>
       </div>
       <div class="filter-row">
-        <select class="form-select" id="feed-type-filter" onchange="renderFeed()">
-          <option value="">전체 종목</option>
-          <option value="doubles">복식</option>
+        <select class="form-select" id="feed-date-filter" onchange="renderFeed()" style="flex:1.4;">
+          <option value="">전체 날짜</option>
         </select>
         <select class="form-select" id="feed-status-filter" onchange="renderFeed()">
           <option value="approved">승인 경기</option>
@@ -240,7 +239,7 @@
             <div style="display:flex;gap:6px;">
               <button id="bf-type-individual" class="btn btn-primary btn-sm" onclick="bfSetType('individual')" style="flex:1;">👤 개인전</button>
               <button id="bf-type-duo" class="btn btn-ghost btn-sm" onclick="bfSetType('duo')" style="flex:1;">👥 듀오전</button>
-              <button id="bf-type-team" class="btn btn-ghost btn-sm" onclick="bfSetType('team')" style="flex:1;">🚩 팀전</button>
+              <button id="bf-type-team" class="btn btn-ghost btn-sm" onclick="bfSetType('team')" style="flex:1;">🚩 팀장전</button>
             </div>
             <div id="bf-type-desc" style="font-size:.75rem;color:var(--text-muted);margin-top:6px;padding:6px 10px;background:var(--bg2);border-radius:8px;">
               조별 풀리그 후 각 조 1·2위가 본선 토너먼트에 진출합니다.
