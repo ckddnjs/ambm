@@ -1985,13 +1985,53 @@ async function confirmLinkGuest(){
 }
 
 
-async function renderAdminBatch(){
-  // 이름→ID 매핑을 위해 유저 데이터 로드
-  if(!window._bfUsersMap||!Object.keys(window._bfUsersMap).length){
-    const{data:users}=await sb.from('profiles').select('id,name').eq('status','approved');
-    window._bfUsersMap={};
-    (users||[]).forEach(u=>{window._bfUsersMap[u.id]={id:u.id,name:u.name,score:0};});
+
+// ── 이름→ID 매핑: DB profiles 직접 조회 (항상 최신) ──
+async function _ensureUserMap(){
+  // 이미 로드됐어도 매번 갱신
+  const{data:users}=await sb.from('profiles').select('id,name').eq('status','approved');
+  window._bfUsersMap={};
+  (users||[]).forEach(u=>{ window._bfUsersMap[u.id]={id:u.id,name:u.name,score:0}; });
+}
+
+function _nameToId(nm){
+  if(!nm) return null;
+  const map=window._bfUsersMap||{};
+  const found=Object.values(map).find(u=>u.name===nm);
+  return found?found.id:null;
+}
+
+// 저장된 경기 중 idCol이 null이지만 nameCol에 회원 이름이 있는 경우 → ID 채워넣기
+async function _fixMatchIds(matchIds){
+  if(!matchIds||!matchIds.length) return;
+  const map=window._bfUsersMap||{};
+  const nameMap={};
+  Object.values(map).forEach(u=>{ nameMap[u.name]=u.id; });
+
+  const cols=[
+    {nameCol:'a1_name',idCol:'a1_id'},
+    {nameCol:'a2_name',idCol:'a2_id'},
+    {nameCol:'b1_name',idCol:'b1_id'},
+    {nameCol:'b2_name',idCol:'b2_id'},
+  ];
+  for(const {nameCol,idCol} of cols){
+    // 해당 id가 null인 경기만 가져오기
+    const{data:rows}=await sb.from('matches')
+      .select(`id,${nameCol}`)
+      .in('id',matchIds)
+      .is(idCol,null);
+    if(!rows||!rows.length) continue;
+    // 이름별 그룹핑 후 업데이트
+    const byName={};
+    rows.forEach(r=>{ const nm=r[nameCol]; if(nm&&nameMap[nm]){if(!byName[nm]) byName[nm]=[]; byName[nm].push(r.id);} });
+    for(const [nm,ids] of Object.entries(byName)){
+      await sb.from('matches').update({[idCol]:nameMap[nm]}).in('id',ids);
+    }
   }
+}
+
+async function renderAdminBatch(){
+  await _ensureUserMap();
   const el=document.getElementById('admin-content');
   el.innerHTML=`
     <div style="margin-bottom:12px;">
@@ -2092,19 +2132,15 @@ function _batchParseLine(line, today){
   if(isNaN(sa)||isNaN(sb)) throw new Error('점수 숫자 오류');
   if(sa===sb) throw new Error('동점 불가');
   
-  // 이름 → ID 매핑 (있으면 매핑, 없으면 null)
-  const nameToId=(nm)=>{
-    const found=Object.values(window._bfUsersMap||{}).find(u=>u.name===nm);
-    return found?found.id:null;
-  };
   
+  // 이름 → ID 매핑 (공통 함수 사용 - batchSubmit에서 _ensureUserMap 후 _fixMatchIds로 후처리)
   return {
     match_date,
     match_type:'doubles',
-    a1_name:aNames[0]||null, a1_id:nameToId(aNames[0]),
-    a2_name:aNames[1]||null, a2_id:nameToId(aNames[1]),
-    b1_name:bNames[0]||null, b1_id:nameToId(bNames[0]),
-    b2_name:bNames[1]||null, b2_id:nameToId(bNames[1]),
+    a1_name:aNames[0]||null, a1_id:_nameToId(aNames[0]),
+    a2_name:aNames[1]||null, a2_id:_nameToId(aNames[1]),
+    b1_name:bNames[0]||null, b1_id:_nameToId(bNames[0]),
+    b2_name:bNames[1]||null, b2_id:_nameToId(bNames[1]),
     score_a:sa, score_b:sb,
     status:'approved',
     source:'batch'
@@ -2116,18 +2152,29 @@ async function batchSubmit(){
   if(!records.length){toast('등록할 데이터 없음','error');return;}
   const btn=document.querySelector('#batch-preview .btn-primary');
   if(btn){btn.disabled=true;btn.textContent='등록 중...';}
+  // 최신 회원 맵 로드 후 ID 재매핑
+  await _ensureUserMap();
   const now=new Date().toISOString();
   const inserts=records.map(r=>{
-    const{source,...rest}=r; // source 컬럼 없으므로 제거
-    return {...rest, approved_by:ME.id, approved_at:now, created_at:now};
+    const{source,...rest}=r;
+    // ID 재매핑
+    return {
+      ...rest,
+      a1_id:rest.a1_id||_nameToId(rest.a1_name),
+      a2_id:rest.a2_id||_nameToId(rest.a2_name),
+      b1_id:rest.b1_id||_nameToId(rest.b1_name),
+      b2_id:rest.b2_id||_nameToId(rest.b2_name),
+      approved_by:ME.id, approved_at:now, created_at:now
+    };
   });
-  const{error}=await sb.from('matches').insert(inserts);
+  const{data:inserted,error}=await sb.from('matches').insert(inserts).select('id');
   if(error){
     toast('등록 실패: '+error.message,'error');
     if(btn){btn.disabled=false;btn.textContent=`📨 ${records.length}건 일괄 등록`;}
     return;
   }
-  // 선수 프로필 업데이트는 기존 승인 로직이 처리하므로 생략
+  // null ID가 남아있을 경우 이름으로 후처리
+  if(inserted?.length) await _fixMatchIds(inserted.map(r=>r.id));
   addLog(`일괄 등록 ${records.length}건`,ME.id);
   toast(`✅ ${records.length}건 등록 완료`,'success');
   window._batchParsed=[];
@@ -2300,24 +2347,43 @@ async function tiSubmit(){
     const typeMap={'개인전':'individual','듀오전':'duo','팀전':'team'};
     const tType=result.type||'individual';
     const bracket=_tiBuildBracket(result);
+    // bracket_data 하나에 모든 데이터 저장 (groups, knockout, rounds 통합)
+    const bracketData={
+      groups: bracket.groups,
+      knockout: bracket.knockout,
+      rounds: bracket.rounds
+    };
     const{data:bt,error:btErr}=await sb.from('bracket_tournaments').insert({
       name,
       match_date:result.date||new Date().toISOString().slice(0,10),
       status: (result.knockout.length>0)?'done':'league',
       tournament_type:tType,
-      rounds:JSON.stringify([]),
+      rounds:JSON.stringify(bracket.rounds),
       groups:JSON.stringify(bracket.groups),
+      bracket_data:JSON.stringify(bracketData),
       created_by:ME.id
     }).select().single();
     if(btErr) throw new Error('대회 생성 실패: '+btErr.message);
 
     // 2. 경기내역 일괄 등록 (matches 테이블)
+    // 최신 회원 맵 로드 후 ID 재매핑
+    await _ensureUserMap();
     const matchRecords=_tiExtractMatches(result);
     if(matchRecords.length){
       const now=new Date().toISOString();
-      const inserts=matchRecords.map(r=>({...r,approved_by:ME.id,approved_at:now,created_at:now,status:'approved'}));
-      const{error:mErr}=await sb.from('matches').insert(inserts);
+      const inserts=matchRecords.map(r=>({
+        ...r,
+        // ID 재매핑 (이름으로 찾기)
+        a1_id:r.a1_id||_nameToId(r.a1_name),
+        a2_id:r.a2_id||_nameToId(r.a2_name),
+        b1_id:r.b1_id||_nameToId(r.b1_name),
+        b2_id:r.b2_id||_nameToId(r.b2_name),
+        approved_by:ME.id,approved_at:now,created_at:now,status:'approved'
+      }));
+      const{data:inserted,error:mErr}=await sb.from('matches').insert(inserts).select('id');
       if(mErr) console.warn('경기내역 등록 부분실패:',mErr.message);
+      // null ID 후처리
+      if(inserted?.length) await _fixMatchIds(inserted.map(r=>r.id));
     }
 
     addLog(`대회 일괄 입력: ${name} (${matchRecords.length}경기)`,ME.id);
@@ -3417,10 +3483,14 @@ async function openBracketDetail(id){
   const typeLabel={individual:'👤 개인전',duo:'👥 듀오전',team:'🚩 팀장전'};
   const statusLabel={plan:'배분중',active:'진행중',league:'진행중',done:'완료'};
   const data=typeof bt.bracket_data==='string'?JSON.parse(bt.bracket_data||'{}'):bt.bracket_data||{};
-  // groups 컬럼 (일괄입력 방식) 또는 bracket_data.groups (기존 방식) 통합
-  const rawGroups=bt.groups?(typeof bt.groups==='string'?JSON.parse(bt.groups):bt.groups):null;
-  const rawKnockout=rawGroups?null:(data.knockout||[]);
-  const groups=rawGroups||data.groups||[];
+  // groups: bracket_data.groups 우선, 없으면 bt.groups 컬럼
+  const rawGroups=data.groups?.length?data.groups:(bt.groups?(typeof bt.groups==='string'?JSON.parse(bt.groups):bt.groups):null);
+  const groups=rawGroups||[];
+  // knockout: bracket_data.knockout 우선
+  const knockout=data.knockout||[];
+  // rounds(팀전): bracket_data.rounds 우선, 없으면 bt.rounds 컬럼
+  const rawRounds=data.rounds?.length?data.rounds:(bt.rounds?(typeof bt.rounds==='string'?JSON.parse(bt.rounds||'[]'):bt.rounds):[]);
+  const teamRounds=rawRounds||[];
   const tType=bt.tournament_type||'individual';
   const isIndividual=tType==='individual';
   let html=`<div style="font-size:.8rem;color:var(--text-muted);margin-bottom:12px;">📅 ${fmtMatchDate(bt.match_date)} · ${typeLabel[tType]||'대회'} · <span style="color:${bt.status==='done'?'var(--primary)':bt.status==='plan'?'var(--warn)':'var(--info)'};">${statusLabel[bt.status]||bt.status}</span></div>`;
@@ -3466,9 +3536,6 @@ async function openBracketDetail(id){
       html+=`</div>`;
     });
   }
-  const knockout=rawKnockout||data.knockout||[];
-  // 팀전 라운드
-  const teamRounds=data.rounds||[];
   if(knockout.length){
     html+=`<div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:10px;margin-top:4px;">🏆 본선 토너먼트</div>`;
     html+=_renderKnockoutBracket(knockout);
