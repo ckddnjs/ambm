@@ -163,11 +163,11 @@ function toggleDarkMode(){
   setTimeout(()=>document.body.style.transition='',350);
 }
 function _updateDmUI(isLight){
-  const icon=document.getElementById('dm-icon'); const label=document.getElementById('dm-label'); const btn=document.getElementById('btn-darkmode');
-  if(icon) icon.textContent=isLight?'☀️':'🌙'; if(label) label.textContent=isLight?'밝음':'다크';
+  const icon=document.getElementById('dm-icon'); const btn=document.getElementById('btn-darkmode');
+  if(icon) icon.textContent=isLight?'☀️':'🌙';
   if(btn){btn.style.background=isLight?'rgba(255,255,255,.6)':'rgba(0,0,0,.25)';btn.style.color=isLight?'#1a202c':'#fff';btn.style.borderColor=isLight?'rgba(0,0,0,.15)':'rgba(255,255,255,.15)';}
-  const icon2=document.getElementById('dm-icon-app'); const label2=document.getElementById('dm-label-app');
-  if(icon2) icon2.textContent=isLight?'☀️':'🌙'; if(label2) label2.textContent=isLight?'밝음':'다크';
+  const icon2=document.getElementById('dm-icon-app');
+  if(icon2) icon2.textContent=isLight?'☀️':'🌙';
 }
 function initTheme(){
   const saved=localStorage.getItem('theme');
@@ -1390,6 +1390,11 @@ async function _renderFeedInner(forceNameQ){
     const ct=(b.created_at||'').localeCompare(a.created_at||'');
     return sortF==='asc'?-ct:ct;
   });
+  // 날짜별 실제 경기수 집계 (이름 필터 전 전체 기준)
+  const _fullCountByDate={};
+  (matches||[]).forEach(m=>{ const d=m.match_date||''; _fullCountByDate[d]=(_fullCountByDate[d]||0)+1; });
+  window._feedFullCountByDate=_fullCountByDate;
+
   if(nameQ){
     matches=(matches||[]).filter(m=>[m.a1_name,m.a2_name,m.b1_name,m.b2_name]
       .some(n=>(n||'').toLowerCase().includes(nameQ)));
@@ -1401,7 +1406,7 @@ async function _renderFeedInner(forceNameQ){
   const PAGE=10;
   const slice=matches.slice(0,_feedPage*PAGE);
   const hasMore=matches.length>slice.length;
-  el.innerHTML=renderMatchesWithDateHeaders(slice) +
+  el.innerHTML=renderMatchesWithDateHeaders(slice, _fullCountByDate) +
     (hasMore?`<button onclick="loadMoreFeed()" style="width:100%;padding:12px;margin-top:4px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--primary);font-size:.88rem;font-weight:700;cursor:pointer;font-family:inherit;">더보기 (${matches.length-slice.length}개 더) ▼</button>`:'');
   // 전체 캐시 저장 (더보기 시 재사용)
   window._feedAllMatches=matches;
@@ -1414,7 +1419,7 @@ function loadMoreFeed(){
   const PAGE=10;
   const slice=window._feedAllMatches.slice(0,_feedPage*PAGE);
   const hasMore=window._feedAllMatches.length>slice.length;
-  el.innerHTML=renderMatchesWithDateHeaders(slice) +
+  el.innerHTML=renderMatchesWithDateHeaders(slice, window._feedFullCountByDate) +
     (hasMore?`<button onclick="loadMoreFeed()" style="width:100%;padding:12px;margin-top:4px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--primary);font-size:.88rem;font-weight:700;cursor:pointer;font-family:inherit;">더보기 (${window._feedAllMatches.length-slice.length}개 더) ▼</button>`:'');
 }
 function feedMyMatches(){
@@ -1430,10 +1435,10 @@ function clearFeedSearch(){
 }
 
 /* ── 날짜별 그룹핑 렌더 ── */
-function renderMatchesWithDateHeaders(matches){
-  // 날짜별 경기 수 미리 집계
-  const countByDate={};
-  matches.forEach(m=>{ const d=m.match_date||''; countByDate[d]=(countByDate[d]||0)+1; });
+function renderMatchesWithDateHeaders(matches, fullCountByDate){
+  // 날짜별 경기 수: fullCountByDate가 있으면 전체 기준, 없으면 현재 slice 기준
+  const countByDate=fullCountByDate||{};
+  if(!fullCountByDate) matches.forEach(m=>{ const d=m.match_date||''; countByDate[d]=(countByDate[d]||0)+1; });
   let html='', lastDate='';
   matches.forEach(m=>{
     const d=m.match_date||'';
@@ -1707,7 +1712,10 @@ async function renderAdminPending(){
             <div style="font-weight:700;font-size:.9rem;">${u.name}</div>
             <div style="font-size:.75rem;color:var(--text-muted);">${u.email||'이메일없음'} · ${u.provider||'kakao'}</div>
           </div>
-          <button class="btn btn-success btn-sm" onclick="approveUser('${u.id}')">✅ 승인</button>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-success btn-sm" onclick="approveUser('${u.id}')">✅ 승인</button>
+            <button class="btn btn-danger btn-sm" onclick="confirmDenyUser('${u.id}','${u.name}')">❌ 거절</button>
+          </div>
         </div>
       </div>`;
     });
@@ -2219,6 +2227,14 @@ async function saveEditMatch(andApprove){
   if(adminTab==='pending') renderAdminPending();
 }
 async function approveUser(uid){await sb.from('profiles').update({status:'approved'}).eq('id',uid);addLog(`회원 승인: ${uid}`,ME.id);toast('승인 완료','success');renderAdminMembers();}
+function confirmDenyUser(uid,name){
+  showConfirm({icon:'❌',title:`${name} 가입을 거절하시겠습니까?`,msg:'계정이 거절 상태로 변경되며 로그인이 불가합니다.',okLabel:'거절',okClass:'btn-danger',onOk:async()=>{
+    await sb.from('profiles').update({status:'rejected'}).eq('id',uid);
+    addLog(`회원 가입거절: ${uid}`,ME.id);
+    toast('가입 거절 완료','success');
+    renderAdminPending();
+  }});
+}
 
 let _editUserGender='';
 function openEditUser(id,name,gender,status,role,excludeStats){
@@ -3258,7 +3274,7 @@ function _bfRenderAttendeeUI(){
         background:${sel?(isG?'rgba(255,152,0,.2)':'rgba(41,121,255,.2)'):'var(--bg3)'};
         border:1px solid ${sel?(isG?'rgba(255,152,0,.6)':'var(--primary)'):'var(--border)'};
         color:${sel?(isG?'#E65100':'var(--primary)'):'var(--text)'};">
-        <span style="pointer-events:none;">${sel?'✅ ':''}${u.name}</span>
+        <span style="pointer-events:none;">${u.name}</span>
       </div>`;
     });
     html+=`</div>`;
@@ -3378,6 +3394,88 @@ function _bfDuoBack(){
     if(s1) s1.style.display='block';
     if(s2) s2.style.display='none';
   }
+}
+
+function bfConfirmArrangement(){
+  // 배분 결과를 step2 패널 안에 '확정 결과' 뷰로 전환
+  const wrap=document.getElementById('bf-arrange-wrap');
+  if(!wrap) return;
+  const arr=_bfArrangement;
+  if(!arr){toast('배분 데이터가 없습니다','error');return;}
+
+  // 팀장전
+  if(_bfType==='team'){
+    const {teamA,teamB}=arr;
+    const renderList=list=>list.map(p=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--surface);border-radius:7px;border:1px solid var(--border);">
+      <span style="font-size:.85rem;flex:1;${p.captain?'font-weight:700;color:var(--primary);':''}">${p.captain?'⭐ ':''}${p.name}</span>
+      ${p.captain?'<span style="font-size:.7rem;background:var(--primary);color:#fff;border-radius:4px;padding:1px 6px;">팀장</span>':''}
+    </div>`).join('');
+    wrap.innerHTML=`
+      <div style="background:rgba(76,175,80,.08);border:1.5px solid var(--primary);border-radius:10px;padding:12px 10px;margin-bottom:10px;text-align:center;font-weight:700;color:var(--primary);font-size:.9rem;">✅ 구성이 확정되었습니다!</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;">
+          <div style="font-weight:700;font-size:.85rem;color:var(--info);margin-bottom:8px;">🔵 A팀 (${teamA.length}명)</div>
+          <div style="display:flex;flex-direction:column;gap:5px;">${renderList(teamA)}</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;">
+          <div style="font-weight:700;font-size:.85rem;color:var(--danger);margin-bottom:8px;">🔴 B팀 (${teamB.length}명)</div>
+          <div style="display:flex;flex-direction:column;gap:5px;">${renderList(teamB)}</div>
+        </div>
+      </div>`;
+    // 버튼 영역을 수정 버튼만 남기기
+    const btnRow=wrap.nextElementSibling;
+    if(btnRow) btnRow.innerHTML=`<button class="btn btn-ghost" style="flex:1;" onclick="bfGoStep(2)">✏️ 다시 수정</button>
+      <button class="btn btn-warn" style="flex:1;" onclick="bfGoStep(1)">↩ 처음으로</button>`;
+    // 스텝 인디케이터 step3 완료 표시
+    [1,2,3].forEach(i=>{const d=document.getElementById('bf-dot-'+i);if(d){d.classList.remove('active','done');d.classList.add('done');}});
+    [1,2].forEach(i=>{const l=document.getElementById('bf-line-'+i);if(l)l.classList.add('done');});
+    toast('✅ 팀 구성이 확정되었습니다','success');
+    return;
+  }
+
+  // 듀오전
+  if(_bfType==='duo'){
+    const groups=arr.groups||[];
+    let html=`<div style="background:rgba(76,175,80,.08);border:1.5px solid var(--primary);border-radius:10px;padding:12px 10px;margin-bottom:10px;text-align:center;font-weight:700;color:var(--primary);font-size:.9rem;">✅ 구성이 확정되었습니다!</div>`;
+    groups.forEach((g,gi)=>{
+      html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;">
+        <div style="font-weight:700;font-size:.82rem;color:var(--accent);margin-bottom:6px;">${gi+1}조</div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          ${g.teams.map((t,ti)=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--surface);border-radius:7px;border:1px solid var(--border);">
+            <span style="font-size:.75rem;color:var(--text-muted);min-width:20px;">${ti+1}팀</span>
+            <span style="font-size:.85rem;">${t.p1.name}${t.p2?' / '+t.p2.name:''}</span>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    });
+    wrap.innerHTML=html;
+    const btnRow=wrap.nextElementSibling;
+    if(btnRow) btnRow.innerHTML=`<button class="btn btn-ghost" style="flex:1;" onclick="bfGoStep(2)">✏️ 다시 수정</button>
+      <button class="btn btn-warn" style="flex:1;" onclick="bfGoStep(1)">↩ 처음으로</button>`;
+    [1,2,3].forEach(i=>{const d=document.getElementById('bf-dot-'+i);if(d){d.classList.remove('active','done');d.classList.add('done');}});
+    [1,2].forEach(i=>{const l=document.getElementById('bf-line-'+i);if(l)l.classList.add('done');});
+    toast('✅ 듀오 구성이 확정되었습니다','success');
+    return;
+  }
+
+  // 개인전
+  const groups=arr.groups||[];
+  let html=`<div style="background:rgba(76,175,80,.08);border:1.5px solid var(--primary);border-radius:10px;padding:12px 10px;margin-bottom:10px;text-align:center;font-weight:700;color:var(--primary);font-size:.9rem;">✅ 구성이 확정되었습니다!</div>`;
+  groups.forEach((g,gi)=>{
+    html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;">
+      <div style="font-weight:700;font-size:.82rem;color:var(--accent);margin-bottom:6px;">${gi+1}조</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        ${g.members.map(m=>`<span style="font-size:.82rem;padding:3px 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;">${m.name}</span>`).join('')}
+      </div>
+    </div>`;
+  });
+  wrap.innerHTML=html;
+  const btnRow=wrap.nextElementSibling;
+  if(btnRow) btnRow.innerHTML=`<button class="btn btn-ghost" style="flex:1;" onclick="bfGoStep(2)">✏️ 다시 수정</button>
+    <button class="btn btn-warn" style="flex:1;" onclick="bfGoStep(1)">↩ 처음으로</button>`;
+  [1,2,3].forEach(i=>{const d=document.getElementById('bf-dot-'+i);if(d){d.classList.remove('active','done');d.classList.add('done');}});
+  [1,2].forEach(i=>{const l=document.getElementById('bf-line-'+i);if(l)l.classList.add('done');});
+  toast('✅ 구성이 확정되었습니다','success');
 }
 
 function bfGoStep(step){
@@ -3629,25 +3727,19 @@ function _bfDuoArrange(){
 
 function _bfRenderTeamArrangeUI(wrap){
   const {teamA,teamB}=_bfArrangement;
-  const all=_bfAttendees;
   const renderMember=(p,team,idx)=>{
     const isCap=p.captain;
-    const otherTeam=team==='A'?'B':'A';
-    const otherList=team==='A'?teamB:teamA;
-    // 교체 옵션: 상대팀 비팀장 선수들
-    const swapOpts=otherList.filter(o=>!o.captain).map((o,oi)=>`<option value="${oi}">${o.name}(${otherTeam}팀)</option>`).join('');
+    const arrow=team==='A'?'→':'←';
+    const btnColor=team==='A'?'var(--danger)':'var(--info)';
     return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;display:flex;align-items:center;gap:6px;">
-      <span style="font-size:.8rem;${isCap?'color:var(--primary);font-weight:700;':''}flex:1;">${isCap?'⭐':''} ${p.name}</span>
-      ${!isCap?`<select onchange="bfTeamMemberSwap(this,'${team}',${idx})" style="font-size:.72rem;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:2px 5px;color:var(--text-muted);max-width:100px;">
-        <option value="">↔ 교체</option>${swapOpts}
-      </select>
-      <select onchange="bfTeamMemberMove(this,'${team}',${idx})" style="font-size:.72rem;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:2px 5px;color:var(--text-muted);max-width:80px;">
-        <option value="">이동</option>
-        <option value="${otherTeam}">${otherTeam}팀으로</option>
-      </select>`:'<span style="font-size:.72rem;color:var(--primary);padding:2px 6px;">팀장</span>'}
+      <span style="font-size:.82rem;${isCap?'color:var(--primary);font-weight:700;':''}flex:1;">${isCap?'⭐':''} ${p.name}</span>
+      ${isCap
+        ?`<span style="font-size:.72rem;color:var(--primary);padding:2px 6px;">팀장</span>`
+        :`<button onclick="bfTeamMoveBtn('${team}',${idx})" style="font-size:.78rem;padding:3px 10px;border:none;border-radius:6px;cursor:pointer;background:${btnColor};color:#fff;font-weight:700;">${arrow}</button>`
+      }
     </div>`;
   };
-  let html=`<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px;">🤖 실력 균형을 고려해 배분했습니다. ↔ 교체로 선수를 조정할 수 있습니다.</div>`;
+  let html=`<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px;">🤖 실력 균형을 고려해 배분했습니다. → / ← 버튼으로 선수를 이동할 수 있습니다.</div>`;
   html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">`;
   html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;">
     <div style="font-weight:700;font-size:.85rem;color:var(--info);margin-bottom:8px;">🔵 A팀 <span style="font-weight:400;font-size:.75rem;color:var(--text-muted);">(${teamA.length}명)</span></div>
@@ -3661,18 +3753,7 @@ function _bfRenderTeamArrangeUI(wrap){
   wrap.innerHTML=html;
 }
 
-function bfTeamMemberSwap(sel,fromTeam,fromIdx){
-  const val=sel.value; if(val==='') return;
-  const toIdx=parseInt(val);
-  const teamA=_bfArrangement.teamA, teamB=_bfArrangement.teamB;
-  const fromList=fromTeam==='A'?teamA:teamB;
-  const toList=fromTeam==='A'?teamB:teamA;
-  [fromList[fromIdx],toList[toIdx]]=[toList[toIdx],fromList[fromIdx]];
-  _bfRenderTeamArrangeUI(document.getElementById('bf-arrange-wrap'));
-}
-
-function bfTeamMemberMove(sel,fromTeam,fromIdx){
-  const val=sel.value; if(!val) return;
+function bfTeamMoveBtn(fromTeam,fromIdx){
   const teamA=_bfArrangement.teamA, teamB=_bfArrangement.teamB;
   const fromList=fromTeam==='A'?teamA:teamB;
   const toList=fromTeam==='A'?teamB:teamA;
