@@ -2664,8 +2664,8 @@ async function _loadBfAttendees(){
   wrap.innerHTML=(users||[]).map(u=>{
     const wr=u.games>0?Math.round((u.wins||0)/u.games*100):0;
     const score=u.ci||wr;
-    return `<label style="display:flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 10px;cursor:pointer;font-size:.82rem;transition:.15s;" onclick="bfToggleAttendee('${u.id}','${u.name}',${score},this)">
-      <span id="bf-chk-${u.id}" style="font-size:.9rem;">⬜</span> ${u.name}<span style="font-size:.7rem;color:var(--text-dim);">(${wr}%)</span>
+    return `<label id="bf-label-${u.id}" style="display:flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 10px;cursor:pointer;font-size:.82rem;transition:.15s;" onclick="bfToggleAttendee('${u.id}','${u.name}',${score},document.getElementById('bf-label-${u.id}'))">
+      <span id="bf-chk-${u.id}" style="font-size:.9rem;pointer-events:none;">⬜</span><span style="pointer-events:none;">${u.name}</span><span style="font-size:.7rem;color:var(--text-dim);pointer-events:none;">(${wr}%)</span>
     </label>`;
   }).join('');
 }
@@ -2688,20 +2688,21 @@ function bfSetType(type){
 }
 
 function bfToggleAttendee(id,name,score,el){
+  // el이 자식 span일 수도 있으므로 label 루트를 찾음
+  const label=el.closest?el.closest('label'):el;
   const idx=_bfAttendees.findIndex(a=>a.id===id);
   const chk=document.getElementById('bf-chk-'+id);
   if(idx>=0){
     _bfAttendees.splice(idx,1);
-    el.style.background='var(--bg3)';el.style.borderColor='var(--border)';el.style.color='var(--text)';
+    label.style.background='var(--bg3)';label.style.borderColor='var(--border)';label.style.color='var(--text)';
     if(chk)chk.textContent='⬜';
   }else{
     _bfAttendees.push({id,name,score});
-    el.style.background='rgba(41,121,255,.18)';el.style.borderColor='var(--primary)';el.style.color='var(--primary)';
+    label.style.background='rgba(41,121,255,.18)';label.style.borderColor='var(--primary)';label.style.color='var(--primary)';
     if(chk)chk.textContent='✅';
   }
   const cnt=document.getElementById('bf-attendee-count');
   if(cnt) cnt.textContent=`${_bfAttendees.length}명 선택됨`;
-  // 팀전 팀장 선택지 업데이트
   if(_bfType==='team') _bfUpdateCaptainSelects();
 }
 function _bfUpdateCaptainSelects(){
