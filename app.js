@@ -3266,13 +3266,15 @@ function _renderBracketDetail(data){
     ${typeLabel[data.tournament_type]||''} · ${fmtMatchDate(data.match_date)}
   </div>`;
 
-  // 탭
-  html+=`<div style="display:flex;gap:0;background:var(--bg3);border-radius:10px;padding:3px;margin-bottom:14px;">
-    <button id="bd-tab-league" onclick="bdSwitchTab('league')"
-      style="flex:1;border:none;cursor:pointer;padding:8px;border-radius:8px;font-size:.83rem;font-weight:600;background:var(--primary);color:#fff;">📊 조별 리그</button>
-    <button id="bd-tab-bracket" onclick="bdSwitchTab('bracket')"
-      style="flex:1;border:none;cursor:pointer;padding:8px;border-radius:8px;font-size:.83rem;font-weight:600;background:transparent;color:var(--text-muted);">🏆 본선 대진</button>
-  </div>`;
+  // 탭 (팀장전은 탭 없음)
+  if(!isTeamType){
+    html+=`<div style="display:flex;gap:0;background:var(--bg3);border-radius:10px;padding:3px;margin-bottom:14px;">
+      <button id="bd-tab-league" onclick="bdSwitchTab('league')"
+        style="flex:1;border:none;cursor:pointer;padding:8px;border-radius:8px;font-size:.83rem;font-weight:600;background:var(--primary);color:#fff;">📊 조별 리그</button>
+      <button id="bd-tab-bracket" onclick="bdSwitchTab('bracket')"
+        style="flex:1;border:none;cursor:pointer;padding:8px;border-radius:8px;font-size:.83rem;font-weight:600;background:transparent;color:var(--text-muted);">🏆 본선 대진</button>
+    </div>`;
+  }
 
   // 조별 리그 뷰
   html+=`<div id="bd-league-view">`;
@@ -3347,6 +3349,33 @@ function _renderBracketDetail(data){
 
   // 본선 뷰
   html+=`<div id="bd-bracket-view" style="display:none;">`;
+  // 조별 순위 요약 (개인전/듀오전)
+  if(!isTeamType){
+    const groupsP=JSON.parse(data.groups||'[]');
+    const hasStandings=groupsP.some(g=>g.standings&&g.standings.length>0);
+    if(hasStandings){
+      html+=`<div style="margin-bottom:14px;">
+        <div style="font-size:.72rem;font-weight:700;color:var(--text-muted);margin-bottom:8px;letter-spacing:.04em;">📊 조별 최종 순위</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">`;
+      groupsP.forEach(g=>{
+        if(!g.standings||!g.standings.length) return;
+        html+=`<div style="flex:1;min-width:130px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 10px;">
+          <div style="font-size:.72rem;font-weight:700;color:var(--primary);margin-bottom:6px;">${g.name}</div>`;
+        g.standings.forEach((s,si)=>{
+          const medal=['🥇','🥈','🥉'][si]||`${si+1}`;
+          const adv=si<2;
+          html+=`<div style="display:flex;align-items:center;gap:4px;padding:2px 0;font-size:.78rem;">
+            <span style="font-size:.82rem;">${medal}</span>
+            <span style="flex:1;font-weight:${adv?700:400};color:${adv?'var(--text)':'var(--text-muted)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_tl(s.team)}</span>
+            <span style="font-size:.65rem;color:var(--text-dim);">${s.wins}승</span>
+            ${adv?`<span style="font-size:.58rem;color:var(--primary);background:rgba(41,121,255,.12);padding:1px 4px;border-radius:6px;">↑</span>`:''}
+          </div>`;
+        });
+        html+=`</div>`;
+      });
+      html+=`</div></div>`;
+    }
+  }
   if(rounds.length>0){
     html+=_renderBracketVisual(rounds);
     if(isAdmin&&status==='knockout') html+=_renderBracketInput(rounds);
@@ -3382,82 +3411,174 @@ function _renderTeamLeague(groups, isAdmin, isLeague){
   const {teamA=[],teamB=[],matches=[],standings={}}=g;
   const stA=standings.A||{wins:0,losses:0,diff:0};
   const stB=standings.B||{wins:0,losses:0,diff:0};
-  let html=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px;">
-    <div style="display:flex;gap:10px;margin-bottom:12px;">
-      <div style="flex:1;background:rgba(41,121,255,.08);border:1px solid rgba(41,121,255,.2);border-radius:10px;padding:10px;">
-        <div style="font-weight:700;color:var(--info);margin-bottom:6px;">🔵 A팀</div>`;
-  teamA.forEach(p=>{html+=`<div style="font-size:.82rem;padding:2px 0;">${p.name}</div>`;});
-  html+=`<div style="margin-top:8px;font-size:.8rem;color:var(--text-muted);">${stA.wins}승 ${stA.losses}패 득실${stA.diff>0?'+':''}${stA.diff}</div>
-      </div>
-      <div style="flex:1;background:rgba(255,82,82,.08);border:1px solid rgba(255,82,82,.2);border-radius:10px;padding:10px;">
-        <div style="font-weight:700;color:var(--danger);margin-bottom:6px;">🔴 B팀</div>`;
-  teamB.forEach(p=>{html+=`<div style="font-size:.82rem;padding:2px 0;">${p.name}</div>`;});
-  html+=`<div style="margin-top:8px;font-size:.8rem;color:var(--text-muted);">${stB.wins}승 ${stB.losses}패 득실${stB.diff>0?'+':''}${stB.diff}</div>
-      </div>
-    </div>`;
 
-  // 경기 목록
-  const doneCount=matches.filter(m=>m.done).length;
-  html+=`<button onclick="bdToggleMatches(0)" id="bd-toggle-0"
-    style="width:100%;padding:6px;background:transparent;border:1px solid var(--border);border-radius:8px;font-size:.78rem;color:var(--text-muted);cursor:pointer;margin-bottom:6px;">
-    📋 경기 내역 (완료 ${doneCount}/${matches.length})
-  </button>
-  <div id="bd-matches-0" style="display:none;"><div class="league-matches-grid">`;
+  // 팀 현황 카드
+  let html=`<div style="display:flex;gap:8px;margin-bottom:12px;">
+    <div style="flex:1;background:rgba(41,121,255,.08);border:1px solid rgba(41,121,255,.2);border-radius:10px;padding:10px;">
+      <div style="font-weight:700;color:var(--info);margin-bottom:6px;font-size:.88rem;">🔵 A팀 <span style="font-size:.78rem;font-weight:400;">${stA.wins}승 ${stA.losses}패</span></div>`;
+  teamA.forEach(p=>{html+=`<div style="font-size:.8rem;padding:1px 0;color:var(--text);">${p.captain?'★ ':''} ${p.name}</div>`;});
+  html+=`</div>
+    <div style="flex:1;background:rgba(255,82,82,.08);border:1px solid rgba(255,82,82,.2);border-radius:10px;padding:10px;">
+      <div style="font-weight:700;color:var(--danger);margin-bottom:6px;font-size:.88rem;">🔴 B팀 <span style="font-size:.78rem;font-weight:400;">${stB.wins}승 ${stB.losses}패</span></div>`;
+  teamB.forEach(p=>{html+=`<div style="font-size:.8rem;padding:1px 0;color:var(--text);">${p.captain?'★ ':''} ${p.name}</div>`;});
+  html+=`</div></div>`;
+
+  // 라운드별 경기
+  // 라운드 그룹화: matches에 round 필드 없으면 추가 순서대로
+  const byRound={};
   matches.forEach((m,mi)=>{
-    const lbl1=_tl(m.t1), lbl2=_tl(m.t2);
-    html+=_renderMatchCell(0,mi,m,lbl1,lbl2,isAdmin,isLeague);
+    const r=m.round||1;
+    if(!byRound[r]) byRound[r]=[];
+    byRound[r].push({...m,_mi:mi});
   });
-  html+=`</div></div></div>`;
+  const roundNums=Object.keys(byRound).map(Number).sort((a,b)=>a-b);
 
-  // 팀전 결과 & 경기 추가
-  const allTeamDone=matches.length>0&&matches.every(m=>m.done);
-  if(allTeamDone){
-    const winner=stA.wins>stB.wins?'🔵 A팀':stB.wins>stA.wins?'🔴 B팀':stA.diff>stB.diff?'🔵 A팀 (득실차)':'🔴 B팀 (득실차)';
-    html+=`<div style="text-align:center;padding:12px;background:rgba(41,121,255,.08);border-radius:10px;font-weight:700;color:var(--primary);margin-top:8px;">🏆 현재 우세: ${winner}</div>`;
+  if(roundNums.length===0){
+    html+=`<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:.85rem;">경기가 아직 없습니다</div>`;
+  } else {
+    roundNums.forEach(rn=>{
+      const rmatch=byRound[rn];
+      const doneCnt=rmatch.filter(m=>m.done).length;
+      html+=`<div style="margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <div style="flex:1;height:1px;background:var(--border);"></div>
+          <span style="font-size:.75rem;font-weight:700;color:var(--text-muted);padding:2px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;">${rn}라운드 · ${doneCnt}/${rmatch.length}완료</span>
+          <div style="flex:1;height:1px;background:var(--border);"></div>
+        </div>
+        <div class="league-matches-grid">`;
+      rmatch.forEach(m=>{
+        const mi=m._mi;
+        const lbl1=_tlTeam(m.t1), lbl2=_tlTeam(m.t2);
+        html+=_renderTeamMatchCell(0,mi,m,lbl1,lbl2,isAdmin);
+      });
+      html+=`</div></div>`;
+    });
   }
+
+  // 우세 & 최종 결과
+  const allDone=matches.length>0&&matches.every(m=>m.done);
+  if(matches.length>0){
+    const winner=stA.wins>stB.wins?'🔵 A팀':stB.wins>stA.wins?'🔴 B팀':stA.diff>stB.diff?'🔵 A팀 (득실차)':'🔴 B팀 (득실차)';
+    const scoreColor=allDone?'var(--primary)':'var(--text-muted)';
+    html+=`<div style="text-align:center;padding:10px;background:var(--bg2);border-radius:10px;font-size:.85rem;color:${scoreColor};margin-bottom:8px;">
+      ${allDone?'🏆 최종 우승:':'⚡ 현재 우세:'} <b>${winner}</b> (A팀 ${stA.wins}승 / B팀 ${stB.wins}승)
+    </div>`;
+  }
+
   if(isAdmin){
     html+=`<div id="bd-team-add-wrap"></div>`;
-    html+=`<button onclick="bdAddTeamMatch()" style="width:100%;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;font-size:.85rem;color:var(--text);cursor:pointer;margin-top:8px;">+ 매치 추가</button>`;
+    html+=`<button onclick="bdAddTeamMatch()" style="width:100%;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;font-size:.85rem;color:var(--text);cursor:pointer;margin-top:4px;">+ 복식 매치 추가</button>`;
   }
   return html;
+}
+
+// 팀 라벨 (2명 표시)
+function _tlTeam(t){
+  if(!t) return '?';
+  if(t.p1_name&&t.p2_name) return `${t.p1_name} / ${t.p2_name}`;
+  if(t.p1_name) return t.p1_name;
+  if(t.name) return t.name;
+  return '?';
+}
+
+// 팀장전 전용 매치셀 (복식 2v2)
+function _renderTeamMatchCell(gi,mi,m,lbl1,lbl2,isAdmin){
+  const done=m.done;
+  const aWin=done&&parseInt(m.s1)>parseInt(m.s2);
+  if(done){
+    return `<div id="bl-cell-${gi}-${mi}" style="display:flex;align-items:center;gap:4px;padding:7px 10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);font-size:.8rem;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:${aWin?700:400};color:${aWin?'var(--text)':'var(--text-muted)'};">🔵 ${lbl1}</div>
+        <div style="font-weight:${!aWin?700:400};color:${!aWin?'var(--text)':'var(--text-muted)'};">🔴 ${lbl2}</div>
+      </div>
+      <div style="text-align:center;flex-shrink:0;min-width:38px;">
+        <div style="font-weight:700;color:${aWin?'var(--primary)':'var(--text-muted)'};">${m.s1}</div>
+        <div style="font-weight:700;color:${!aWin?'var(--primary)':'var(--text-muted)'};">${m.s2}</div>
+      </div>
+      ${isAdmin?`<button onclick="bdEditLeague(${gi},${mi})" style="font-size:.65rem;padding:2px 6px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;cursor:pointer;color:var(--text-muted);">수정</button>`:''}
+    </div>`;
+  } else if(isAdmin){
+    return `<div id="bl-cell-${gi}-${mi}" style="background:var(--surface2);border-radius:8px;padding:8px;border:1px solid var(--border);">
+      <div style="font-size:.74rem;margin-bottom:6px;display:flex;justify-content:space-between;color:var(--text-muted);">
+        <span style="color:var(--info);">🔵 ${lbl1}</span>
+        <span style="color:var(--danger);">🔴 ${lbl2}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 14px 1fr auto;gap:4px;align-items:center;">
+        <input type="number" inputmode="numeric" min="0" max="30" id="bl-${gi}-${mi}-1"
+          style="background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px;font-size:.88rem;text-align:center;width:100%;box-sizing:border-box;">
+        <div style="text-align:center;color:var(--text-muted);font-size:.78rem;">:</div>
+        <input type="number" inputmode="numeric" min="0" max="30" id="bl-${gi}-${mi}-2"
+          style="background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px;font-size:.88rem;text-align:center;width:100%;box-sizing:border-box;">
+        <button ontouchend="event.preventDefault();bdConfirmLeague(${gi},${mi});" onclick="bdConfirmLeague(${gi},${mi});"
+          style="padding:5px 8px;background:var(--primary);color:#fff;border:none;border-radius:6px;font-size:.75rem;font-weight:700;cursor:pointer;">✓</button>
+      </div>
+    </div>`;
+  } else {
+    return `<div id="bl-cell-${gi}-${mi}" style="display:flex;align-items:center;gap:4px;padding:7px 10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);opacity:.6;font-size:.8rem;">
+      <div style="flex:1;"><div style="color:var(--info);">🔵 ${lbl1}</div><div style="color:var(--danger);">🔴 ${lbl2}</div></div>
+      <div style="font-size:.7rem;color:var(--text-dim);">대기중</div>
+    </div>`;
+  }
 }
 
 async function bdAddTeamMatch(){
   const groups=JSON.parse(_bdData.groups||'[]');
   const g=groups[0];if(!g) return;
-  const {teamA=[],teamB=[]}=g;
-  // 선수 선택 인라인 UI 삽입
+  const {teamA=[],teamB=[],matches=[]}=g;
+  // 현재 라운드 번호
+  const curRound=matches.length>0?Math.max(...matches.map(m=>m.round||1)):1;
   const wrap=document.getElementById('bd-team-add-wrap');
-  if(wrap){
-    const aOpts=teamA.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
-    const bOpts=teamB.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
-    wrap.innerHTML=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;margin-top:8px;">
-      <div style="font-size:.82rem;font-weight:600;margin-bottom:8px;">매치 추가</div>
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-        <select id="bd-tm-a" class="form-select" style="flex:1;"><option value="">🔵 A팀 선수</option>${aOpts}</select>
-        <span style="color:var(--text-muted);font-size:.8rem;">vs</span>
-        <select id="bd-tm-b" class="form-select" style="flex:1;"><option value="">🔴 B팀 선수</option>${bOpts}</select>
+  if(!wrap) return;
+  const aOpts=teamA.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  const bOpts=teamB.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  wrap.innerHTML=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:8px;">
+    <div style="font-size:.85rem;font-weight:700;margin-bottom:10px;color:var(--text);">복식 매치 추가</div>
+    <div style="margin-bottom:8px;">
+      <div style="font-size:.75rem;color:var(--info);margin-bottom:4px;">🔵 A팀 (2명)</div>
+      <div style="display:flex;gap:6px;">
+        <select id="bd-tm-a1" class="form-select" style="flex:1;"><option value="">선수1</option>${aOpts}</select>
+        <select id="bd-tm-a2" class="form-select" style="flex:1;"><option value="">선수2</option>${aOpts}</select>
       </div>
-      <div style="display:flex;gap:8px;">
-        <button onclick="wrap=document.getElementById('bd-team-add-wrap');if(wrap)wrap.innerHTML=''" class="btn btn-ghost btn-sm" style="flex:1;">취소</button>
-        <button onclick="bdConfirmAddTeamMatch()" class="btn btn-primary btn-sm" style="flex:1;">추가</button>
+    </div>
+    <div style="margin-bottom:10px;">
+      <div style="font-size:.75rem;color:var(--danger);margin-bottom:4px;">🔴 B팀 (2명)</div>
+      <div style="display:flex;gap:6px;">
+        <select id="bd-tm-b1" class="form-select" style="flex:1;"><option value="">선수1</option>${bOpts}</select>
+        <select id="bd-tm-b2" class="form-select" style="flex:1;"><option value="">선수2</option>${bOpts}</select>
       </div>
-    </div>`;
-    return;
-  }
+    </div>
+    <div style="margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:.78rem;color:var(--text-muted);">라운드</span>
+      <select id="bd-tm-round" class="form-select" style="max-width:100px;">
+        ${Array.from({length:curRound+1},(_,i)=>i+1).map(n=>`<option value="${n}" ${n===curRound?'selected':''}>${n}라운드</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="document.getElementById('bd-team-add-wrap').innerHTML=''" class="btn btn-ghost btn-sm" style="flex:1;">취소</button>
+      <button onclick="bdConfirmAddTeamMatch()" class="btn btn-primary btn-sm" style="flex:1;">추가</button>
+    </div>
+  </div>`;
 }
 
 async function bdConfirmAddTeamMatch(){
-  const aId=document.getElementById('bd-tm-a')?.value;
-  const bId=document.getElementById('bd-tm-b')?.value;
-  if(!aId||!bId){toast('선수 선택','error');return;}
+  const a1Id=document.getElementById('bd-tm-a1')?.value;
+  const a2Id=document.getElementById('bd-tm-a2')?.value;
+  const b1Id=document.getElementById('bd-tm-b1')?.value;
+  const b2Id=document.getElementById('bd-tm-b2')?.value;
+  const rnd=parseInt(document.getElementById('bd-tm-round')?.value||'1');
+  if(!a1Id||!b1Id){toast('A팀 선수1, B팀 선수1은 필수','error');return;}
   const groups=JSON.parse(_bdData.groups||'[]');
   const g=groups[0];
-  const a=g.teamA.find(p=>p.id===aId);
-  const b=g.teamB.find(p=>p.id===bId);
-  if(!a||!b) return;
+  const find=(arr,id)=>arr.find(p=>p.id===id);
+  const a1=find(g.teamA,a1Id), a2=a2Id?find(g.teamA,a2Id):null;
+  const b1=find(g.teamB,b1Id), b2=b2Id?find(g.teamB,b2Id):null;
+  if(!a1||!b1){toast('선수 정보 오류','error');return;}
   if(!g.matches) g.matches=[];
-  g.matches.push({t1:{id:a.id,name:a.name,p1_id:a.id,p1_name:a.name},t2:{id:b.id,name:b.name,p1_id:b.id,p1_name:b.name},s1:'',s2:'',done:false,team1:'A',team2:'B'});
+  g.matches.push({
+    t1:{p1_id:a1.id,p1_name:a1.name,p2_id:a2?.id||null,p2_name:a2?.name||null,team:'A'},
+    t2:{p1_id:b1.id,p1_name:b1.name,p2_id:b2?.id||null,p2_name:b2?.name||null,team:'B'},
+    s1:'',s2:'',done:false,round:rnd
+  });
   await sb.from('bracket_tournaments').update({groups:JSON.stringify(groups)}).eq('id',_bdId);
   _bdData.groups=JSON.stringify(groups);
   _renderBracketDetail(_bdData);
@@ -3533,97 +3654,81 @@ function _renderBracketVisual(rounds){
   if(!rounds||!rounds.length) return '';
   const isAdmin=ME?.role==='admin';
   const status=_bdData?.status||'';
-
-  // 라운드명
   const roundLabels=['결승','4강','8강','16강','32강'];
   const total=rounds.length;
-  const getLbl=(ri)=>{
-    // ri=0이 첫 라운드 (가장 많은 경기)
-    const fromEnd=total-1-ri; // 0=마지막(결승)
+  const getLbl=ri=>{
+    const fromEnd=total-1-ri;
     return roundLabels[fromEnd]||`${Math.pow(2,fromEnd+1)}강`;
   };
 
-  // 브래킷 카드 렌더
-  const matchCard=(m,ri,mi)=>{
-    const lbl1=_tl(m.t1), lbl2=_tl(m.t2);
+  const CARD_H=70; // px (두 행: 35px each)
+  const CARD_W=180;
+
+  // 각 라운드 아이템 슬롯 높이 계산
+  // 마지막 라운드(결승): CARD_H + 상하패딩
+  const SLOT_BASE=CARD_H+16; // 카드+여백
+  const slotH=[];
+  for(let ri=total-1;ri>=0;ri--){
+    slotH[ri]= ri===total-1 ? SLOT_BASE : slotH[ri+1]*2;
+  }
+
+  // 카드 HTML
+  const card=(m,ri,mi)=>{
+    const n1=_tl(m.t1), n2=_tl(m.t2);
     const done=m.done;
-    const aWin=done&&parseInt(m.s1)>parseInt(m.s2);
-    const editBtn=isAdmin&&status==='knockout'&&done
-      ?`<button onclick="event.stopPropagation();bdEditMatch(${ri},${mi})" style="position:absolute;top:3px;right:3px;background:none;border:none;font-size:.6rem;color:var(--text-dim);cursor:pointer;padding:2px 4px;">✏</button>`:'';
-    const row=(name,score,win,isBye)=>`
-      <div style="display:flex;align-items:center;gap:0;height:34px;border-bottom:1px solid var(--border);">
-        <div style="flex:1;padding:0 10px;font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-          font-weight:${win?700:400};color:${isBye?'var(--text-dim)':win?'var(--text)':'var(--text-muted)'};">${name}</div>
-        ${done?`<div style="min-width:32px;text-align:center;padding:0 6px;font-weight:700;font-size:.85rem;
-          background:${win?'var(--primary)':'transparent'};color:${win?'#fff':'var(--text-muted)'};">${score}</div>`
-          :`<div style="min-width:32px;text-align:center;padding:0 6px;font-size:.75rem;color:var(--text-dim);">-</div>`}
-      </div>`;
-    const isBye1=lbl1==='부전승', isBye2=lbl2==='부전승';
-    return `<div id="bs-cell-${ri}-${mi}" style="position:relative;background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden;min-width:160px;max-width:200px;">
-      ${editBtn}
-      ${row(lbl1,m.s1??'-',aWin,isBye1)}
-      ${row(lbl2,m.s2??'-',!aWin&&done,isBye2)}
+    const aWin=done&&+m.s1>+m.s2;
+    const edit=isAdmin&&status==='knockout'&&done
+      ?`<button onclick="event.stopPropagation();bdEditMatch(${ri},${mi})" style="position:absolute;top:2px;right:2px;background:none;border:none;font-size:.58rem;color:var(--text-dim);cursor:pointer;padding:2px;">✏</button>`
+      :'';
+    const row=(nm,sc,win)=>`<div style="display:flex;align-items:center;height:35px;border-bottom:1px solid var(--border);box-sizing:border-box;">
+      <div style="flex:1;padding:0 8px;font-size:.78rem;font-weight:${win?700:400};color:${win?'var(--text)':'var(--text-muted)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${nm||'TBD'}</div>
+      ${done
+        ?`<div style="min-width:30px;padding:0 5px;text-align:center;font-weight:700;font-size:.82rem;background:${win?'var(--primary)':'transparent'};color:${win?'#fff':'var(--text-muted)'};">${sc}</div>`
+        :`<div style="min-width:30px;text-align:center;font-size:.7rem;color:var(--text-dim);">-</div>`}
+    </div>`;
+    return `<div id="bs-cell-${ri}-${mi}" style="position:relative;width:${CARD_W}px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+      ${edit}${row(n1,m.s1,aWin)}${row(n2,m.s2,!aWin&&done)}
     </div>`;
   };
 
-  // 컬럼별 렌더
-  const CARD_H=72;
-  const CARD_GAP=8;
-
-  // 각 라운드별 아이템 높이 (카드+여백 포함)
-  // 마지막 라운드(결승): CARD_H
-  // 이전 라운드: 다음 라운드 아이템 높이 * 2 + CARD_GAP
-  const itemHeights=[];
-  for(let ri=total-1;ri>=0;ri--){
-    if(ri===total-1) itemHeights[ri]=CARD_H;
-    else itemHeights[ri]=itemHeights[ri+1]*2+CARD_GAP;
-  }
-
-  let html=`<div style="overflow-x:auto;padding-bottom:16px;"><div style="display:flex;align-items:flex-start;gap:0;min-width:max-content;padding:8px 4px;">`;
+  let html=`<div style="overflow-x:auto;padding:4px 0 12px;"><div style="display:flex;align-items:flex-start;">`;
 
   rounds.forEach((round,ri)=>{
-    const lbl=getLbl(ri);
-    const itemH=itemHeights[ri];
-
-    html+=`<div style="display:flex;flex-direction:column;">
-      <div style="font-size:.72rem;font-weight:700;color:var(--primary);text-align:center;margin-bottom:8px;padding:0 8px;white-space:nowrap;">${lbl}</div>
-      <div style="display:flex;flex-direction:column;gap:0;">`;
+    const sh=slotH[ri];
+    html+=`<div>
+      <div style="font-size:.7rem;font-weight:700;color:var(--primary);text-align:center;margin-bottom:6px;width:${CARD_W}px;">${getLbl(ri)}</div>`;
 
     round.forEach((m,mi)=>{
-      const topPad=Math.floor((itemH-CARD_H)/2);
-      const botPad=itemH-CARD_H-topPad;
-      html+=`<div style="padding:${topPad}px 0 ${botPad}px 0;box-sizing:border-box;">
-        <div style="padding:0 8px;">${matchCard(m,ri,mi)}</div>
+      const topPad=(sh-CARD_H)/2;
+      html+=`<div style="height:${sh}px;display:flex;align-items:center;box-sizing:border-box;">
+        <div style="padding:0 6px;width:100%;">${card(m,ri,mi)}</div>
       </div>`;
     });
-    html+=`</div></div>`;
+    html+=`</div>`;
 
-    // 연결선 (다음 라운드 있을 때)
+    // 연결선 컬럼
     if(ri<total-1){
-      const nextItemH=itemHeights[ri+1];
-      const pairCount=round.length/2;
-      html+=`<div style="display:flex;flex-direction:column;gap:0;">
-        <div style="height:${(total>1?itemHeights[0]-itemHeights[total-1]:8)+8}px;"></div>`;
-      // 각 쌍(상단+하단)에 대해 연결선 그룹
-      html+=`<div style="display:flex;flex-direction:column;gap:0;">`;
+      const sh_this=slotH[ri];
+      const sh_next=slotH[ri+1];
+      html+=`<div style="display:flex;flex-direction:column;">`;
       for(let pi=0;pi<round.length;pi+=2){
-        // 상단 카드 → 중간선 → 하단 카드 연결
-        html+=`<div style="display:flex;flex-direction:column;height:${itemH*2}px;width:24px;">
-          <!-- 상단 카드에서 오는 수평선 -->
-          <div style="flex:1;display:flex;flex-direction:column;">
-            <div style="flex:1;"></div>
-            <div style="height:1px;background:var(--border);width:12px;margin-left:0;"></div>
-            <div style="flex:1;border-right:1px solid var(--border);"></div>
-          </div>
-          <!-- 하단 카드에서 오는 수평선 -->
-          <div style="flex:1;display:flex;flex-direction:column;">
-            <div style="flex:1;border-right:1px solid var(--border);"></div>
-            <div style="height:1px;background:var(--border);width:12px;margin-left:0;"></div>
-            <div style="flex:1;"></div>
-          </div>
-        </div>`;
+        const pairH=sh_this*2;
+        const midOffset=sh_this/2; // 상단 카드 중앙 위치
+        // SVG로 정확한 연결선 그리기
+        const svgW=24, svgH=pairH;
+        const y1=midOffset; // 상단 카드 중앙
+        const y2=pairH-midOffset; // 하단 카드 중앙
+        const mx=svgW; // 수직선 x
+        const cy=(y1+y2)/2; // 수직선 중점 → 다음 카드
+        const bc='var(--border)';
+        html+=`<svg width="${svgW}" height="${svgH}" style="display:block;flex-shrink:0;overflow:visible;">
+          <line x1="0" y1="${y1}" x2="${svgW/2}" y2="${y1}" stroke="var(--border)" stroke-width="1"/>
+          <line x1="0" y1="${y2}" x2="${svgW/2}" y2="${y2}" stroke="var(--border)" stroke-width="1"/>
+          <line x1="${svgW/2}" y1="${y1}" x2="${svgW/2}" y2="${y2}" stroke="var(--border)" stroke-width="1"/>
+          <line x1="${svgW/2}" y1="${cy}" x2="${svgW}" y2="${cy}" stroke="var(--border)" stroke-width="1"/>
+        </svg>`;
       }
-      html+=`</div></div>`;
+      html+=`</div>`;
     }
   });
 
