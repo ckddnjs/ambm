@@ -165,6 +165,7 @@
         <div><div class="page-title">📋 경기 내역</div><div class="page-sub">최근 경기 결과</div></div>
         <div style="display:flex;gap:6px;align-items:center;">
           <button class="btn btn-ghost btn-sm" onclick="renderFeed()" style="color:var(--text-muted);">↻</button>
+          <button id="btn-batch-register" class="btn btn-ghost btn-sm" onclick="toggleBatchPanel()" style="display:none;border:1px solid var(--border);color:var(--text-muted);font-size:.78rem;">📋 일괄등록</button>
           <button class="btn btn-ghost btn-sm" onclick="openScoreboard()" style="border:1px solid var(--border);color:var(--text-muted);font-size:.78rem;">🏸 점수판</button>
           <button class="btn btn-primary btn-sm" onclick="openRegisterModal()" style="font-size:.82rem;">✍️ 경기등록</button>
         </div>
@@ -190,6 +191,18 @@
         </div>
         <button onclick="feedMyMatches()" style="white-space:nowrap;background:var(--bg3);border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:0 12px;height:44px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0;">내 경기</button>
       </div>
+      <!-- 일괄등록 패널 (관리자) -->
+      <div id="batch-panel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;">
+        <div style="font-size:.85rem;font-weight:700;margin-bottom:6px;">📋 경기 일괄 등록</div>
+        <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:8px;line-height:1.7;background:var(--bg2);padding:8px 10px;border-radius:8px;">
+          <b>형식:</b> 날짜 A1 A2 점수:점수 B1 B2 (한 줄=1경기, 날짜 생략 가능)<br>
+          예) <code>26-03-08 김민수 강민지 25:23 김민철 감민처</code>
+        </div>
+        <textarea id="batch-input" placeholder="경기 데이터를 붙여넣으세요..."
+          style="width:100%;min-height:120px;box-sizing:border-box;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:.82rem;font-family:monospace;resize:vertical;"></textarea>
+        <button onclick="batchParsePreview()" class="btn btn-primary" style="width:100%;margin-top:8px;">🔍 파싱 미리보기</button>
+        <div id="batch-preview" style="margin-top:8px;"></div>
+      </div>
       <div id="feed-list"></div>
     </div>
 
@@ -206,7 +219,6 @@
       <div class="sub-tabs">
         <button class="sub-tab active" onclick="switchAdminTab('pending')">승인대기</button>
         <button class="sub-tab" onclick="switchAdminTab('members')">회원</button>
-        <button class="sub-tab" onclick="switchAdminTab('batch')">일괄등록</button>
         <button class="sub-tab" onclick="switchAdminTab('logs')">로그</button>
       </div>
       <div id="admin-content"></div>
