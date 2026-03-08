@@ -80,6 +80,8 @@ async function loadProfile(authUser){
     if(insErr) console.error('profile insert error',insErr);
     if(np) ME=np;
     addLog(`신규 가입: ${name}`);
+    // 비회원으로 등록된 경기 내역을 이름 기반으로 연결
+    _linkGuestMatchesToUser(authUser.id, name);
   } else if(data){
     ME=data;
   }
@@ -87,6 +89,28 @@ async function loadProfile(authUser){
 
 
 /* ── AUTH ── */
+
+async function _linkGuestMatchesToUser(userId, name){
+  if(!name||!userId) return;
+  try{
+    // a1_name, a2_name, b1_name, b2_name 이 일치하고 id가 null인 경기 찾아서 연결
+    const cols=[
+      {nameCol:'a1_name',idCol:'a1_id'},
+      {nameCol:'a2_name',idCol:'a2_id'},
+      {nameCol:'b1_name',idCol:'b1_id'},
+      {nameCol:'b2_name',idCol:'b2_id'},
+    ];
+    for(const {nameCol,idCol} of cols){
+      const{data:rows}=await sb.from('matches').select('id').eq(nameCol,name).is(idCol,null);
+      if(rows&&rows.length){
+        const ids=rows.map(r=>r.id);
+        // 한 번에 업데이트
+        await sb.from('matches').update({[idCol]:userId}).in('id',ids);
+      }
+    }
+  }catch(e){console.warn('guest link error',e);}
+}
+
 async function kakaoLoginDirect(){
   const{error}=await sb.auth.signInWithOAuth({provider:'kakao',options:{redirectTo:APP_URL,scopes:'profile_nickname,account_email',queryParams:{prompt:'select_account'},skipBrowserRedirect:false}});
   if(error) toast('카카오 로그인 오류: '+error.message,'error');
@@ -1320,8 +1344,20 @@ function _populateFeedDateFilter(matches, currentVal){
     dates.map(d=>`<option value="${d}" ${d===currentVal?'selected':''}>${fmt(d)}</option>`).join('');
 }
 
+function toggleBatchPanel(){
+  const panel=document.getElementById('batch-panel');
+  const btn=document.getElementById('btn-batch-register');
+  if(!panel) return;
+  const open=panel.style.display!=='none';
+  panel.style.display=open?'none':'block';
+  if(btn) btn.style.color=open?'var(--text-muted)':'var(--primary)';
+}
+
 async function renderFeed(forceNameQ){
   _feedPage=1;
+  // 일괄등록 버튼: 관리자만 표시
+  const batchBtn=document.getElementById('btn-batch-register');
+  if(batchBtn) batchBtn.style.display=ME?.role==='admin'?'':'none';
   await _renderFeedInner(forceNameQ);
 }
 
@@ -1636,8 +1672,8 @@ async function submitMatch(){
 function renderAdminPage(){switchAdminTab(adminTab);}
 function switchAdminTab(tab){
   adminTab=tab;
-  document.querySelectorAll('#page-admin .sub-tab').forEach((el,i)=>el.classList.toggle('active',['pending','members','batch','logs'][i]===tab));
-  switch(tab){case 'pending':renderAdminPending();break;case 'members':renderAdminMembers();break;case 'batch':renderAdminBatch();break;case 'logs':renderAdminLogs();break;}
+  document.querySelectorAll('#page-admin .sub-tab').forEach((el,i)=>el.classList.toggle('active',['pending','members','logs'][i]===tab));
+  switch(tab){case 'pending':renderAdminPending();break;case 'members':renderAdminMembers();break;case 'logs':renderAdminLogs();break;}
 }
 async function renderAdminPending(){
   const el=document.getElementById('admin-content');
@@ -1875,13 +1911,10 @@ async function batchSubmit(){
   const btn=document.querySelector('#batch-preview .btn-primary');
   if(btn){btn.disabled=true;btn.textContent='등록 중...';}
   const now=new Date().toISOString();
-  const inserts=records.map(r=>({
-    ...r,
-    approved_by:ME.id,
-    approved_at:now,
-    created_at:now,
-    source:'batch'
-  }));
+  const inserts=records.map(r=>{
+    const{source,...rest}=r; // source 컬럼 없으므로 제거
+    return {...rest, approved_by:ME.id, approved_at:now, created_at:now};
+  });
   const{error}=await sb.from('matches').insert(inserts);
   if(error){
     toast('등록 실패: '+error.message,'error');
@@ -3498,32 +3531,103 @@ function bdSwitchTab(tab){
 
 function _renderBracketVisual(rounds){
   if(!rounds||!rounds.length) return '';
-  const roundNames=['16강','8강','4강','결승'];
-  let html=`<div style="overflow-x:auto;padding-bottom:8px;">`;
+  const isAdmin=ME?.role==='admin';
+  const status=_bdData?.status||'';
+
+  // 라운드명
+  const roundLabels=['결승','4강','8강','16강','32강'];
+  const total=rounds.length;
+  const getLbl=(ri)=>{
+    // ri=0이 첫 라운드 (가장 많은 경기)
+    const fromEnd=total-1-ri; // 0=마지막(결승)
+    return roundLabels[fromEnd]||`${Math.pow(2,fromEnd+1)}강`;
+  };
+
+  // 브래킷 카드 렌더
+  const matchCard=(m,ri,mi)=>{
+    const lbl1=_tl(m.t1), lbl2=_tl(m.t2);
+    const done=m.done;
+    const aWin=done&&parseInt(m.s1)>parseInt(m.s2);
+    const editBtn=isAdmin&&status==='knockout'&&done
+      ?`<button onclick="event.stopPropagation();bdEditMatch(${ri},${mi})" style="position:absolute;top:3px;right:3px;background:none;border:none;font-size:.6rem;color:var(--text-dim);cursor:pointer;padding:2px 4px;">✏</button>`:'';
+    const row=(name,score,win,isBye)=>`
+      <div style="display:flex;align-items:center;gap:0;height:34px;border-bottom:1px solid var(--border);">
+        <div style="flex:1;padding:0 10px;font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+          font-weight:${win?700:400};color:${isBye?'var(--text-dim)':win?'var(--text)':'var(--text-muted)'};">${name}</div>
+        ${done?`<div style="min-width:32px;text-align:center;padding:0 6px;font-weight:700;font-size:.85rem;
+          background:${win?'var(--primary)':'transparent'};color:${win?'#fff':'var(--text-muted)'};">${score}</div>`
+          :`<div style="min-width:32px;text-align:center;padding:0 6px;font-size:.75rem;color:var(--text-dim);">-</div>`}
+      </div>`;
+    const isBye1=lbl1==='부전승', isBye2=lbl2==='부전승';
+    return `<div id="bs-cell-${ri}-${mi}" style="position:relative;background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden;min-width:160px;max-width:200px;">
+      ${editBtn}
+      ${row(lbl1,m.s1??'-',aWin,isBye1)}
+      ${row(lbl2,m.s2??'-',!aWin&&done,isBye2)}
+    </div>`;
+  };
+
+  // 컬럼별 렌더
+  const CARD_H=72;
+  const CARD_GAP=8;
+
+  // 각 라운드별 아이템 높이 (카드+여백 포함)
+  // 마지막 라운드(결승): CARD_H
+  // 이전 라운드: 다음 라운드 아이템 높이 * 2 + CARD_GAP
+  const itemHeights=[];
+  for(let ri=total-1;ri>=0;ri--){
+    if(ri===total-1) itemHeights[ri]=CARD_H;
+    else itemHeights[ri]=itemHeights[ri+1]*2+CARD_GAP;
+  }
+
+  let html=`<div style="overflow-x:auto;padding-bottom:16px;"><div style="display:flex;align-items:flex-start;gap:0;min-width:max-content;padding:8px 4px;">`;
+
   rounds.forEach((round,ri)=>{
-    const label=roundNames[Math.max(0,roundNames.length-(rounds.length-ri))];
-    html+=`<div style="margin-bottom:16px;">
-      <div style="font-size:.82rem;font-weight:700;color:var(--primary);margin-bottom:8px;">${label||`라운드 ${ri+1}`}</div>`;
+    const lbl=getLbl(ri);
+    const itemH=itemHeights[ri];
+
+    html+=`<div style="display:flex;flex-direction:column;">
+      <div style="font-size:.72rem;font-weight:700;color:var(--primary);text-align:center;margin-bottom:8px;padding:0 8px;white-space:nowrap;">${lbl}</div>
+      <div style="display:flex;flex-direction:column;gap:0;">`;
+
     round.forEach((m,mi)=>{
-      const lbl1=_tl(m.t1), lbl2=_tl(m.t2);
-      if(m.done){
-        const aWin=parseInt(m.s1)>parseInt(m.s2);
-        html+=`<div id="bs-cell-${ri}-${mi}" style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--surface2);border-radius:9px;margin-bottom:8px;border:1px solid var(--border);">
-          <span style="flex:1;font-size:.84rem;font-weight:${aWin?700:400};color:${aWin?'var(--text)':'var(--text-muted)'};">${lbl1}</span>
-          <span style="font-weight:700;color:var(--primary);">${m.s1} : ${m.s2}</span>
-          <span style="flex:1;font-size:.84rem;font-weight:${!aWin?700:400};color:${!aWin?'var(--text)':'var(--text-muted)'};text-align:right;">${lbl2}</span>
-        </div>`;
-      } else {
-        html+=`<div id="bs-cell-${ri}-${mi}" style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--surface2);border-radius:9px;margin-bottom:8px;border:1px solid var(--border);opacity:.7;">
-          <span style="flex:1;font-size:.84rem;color:var(--text-muted);">${lbl1}</span>
-          <span style="font-size:.75rem;color:var(--text-dim);">vs</span>
-          <span style="flex:1;font-size:.84rem;color:var(--text-muted);text-align:right;">${lbl2}</span>
+      const topPad=Math.floor((itemH-CARD_H)/2);
+      const botPad=itemH-CARD_H-topPad;
+      html+=`<div style="padding:${topPad}px 0 ${botPad}px 0;box-sizing:border-box;">
+        <div style="padding:0 8px;">${matchCard(m,ri,mi)}</div>
+      </div>`;
+    });
+    html+=`</div></div>`;
+
+    // 연결선 (다음 라운드 있을 때)
+    if(ri<total-1){
+      const nextItemH=itemHeights[ri+1];
+      const pairCount=round.length/2;
+      html+=`<div style="display:flex;flex-direction:column;gap:0;">
+        <div style="height:${(total>1?itemHeights[0]-itemHeights[total-1]:8)+8}px;"></div>`;
+      // 각 쌍(상단+하단)에 대해 연결선 그룹
+      html+=`<div style="display:flex;flex-direction:column;gap:0;">`;
+      for(let pi=0;pi<round.length;pi+=2){
+        // 상단 카드 → 중간선 → 하단 카드 연결
+        html+=`<div style="display:flex;flex-direction:column;height:${itemH*2}px;width:24px;">
+          <!-- 상단 카드에서 오는 수평선 -->
+          <div style="flex:1;display:flex;flex-direction:column;">
+            <div style="flex:1;"></div>
+            <div style="height:1px;background:var(--border);width:12px;margin-left:0;"></div>
+            <div style="flex:1;border-right:1px solid var(--border);"></div>
+          </div>
+          <!-- 하단 카드에서 오는 수평선 -->
+          <div style="flex:1;display:flex;flex-direction:column;">
+            <div style="flex:1;border-right:1px solid var(--border);"></div>
+            <div style="height:1px;background:var(--border);width:12px;margin-left:0;"></div>
+            <div style="flex:1;"></div>
+          </div>
         </div>`;
       }
-    });
-    html+=`</div>`;
+      html+=`</div></div>`;
+    }
   });
-  html+=`</div>`;
+
+  html+=`</div></div>`;
   return html;
 }
 
@@ -3617,7 +3721,6 @@ async function _bdSaveMatchRecord(m, s1, s2, matchDate){
       status:'approved',
       approved_by:ME.id,
       approved_at:nowISO(),
-      source:'tournament',
       tournament_id:_bdId
     });
   }catch(e){console.warn('경기기록 저장 실패',e);}
