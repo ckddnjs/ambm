@@ -1032,10 +1032,7 @@ async function renderRankTable(allMatches){
     const wr=u.games>0?Math.round(u.wins/u.games*100)+'%':'0%';
     const diff=`<span style="${diffColor(u.diff)}">${u.diff>0?'+':''}${u.diff}</span>`;
     const ciVal=`<span style="font-weight:700;">${Math.round(u.ci)}</span>`;
-    const guestBadge=u.isGuest?(u.isGuestMode
-      ?`<span style="font-size:.58rem;background:rgba(255,152,0,.15);border:1px solid rgba(255,152,0,.3);color:#E65100;border-radius:6px;padding:1px 4px;margin-left:3px;vertical-align:middle;">👻</span>`
-      :`<span style="font-size:.58rem;background:rgba(255,152,0,.15);border:1px solid rgba(255,152,0,.3);color:#E65100;border-radius:6px;padding:1px 4px;margin-left:3px;vertical-align:middle;">비</span>`)
-      :'';
+    const guestBadge='';
     return `<tr class="${u.id===ME.id?'me':''}" ${!isRanked?'style="opacity:0.55;"':''}>
     <td>${rankCell}</td>
     <td><span class="rank-name" onclick="goToFeedByName('${u.name.replace(/'/g,"\\'")}')">${u.name}</span>${guestBadge}</td>
@@ -1163,25 +1160,31 @@ function renderScatter(){
   const canvas=document.getElementById('scatter-canvas');
   if(!canvas) return;
   const allMatches=_allMatchesCache.filter(m=>m.status==='approved');
+  const guestModeNamesSet=new Set(JSON.parse(localStorage.getItem('guest_mode_names')||'[]'));
 
-  // 회원별 통계 집계
+  // 회원+비회원 통계 집계 (게스트모드 제외)
   const statsMap={};
   allMatches.forEach(m=>{
-    const players=[
-      {id:m.a1_id,name:m.a1_name,onA:true},
-      {id:m.a2_id,name:m.a2_name,onA:true},
-      {id:m.b1_id,name:m.b1_name,onA:false},
-      {id:m.b2_id,name:m.b2_name,onA:false}
-    ].filter(p=>p.id);
     const aWin=m.score_a>m.score_b;
-    players.forEach(p=>{
-      if(!statsMap[p.id]) statsMap[p.id]={id:p.id,name:p.name,games:0,wins:0,scored:0,conceded:0};
-      const s=statsMap[p.id];
-      const won=p.onA?aWin:!aWin;
-      s.games++;
-      if(won) s.wins++;
-      s.scored+=p.onA?m.score_a:m.score_b;
-      s.conceded+=p.onA?m.score_b:m.score_a;
+    // id 기반 (회원)
+    [{id:m.a1_id,name:m.a1_name,onA:true},{id:m.a2_id,name:m.a2_name,onA:true},
+     {id:m.b1_id,name:m.b1_name,onA:false},{id:m.b2_id,name:m.b2_name,onA:false}]
+    .filter(p=>p.id).forEach(p=>{
+      const key=p.id;
+      if(!statsMap[key]) statsMap[key]={id:key,name:p.name,games:0,wins:0,scored:0,conceded:0,isGuest:false};
+      const s=statsMap[key]; const won=p.onA?aWin:!aWin;
+      s.games++; if(won) s.wins++;
+      s.scored+=p.onA?m.score_a:m.score_b; s.conceded+=p.onA?m.score_b:m.score_a;
+    });
+    // 이름 기반 (비회원, 게스트모드 제외)
+    [{id:m.a1_id,name:m.a1_name,onA:true},{id:m.a2_id,name:m.a2_name,onA:true},
+     {id:m.b1_id,name:m.b1_name,onA:false},{id:m.b2_id,name:m.b2_name,onA:false}]
+    .filter(p=>!p.id&&p.name&&!guestModeNamesSet.has(p.name)).forEach(p=>{
+      const key='name:'+p.name;
+      if(!statsMap[key]) statsMap[key]={id:key,name:p.name,games:0,wins:0,scored:0,conceded:0,isGuest:true};
+      const s=statsMap[key]; const won=p.onA?aWin:!aWin;
+      s.games++; if(won) s.wins++;
+      s.scored+=p.onA?m.score_a:m.score_b; s.conceded+=p.onA?m.score_b:m.score_a;
     });
   });
 
@@ -3263,46 +3266,34 @@ function _bfRenderAttendeeUI(){
     <button onclick="_bfAddGuest()" class="btn btn-ghost btn-sm" style="white-space:nowrap;">+ 추가</button>
   </div>`;
 
-  // 등록된 선수 클릭 선택 (정회원 + 비회원 구분 표시)
+  // 등록된 선수 클릭 선택 (색상으로만 회원/비회원 구분: 파랑=회원, 주황=비회원)
   const allUsers=window._bfAllUsers||[];
-  const members=allUsers.filter(u=>!u.isGuest);
-  const guests=allUsers.filter(u=>u.isGuest);
-  if(members.length){
-    html+=`<div style="font-size:.72rem;color:var(--text-muted);margin-bottom:4px;">👤 회원</div>`;
+  if(allUsers.length){
     html+=`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">`;
-    members.forEach(u=>{
+    allUsers.forEach(u=>{
       const sel=_bfAttendees.some(a=>a.id===u.id);
+      const isG=u.isGuest;
       html+=`<div data-uid="${u.id}" style="display:inline-flex;align-items:center;gap:3px;border-radius:20px;padding:4px 10px;cursor:pointer;font-size:.82rem;user-select:none;
-        background:${sel?'rgba(41,121,255,.2)':'var(--bg3)'};
-        border:1px solid ${sel?'var(--primary)':'var(--border)'};
-        color:${sel?'var(--primary)':'var(--text)'};">
-        <span style="pointer-events:none;">${sel?'✅ ':''}${u.name}</span>
-      </div>`;
-    });
-    html+=`</div>`;
-  }
-  if(guests.length){
-    html+=`<div style="font-size:.72rem;color:var(--text-muted);margin-bottom:4px;">👻 비회원</div>`;
-    html+=`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">`;
-    guests.forEach(u=>{
-      const sel=_bfAttendees.some(a=>a.id===u.id);
-      html+=`<div data-uid="${u.id}" style="display:inline-flex;align-items:center;gap:3px;border-radius:20px;padding:4px 10px;cursor:pointer;font-size:.82rem;user-select:none;
-        background:${sel?'rgba(255,152,0,.2)':'var(--bg3)'};
-        border:1px solid ${sel?'rgba(255,152,0,.6)':'var(--border)'};
-        color:${sel?'#E65100':'var(--text-muted)'};">
+        background:${sel?(isG?'rgba(255,152,0,.2)':'rgba(41,121,255,.2)'):'var(--bg3)'};
+        border:1px solid ${sel?(isG?'rgba(255,152,0,.6)':'var(--primary)'):'var(--border)'};
+        color:${sel?(isG?'#E65100':'var(--primary)'):'var(--text)'};">
         <span style="pointer-events:none;">${sel?'✅ ':''}${u.name}</span>
       </div>`;
     });
     html+=`</div>`;
   }
 
-  // 현재 선택된 참석자 태그
+  // 현재 선택된 참석자 태그 (비회원 주황, 회원 파랑)
   if(_bfAttendees.length){
     html+=`<div style="display:flex;flex-wrap:wrap;gap:5px;padding:6px 8px;background:var(--bg2);border-radius:8px;">`;
     _bfAttendees.forEach((a,i)=>{
-      html+=`<div style="display:inline-flex;align-items:center;gap:3px;border-radius:20px;padding:3px 9px;background:rgba(41,121,255,.15);border:1px solid var(--primary);color:var(--primary);font-size:.8rem;">
+      const isG=(window._bfAllUsers||[]).find(u=>u.id===a.id)?.isGuest;
+      const bg=isG?'rgba(255,152,0,.15)':'rgba(41,121,255,.15)';
+      const border=isG?'rgba(255,152,0,.6)':'var(--primary)';
+      const col=isG?'#E65100':'var(--primary)';
+      html+=`<div style="display:inline-flex;align-items:center;gap:3px;border-radius:20px;padding:3px 9px;background:${bg};border:1px solid ${border};color:${col};font-size:.8rem;">
         <span>${a.name}</span>
-        <button onclick="_bfRemoveAttendee(${i})" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:.85rem;padding:0 0 0 2px;line-height:1;">✕</button>
+        <button onclick="_bfRemoveAttendee(${i})" style="background:none;border:none;color:${col};cursor:pointer;font-size:.85rem;padding:0 0 0 2px;line-height:1;">✕</button>
       </div>`;
     });
     html+=`</div>`;
@@ -3322,11 +3313,12 @@ function _bfRenderAttendeeUI(){
 
 function _bfToggleDbUser(id, el){
   const u=window._bfUsersMap?window._bfUsersMap[id]:null;
+  const uAll=(window._bfAllUsers||[]).find(x=>x.id===id);
   const idx=_bfAttendees.findIndex(a=>a.id===id);
   if(idx>=0){
     _bfAttendees.splice(idx,1);
   } else {
-    _bfAttendees.push({id,name:u?.name||id,score:u?.score||0});
+    _bfAttendees.push({id,name:u?.name||uAll?.name||id,score:u?.score||0,isGuest:uAll?.isGuest||false});
   }
   _bfRenderAttendeeUI();
 }
