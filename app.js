@@ -3396,86 +3396,50 @@ function _bfDuoBack(){
   }
 }
 
-function bfConfirmArrangement(){
-  // 배분 결과를 step2 패널 안에 '확정 결과' 뷰로 전환
-  const wrap=document.getElementById('bf-arrange-wrap');
-  if(!wrap) return;
+async function bfConfirmArrangement(){
   const arr=_bfArrangement;
   if(!arr){toast('배분 데이터가 없습니다','error');return;}
+  const name=document.getElementById('bf-auto-name')?.value?.trim();
+  const date=document.getElementById('bf-auto-date')?.value;
+  if(!name){toast('대회명을 입력해주세요','error');return;}
+  if(!date){toast('날짜를 선택해주세요','error');return;}
 
-  // 팀장전
+  let insertData={name,match_date:date,status:'league',tournament_type:_bfType,rounds:JSON.stringify([]),created_by:ME.id};
+
   if(_bfType==='team'){
-    const {teamA,teamB}=arr;
-    const renderList=list=>list.map(p=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--surface);border-radius:7px;border:1px solid var(--border);">
-      <span style="font-size:.85rem;flex:1;${p.captain?'font-weight:700;color:var(--primary);':''}">${p.captain?'⭐ ':''}${p.name}</span>
-      ${p.captain?'<span style="font-size:.7rem;background:var(--primary);color:#fff;border-radius:4px;padding:1px 6px;">팀장</span>':''}
-    </div>`).join('');
-    wrap.innerHTML=`
-      <div style="background:rgba(76,175,80,.08);border:1.5px solid var(--primary);border-radius:10px;padding:12px 10px;margin-bottom:10px;text-align:center;font-weight:700;color:var(--primary);font-size:.9rem;">✅ 구성이 확정되었습니다!</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;">
-          <div style="font-weight:700;font-size:.85rem;color:var(--info);margin-bottom:8px;">🔵 A팀 (${teamA.length}명)</div>
-          <div style="display:flex;flex-direction:column;gap:5px;">${renderList(teamA)}</div>
-        </div>
-        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;">
-          <div style="font-weight:700;font-size:.85rem;color:var(--danger);margin-bottom:8px;">🔴 B팀 (${teamB.length}명)</div>
-          <div style="display:flex;flex-direction:column;gap:5px;">${renderList(teamB)}</div>
-        </div>
-      </div>`;
-    // 버튼 영역을 수정 버튼만 남기기
-    const btnRow=wrap.nextElementSibling;
-    if(btnRow) btnRow.innerHTML=`<button class="btn btn-ghost" style="flex:1;" onclick="bfGoStep(2)">✏️ 다시 수정</button>
-      <button class="btn btn-warn" style="flex:1;" onclick="bfGoStep(1)">↩ 처음으로</button>`;
-    // 스텝 인디케이터 step3 완료 표시
-    [1,2,3].forEach(i=>{const d=document.getElementById('bf-dot-'+i);if(d){d.classList.remove('active','done');d.classList.add('done');}});
-    [1,2].forEach(i=>{const l=document.getElementById('bf-line-'+i);if(l)l.classList.add('done');});
-    toast('✅ 팀 구성이 확정되었습니다','success');
-    return;
+    insertData.groups=JSON.stringify([{
+      name:'팀전',
+      teamA:arr.teamA,
+      teamB:arr.teamB,
+      matches:[],
+      standings:{A:{wins:0,losses:0,diff:0},B:{wins:0,losses:0,diff:0}}
+    }]);
+  } else if(_bfType==='duo'){
+    const badGroup=arr.groups.find(g=>g.teams.length<2);
+    if(badGroup){toast(`${badGroup.name}이 2팀 미만입니다. 파트너 배정을 확인해주세요.`,'error');return;}
+    insertData.groups=JSON.stringify(arr.groups);
+  } else {
+    const badGroup=arr.groups.find(g=>g.players.length<4);
+    if(badGroup){toast(`${badGroup.name}이 4명 미만입니다. 조를 조정해주세요.`,'error');return;}
+    insertData.groups=JSON.stringify(arr.groups);
   }
 
-  // 듀오전
-  if(_bfType==='duo'){
-    const groups=arr.groups||[];
-    let html=`<div style="background:rgba(76,175,80,.08);border:1.5px solid var(--primary);border-radius:10px;padding:12px 10px;margin-bottom:10px;text-align:center;font-weight:700;color:var(--primary);font-size:.9rem;">✅ 구성이 확정되었습니다!</div>`;
-    groups.forEach((g,gi)=>{
-      html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;">
-        <div style="font-weight:700;font-size:.82rem;color:var(--accent);margin-bottom:6px;">${gi+1}조</div>
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          ${g.teams.map((t,ti)=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--surface);border-radius:7px;border:1px solid var(--border);">
-            <span style="font-size:.75rem;color:var(--text-muted);min-width:20px;">${ti+1}팀</span>
-            <span style="font-size:.85rem;">${t.p1.name}${t.p2?' / '+t.p2.name:''}</span>
-          </div>`).join('')}
-        </div>
-      </div>`;
-    });
-    wrap.innerHTML=html;
-    const btnRow=wrap.nextElementSibling;
-    if(btnRow) btnRow.innerHTML=`<button class="btn btn-ghost" style="flex:1;" onclick="bfGoStep(2)">✏️ 다시 수정</button>
-      <button class="btn btn-warn" style="flex:1;" onclick="bfGoStep(1)">↩ 처음으로</button>`;
-    [1,2,3].forEach(i=>{const d=document.getElementById('bf-dot-'+i);if(d){d.classList.remove('active','done');d.classList.add('done');}});
-    [1,2].forEach(i=>{const l=document.getElementById('bf-line-'+i);if(l)l.classList.add('done');});
-    toast('✅ 듀오 구성이 확정되었습니다','success');
-    return;
+  let resultId;
+  if(window._bfEditId){
+    const{error}=await sb.from('bracket_tournaments').update(insertData).eq('id',window._bfEditId);
+    if(error){toast('수정 실패: '+error.message,'error');return;}
+    toast('✅ 대회 구성이 수정되었습니다!','success');
+    resultId=window._bfEditId;
+    window._bfEditId=null;
+  } else {
+    const{data,error}=await sb.from('bracket_tournaments').insert(insertData).select().single();
+    if(error){toast('생성 실패: '+error.message,'error');return;}
+    toast('✅ 대회 구성 확정!','success');
+    resultId=data.id;
   }
-
-  // 개인전
-  const groups=arr.groups||[];
-  let html=`<div style="background:rgba(76,175,80,.08);border:1.5px solid var(--primary);border-radius:10px;padding:12px 10px;margin-bottom:10px;text-align:center;font-weight:700;color:var(--primary);font-size:.9rem;">✅ 구성이 확정되었습니다!</div>`;
-  groups.forEach((g,gi)=>{
-    html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;">
-      <div style="font-weight:700;font-size:.82rem;color:var(--accent);margin-bottom:6px;">${gi+1}조</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;">
-        ${g.members.map(m=>`<span style="font-size:.82rem;padding:3px 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;">${m.name}</span>`).join('')}
-      </div>
-    </div>`;
-  });
-  wrap.innerHTML=html;
-  const btnRow=wrap.nextElementSibling;
-  if(btnRow) btnRow.innerHTML=`<button class="btn btn-ghost" style="flex:1;" onclick="bfGoStep(2)">✏️ 다시 수정</button>
-    <button class="btn btn-warn" style="flex:1;" onclick="bfGoStep(1)">↩ 처음으로</button>`;
-  [1,2,3].forEach(i=>{const d=document.getElementById('bf-dot-'+i);if(d){d.classList.remove('active','done');d.classList.add('done');}});
-  [1,2].forEach(i=>{const l=document.getElementById('bf-line-'+i);if(l)l.classList.add('done');});
-  toast('✅ 구성이 확정되었습니다','success');
+  toggleBracketForm();
+  renderBracketPage();
+  setTimeout(()=>openBracketDetail(resultId),400);
 }
 
 function bfGoStep(step){
@@ -3798,11 +3762,10 @@ function _bfRenderArrangeUI(wrap){
     _bfRenderDuoArrangeUI(wrap);
     return;
   }
-  // 개인전 조편성
+  // 개인전 조편성 - 이름 클릭 시 조 이동 팝업
   const {groups}=_bfArrangement;
-  const isAdmin=ME?.role==='admin';
   let html=`<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px;">
-    🤖 실력 균형을 고려해 자동 배분했습니다. ${isAdmin?'이름을 드래그하거나 조를 수정할 수 있습니다.':''}
+    🤖 실력 균형을 고려해 자동 배분했습니다. 🔀 버튼으로 다른 조로 이동할 수 있습니다.
   </div>`;
   html+=`<div style="display:flex;flex-direction:column;gap:10px;" id="bf-groups-wrap">`;
   groups.forEach((g,gi)=>{
@@ -3810,38 +3773,61 @@ function _bfRenderArrangeUI(wrap){
       <div style="font-weight:700;font-size:.85rem;color:var(--primary);margin-bottom:8px;">${g.name} (${g.players.length}명)</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;" id="bf-group-players-${gi}">`;
     g.players.forEach((p,pi)=>{
-      html+=`<div style="display:flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:.82rem;">
-        <span>${p.name}</span>
-        ${isAdmin?`<button onclick="bfRemoveFromGroup(${gi},${pi})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.8rem;padding:0 2px;">✕</button>`:''}
+      const otherGroups=groups.map((og,ogi)=>({og,ogi})).filter(({ogi})=>ogi!==gi);
+      const menuItems=otherGroups.map(({og,ogi})=>`<div onclick="bfMovePlayerToGroup(${gi},${pi},${ogi});this.closest('.bf-move-popup').style.display='none'" style="padding:8px 14px;font-size:.8rem;cursor:pointer;color:var(--text);white-space:nowrap;" onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background=''">${og.name}으로 이동</div>`).join('');
+      html+=`<div style="position:relative;display:inline-flex;align-items:center;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 8px;font-size:.82rem;">
+        <span style="cursor:default;">${p.name}</span>
+        <button onclick="bfToggleMovePopup(this)" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.9rem;padding:0 1px;line-height:1;flex-shrink:0;">🔀</button>
+        <div class="bf-move-popup" style="display:none;position:absolute;z-index:300;left:0;top:110%;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:hidden;min-width:130px;">
+          <div style="padding:6px 14px;font-size:.75rem;color:var(--text-muted);border-bottom:1px solid var(--border);">${p.name} 이동</div>
+          ${menuItems}
+        </div>
       </div>`;
     });
-    html+=`</div>`;
-    if(isAdmin){
-      html+=`<select onchange="bfMoveToGroup(this,${gi})" style="margin-top:8px;width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:.78rem;color:var(--text-muted);">
-        <option value="">+ 다른 조에서 이동</option>`;
-      groups.forEach((og,ogi)=>{
-        if(ogi===gi) return;
-        og.players.forEach((p,pi)=>{
-          html+=`<option value="${ogi}_${pi}">${p.name} (${og.name}에서)</option>`;
-        });
-      });
-      html+=`</select>`;
-    }
-    html+=`</div>`;
+    html+=`</div></div>`;
   });
   html+=`</div>`;
   wrap.innerHTML=html;
+  // 외부 클릭시 팝업 닫기
+  setTimeout(()=>{
+    document.addEventListener('click', function _bfClosePopup(e){
+      if(!e.target.closest('.bf-move-popup')&&!e.target.matches('button[onclick*="bfToggleMovePopup"]')){
+        document.querySelectorAll('.bf-move-popup').forEach(m=>m.style.display='none');
+        document.removeEventListener('click',_bfClosePopup);
+      }
+    });
+  },100);
+}
+
+function bfToggleMovePopup(btn){
+  const popup=btn.nextElementSibling;
+  const isOpen=popup.style.display!=='none';
+  document.querySelectorAll('.bf-move-popup').forEach(m=>m.style.display='none');
+  if(!isOpen) popup.style.display='block';
+}
+
+function bfMovePlayerToGroup(fromGi,pi,toGi){
+  const player=_bfArrangement.groups[fromGi].players.splice(pi,1)[0];
+  _bfArrangement.groups[toGi].players.push(player);
+  // 경기 재계산
+  _bfArrangement.groups.forEach(g=>{
+    g.matches=[];
+    for(let i=0;i<g.players.length;i++)
+      for(let j=i+1;j<g.players.length;j++)
+        g.matches.push({p1:g.players[i],p2:g.players[j],s1:'',s2:'',done:false});
+  });
+  _bfRenderArrangeUI(document.getElementById('bf-arrange-wrap'));
 }
 
 function _bfRenderDuoArrangeUI(wrap){
   const {groups}=_bfArrangement;
-  const isAdmin=ME?.role==='admin';
   // 전체 참석자 목록 (선수 선택용)
   const allAttendees=_bfAttendees||[];
+  // 전체 팀 목록 (교체 팝업용)
   const allTeams=[];
-  groups.forEach((g,gi)=>g.teams.forEach((t,ti)=>allTeams.push({gi,ti,label:t.p2_name?`${t.p1_name} / ${t.p2_name}`:t.p1_name,gname:g.name})));
+  groups.forEach((g,gi)=>g.teams.forEach((t,ti)=>allTeams.push({gi,ti,label:t.p2_name?`${t.p1_name}/${t.p2_name}`:t.p1_name,gname:g.name})));
   let html=`<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px;">
-    🤖 팀 실력 균형을 고려해 자동 배분했습니다. ↔ 교체로 팀 위치를, 선수 드롭다운으로 파트너를 수정할 수 있습니다.
+    🤖 팀 실력 균형을 고려해 자동 배분했습니다. 이름 클릭 시 다른 팀과 위치 교체할 수 있습니다.
   </div>`;
   html+=`<div style="display:flex;flex-direction:column;gap:10px;">`;
   groups.forEach((g,gi)=>{
@@ -3849,50 +3835,62 @@ function _bfRenderDuoArrangeUI(wrap){
       <div style="font-weight:700;font-size:.85rem;color:var(--primary);margin-bottom:8px;">${g.name} <span style="font-weight:400;font-size:.75rem;color:var(--text-muted);">(${g.teams.length}팀)</span></div>
       <div style="display:flex;flex-direction:column;gap:5px;">`;
     g.teams.forEach((t,ti)=>{
-      // 선수1/선수2 옵션: 현재 팀 선수 + 미사용 선수
-      const usedIds=new Set();
-      groups.forEach((gg,ggi)=>gg.teams.forEach((tt,tti)=>{
-        if(ggi===gi&&tti===ti) return; // 현재 팀 제외
-        if(tt.p1_id) usedIds.add(tt.p1_id);
-        if(tt.p2_id) usedIds.add(tt.p2_id);
-      }));
-      const availForP1=allAttendees.filter(a=>!usedIds.has(a.id)||a.id===t.p1_id);
-      const availForP2=allAttendees.filter(a=>!usedIds.has(a.id)||a.id===t.p2_id);
-      const optsP1=availForP1.map(a=>`<option value="${a.id}"${a.id===t.p1_id?' selected':''}>${a.name}</option>`).join('');
-      const optsP2=`<option value=""${!t.p2_id?' selected':''}>없음</option>`+availForP2.map(a=>`<option value="${a.id}"${a.id===t.p2_id?' selected':''}>${a.name}</option>`).join('');
-      html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 8px;display:flex;align-items:center;gap:5px;">
+      const teamLabel=t.p2_name?`${t.p1_name} / ${t.p2_name}`:t.p1_name;
+      const otherTeams=allTeams.filter(x=>!(x.gi===gi&&x.ti===ti));
+      const swapItems=otherTeams.map(x=>`<div onclick="bfDuoSwapTeams(${gi},${ti},${x.gi},${x.ti});this.closest('.bf-duo-swap-popup').style.display='none'" style="padding:8px 14px;font-size:.8rem;cursor:pointer;color:var(--text);white-space:nowrap;" onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background=''">${x.label} <span style="color:var(--text-muted);font-size:.75rem;">(${x.gname})</span></div>`).join('');
+      html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;display:flex;align-items:center;gap:6px;">
         <span style="font-size:.75rem;color:var(--text-muted);flex-shrink:0;">👥</span>
-        <select onchange="bfDuoChangePlayer(${gi},${ti},'p1',this.value)" style="flex:1;min-width:0;font-size:.78rem;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 4px;color:var(--text);">${optsP1}</select>
-        <span style="font-size:.72rem;color:var(--text-muted);flex-shrink:0;">/</span>
-        <select onchange="bfDuoChangePlayer(${gi},${ti},'p2',this.value)" style="flex:1;min-width:0;font-size:.78rem;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 4px;color:var(--text);">${optsP2}</select>
-        <select onchange="bfDuoSwapWithOther(this,${gi},${ti})" style="font-size:.72rem;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:3px 4px;color:var(--text-muted);cursor:pointer;flex-shrink:0;max-width:80px;">
-          <option value="">↔ 교체</option>
-          ${allTeams.filter(x=>!(x.gi===gi&&x.ti===ti)).map(x=>`<option value="${x.gi}_${x.ti}">${x.label}(${x.gname})</option>`).join('')}
-        </select>
-        <button onclick="bfDuoRemoveTeam(${gi},${ti})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.85rem;padding:0 2px;flex-shrink:0;">✕</button>
+        <div style="position:relative;flex:1;min-width:0;">
+          <button onclick="bfToggleDuoSwapPopup(this)" style="background:none;border:none;cursor:pointer;font-size:.83rem;color:var(--text);padding:2px 4px;border-radius:5px;width:100%;text-align:left;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="클릭해서 교체">
+            ${teamLabel} <span style="font-size:.7rem;color:var(--text-muted);">↔</span>
+          </button>
+          <div class="bf-duo-swap-popup" style="display:none;position:absolute;z-index:300;left:0;top:110%;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:hidden;min-width:160px;max-height:200px;overflow-y:auto;">
+            <div style="padding:6px 14px;font-size:.75rem;color:var(--text-muted);border-bottom:1px solid var(--border);">누구와 교체하시겠습니까?</div>
+            ${swapItems||'<div style="padding:8px 14px;font-size:.8rem;color:var(--text-muted);">다른 팀이 없습니다</div>'}
+          </div>
+        </div>
       </div>`;
     });
     html+=`</div></div>`;
   });
   html+=`</div>`;
   wrap.innerHTML=html;
+  setTimeout(()=>{
+    document.addEventListener('click', function _bfDuoClosePopup(e){
+      if(!e.target.closest('.bf-duo-swap-popup')&&!e.target.matches('button[onclick*="bfToggleDuoSwapPopup"]')){
+        document.querySelectorAll('.bf-duo-swap-popup').forEach(m=>m.style.display='none');
+        document.removeEventListener('click',_bfDuoClosePopup);
+      }
+    });
+  },100);
+}
+
+function bfToggleDuoSwapPopup(btn){
+  const popup=btn.nextElementSibling;
+  const isOpen=popup.style.display!=='none';
+  document.querySelectorAll('.bf-duo-swap-popup,.bf-move-popup').forEach(m=>m.style.display='none');
+  if(!isOpen) popup.style.display='block';
+}
+
+function bfDuoSwapTeams(gi1,ti1,gi2,ti2){
+  const g1=_bfArrangement.groups[gi1],g2=_bfArrangement.groups[gi2];
+  [g1.teams[ti1],g2.teams[ti2]]=[g2.teams[ti2],g1.teams[ti1]];
+  _bfArrangement.groups.forEach(g=>{g.matches=[];for(let i=0;i<g.teams.length;i++)for(let j=i+1;j<g.teams.length;j++)g.matches.push({t1:g.teams[i],t2:g.teams[j],s1:'',s2:'',done:false});});
+  _bfRenderDuoArrangeUI(document.getElementById('bf-arrange-wrap'));
 }
 
 function bfDuoChangePlayer(gi,ti,slot,newId){
   const groups=_bfArrangement.groups;
   const team=groups[gi].teams[ti];
   const person=newId?_bfAttendees.find(a=>a.id===newId):null;
-  // 같은 팀 내 중복 체크
   if(slot==='p1'&&newId&&newId===team.p2_id){toast('파트너와 같은 선수입니다','error');return;}
   if(slot==='p2'&&newId&&newId===team.p1_id){toast('선수1과 같은 선수입니다','error');return;}
-  // 다른 팀에서 사용 중이면 swap
   if(newId){
     for(let ggi=0;ggi<groups.length;ggi++){
       for(let tti=0;tti<groups[ggi].teams.length;tti++){
         if(ggi===gi&&tti===ti) continue;
         const ot=groups[ggi].teams[tti];
         if(ot.p1_id===newId){
-          // 현재 팀의 해당 슬롯과 swap
           const oldId=slot==='p1'?team.p1_id:team.p2_id;
           const oldName=slot==='p1'?team.p1_name:team.p2_name;
           ot.p1_id=oldId||null; ot.p1_name=oldName||'';
@@ -3906,12 +3904,8 @@ function bfDuoChangePlayer(gi,ti,slot,newId){
       }
     }
   }
-  if(slot==='p1'){
-    team.p1_id=person?.id||null; team.p1_name=person?.name||'';
-  } else {
-    team.p2_id=person?.id||null; team.p2_name=person?.name||null;
-  }
-  // 경기 재계산
+  if(slot==='p1'){team.p1_id=person?.id||null; team.p1_name=person?.name||'';}
+  else{team.p2_id=person?.id||null; team.p2_name=person?.name||null;}
   groups.forEach(g=>{g.matches=[];for(let i=0;i<g.teams.length;i++)for(let j=i+1;j<g.teams.length;j++)g.matches.push({t1:g.teams[i],t2:g.teams[j],s1:'',s2:'',done:false});});
   _bfRenderDuoArrangeUI(document.getElementById('bf-arrange-wrap'));
 }
@@ -3919,10 +3913,7 @@ function bfDuoChangePlayer(gi,ti,slot,newId){
 function bfDuoSwapWithOther(sel,gi,ti){
   const val=sel.value;if(!val) return;
   const [gi2,ti2]=val.split('_').map(Number);
-  const g1=_bfArrangement.groups[gi],g2=_bfArrangement.groups[gi2];
-  [g1.teams[ti],g2.teams[ti2]]=[g2.teams[ti2],g1.teams[ti]];
-  _bfArrangement.groups.forEach(g=>{g.matches=[];for(let i=0;i<g.teams.length;i++)for(let j=i+1;j<g.teams.length;j++)g.matches.push({t1:g.teams[i],t2:g.teams[j],s1:'',s2:'',done:false});});
-  _bfRenderDuoArrangeUI(document.getElementById('bf-arrange-wrap'));
+  bfDuoSwapTeams(gi,ti,gi2,ti2);
 }
 
 function bfDuoRemoveTeam(gi,ti){
