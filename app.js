@@ -4259,6 +4259,15 @@ function _balRenderAttendees(){
   const all=window._balUserPool||[];
   const chips=all.map(u=>{
     const sel=_balAttendees.some(a=>a.id===u.id);
+    if(u.isManual){
+      // 직접입력: 주황 계열, X버튼으로만 삭제, 클릭으로 선택/해제 없음
+      return `<div style="display:inline-flex;align-items:center;gap:3px;padding:4px 8px 4px 11px;border-radius:20px;font-size:.78rem;font-family:inherit;font-weight:600;
+        background:${sel?'#F59E0B':'rgba(245,158,11,.15)'};
+        color:${sel?'#fff':'#92400E'};
+        border:1.5px solid ${sel?'#F59E0B':'rgba(245,158,11,.5)'};
+      ">${u.name}<span style="font-size:.63rem;opacity:.8;margin-left:3px;">${rpDisp(u.score)}</span
+      ><button onclick="balRemoveManual('${u.id}')" style="margin-left:4px;background:none;border:none;cursor:pointer;color:${sel?'rgba(255,255,255,.8)':'#92400E'};font-size:.75rem;padding:0 1px;line-height:1;">✕</button></div>`;
+    }
     return `<button onclick="balToggleAttendee('${u.id}')" style="
       padding:5px 11px;border-radius:20px;font-size:.78rem;cursor:pointer;
       font-family:inherit;font-weight:600;transition:all .12s;
@@ -4269,6 +4278,14 @@ function _balRenderAttendees(){
   });
   wrap.innerHTML=chips.length?chips.join(''):'<div style="color:var(--text-muted);font-size:.8rem;">회원 없음</div>';
   if(cnt) cnt.textContent=`${_balAttendees.length}명 선택됨`;
+}
+function balRemoveManual(id){
+  const pi=(window._balUserPool||[]).findIndex(u=>u.id===id);
+  if(pi>=0) window._balUserPool.splice(pi,1);
+  const ai=_balAttendees.findIndex(a=>a.id===id);
+  if(ai>=0) _balAttendees.splice(ai,1);
+  _balRenderAttendees();
+  if(_balType==='duo') _balRenderDuoPairUI();
 }
 function balToggleAttendee(id){
   const raw=(window._balUserPool||[]).find(x=>x.id===id);
@@ -4781,46 +4798,56 @@ async function balSave(){
   const today=new Date().toISOString().slice(0,10);
   const typeLabel={individual:'개인전',duo:'듀오전',team:'팀장전'};
   const defaultName=`${today} ${_balAttendees.length}명 ${typeLabel[_balType]||''}`;
-  // 제목 입력 모달
-  showConfirm({
-    icon:'💾',
-    title:'밸런스 저장',
-    message:`<div style="margin-bottom:8px;font-size:.82rem;color:var(--text-muted);">저장할 제목을 입력하세요</div>
-      <input id="bal-save-title" class="form-input" value="${escHtml(defaultName)}" style="width:100%;font-size:.84rem;padding:8px 10px;box-sizing:border-box;" placeholder="제목 입력">`,
-    confirmText:'저장',
-    onConfirm:async()=>{
-      const name=document.getElementById('bal-save-title')?.value?.trim()||defaultName;
-      let groupsData;
-      if(_balType==='team'){
-        groupsData={groups:[],knockout:[],rounds:[],
-          teams:[
-            {name:'A팀',captain:(_balResult.teamA.find(p=>p.captain)||{}).name||null,members:_balResult.teamA.map(p=>p.name)},
-            {name:'B팀',captain:(_balResult.teamB.find(p=>p.captain)||{}).name||null,members:_balResult.teamB.map(p=>p.name)}
-          ]};
-      } else if(_balType==='duo'){
-        groupsData={
-          groups:(_balResult.teams||[]).map(t=>({
-            name:t.name,
-            teams:t.pairs.map(pair=>({p1_name:pair.p1?.name||'',p1_id:pair.p1?.id||null,p2_name:pair.p2?.name||'',p2_id:pair.p2?.id||null})),
-            matches:[]
-          })),
-          knockout:[],rounds:[],teams:[]};
-      } else {
-        groupsData={groups:_balResult.groups,knockout:[],rounds:[],teams:[]};
-      }
-      const{error}=await sb.from('bracket_tournaments').insert({
-        name,match_date:today,status:'balance',
-        tournament_type:_balType,rounds:JSON.stringify([]),
-        groups:JSON.stringify(groupsData),created_by:ME.id
-      });
-      if(error){toast('저장 실패: '+error.message,'error');return;}
-      toast('✅ 저장 완료','success');
-      balGoStep(1);
-      balSwitchTab('history');
-    }
+  // 기존 모달 제거
+  document.getElementById('modal-bal-save')?.remove();
+  const el=document.createElement('div');
+  el.id='modal-bal-save';
+  el.className='modal-overlay center open';
+  el.innerHTML=`<div class="modal center-modal" style="max-width:320px;">
+    <div class="modal-title">💾 밸런스 저장</div>
+    <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:10px;">저장할 제목을 입력하세요</div>
+    <input id="bal-save-title" class="form-input" value="${escHtml(defaultName)}" style="margin-bottom:14px;font-size:.84rem;" placeholder="제목 입력">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('modal-bal-save').remove()">취소</button>
+      <button class="btn btn-primary" onclick="_balDoSave()">저장</button>
+    </div>
+  </div>`;
+  document.body.appendChild(el);
+  setTimeout(()=>{const inp=document.getElementById('bal-save-title');if(inp){inp.focus();inp.select();}},100);
+}
+async function _balDoSave(){
+  const today=new Date().toISOString().slice(0,10);
+  const typeLabel={individual:'개인전',duo:'듀오전',team:'팀장전'};
+  const defaultName=`${today} ${_balAttendees.length}명 ${typeLabel[_balType]||''}`;
+  const name=document.getElementById('bal-save-title')?.value?.trim()||defaultName;
+  document.getElementById('modal-bal-save')?.remove();
+  let groupsData;
+  if(_balType==='team'){
+    groupsData={groups:[],knockout:[],rounds:[],
+      teams:[
+        {name:'A팀',captain:(_balResult.teamA.find(p=>p.captain)||{}).name||null,members:_balResult.teamA.map(p=>p.name)},
+        {name:'B팀',captain:(_balResult.teamB.find(p=>p.captain)||{}).name||null,members:_balResult.teamB.map(p=>p.name)}
+      ]};
+  } else if(_balType==='duo'){
+    groupsData={
+      groups:(_balResult.teams||[]).map(t=>({
+        name:t.name,
+        teams:t.pairs.map(pair=>({p1_name:pair.p1?.name||'',p1_id:pair.p1?.id||null,p2_name:pair.p2?.name||'',p2_id:pair.p2?.id||null})),
+        matches:[]
+      })),
+      knockout:[],rounds:[],teams:[]};
+  } else {
+    groupsData={groups:_balResult.groups,knockout:[],rounds:[],teams:[]};
+  }
+  const{error}=await sb.from('bracket_tournaments').insert({
+    name,match_date:today,status:'balance',
+    tournament_type:_balType,rounds:JSON.stringify([]),
+    groups:JSON.stringify(groupsData),created_by:ME.id
   });
-  // 모달 열린 후 input에 포커스
-  setTimeout(()=>document.getElementById('bal-save-title')?.focus(),200);
+  if(error){toast('저장 실패: '+error.message,'error');return;}
+  toast('✅ 저장 완료','success');
+  balGoStep(1);
+  balSwitchTab('history');
 }
 
 
