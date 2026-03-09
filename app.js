@@ -3886,152 +3886,112 @@ function _renderKnockoutBracket(knockout){
 
 // ── 팀전 라운드 시각화 ──
 function _renderTeamRounds(rounds){
-  // 팀 색상 테마: 배경에 어울리는 2가지 팀 컬러
-  // A팀: 에메랄드/청록  B팀: 코랄/주황
-  const TEAM_A={
-    name:'A팀',
-    color:'#00C896',           // 텍스트/배지
-    bg:'rgba(0,200,150,.13)',   // 카드 배경
-    border:'rgba(0,200,150,.35)',
-    badge:'rgba(0,200,150,.22)',
-    light:'rgba(0,200,150,.07)'
-  };
-  const TEAM_B={
-    name:'B팀',
-    color:'#FF7043',
-    bg:'rgba(255,112,67,.13)',
-    border:'rgba(255,112,67,.35)',
-    badge:'rgba(255,112,67,.22)',
-    light:'rgba(255,112,67,.07)'
-  };
+  // 팀 색상: A팀 파랑, B팀 주황 — 강조는 최소화
+  const CA={c:'#5B9CF6',dim:'rgba(91,156,246,.15)'};
+  const CB={c:'#F59E0B',dim:'rgba(245,158,11,.15)'};
 
-  // ── 전체 데이터에서 팀 구성원 자동 탐지 (A측 / B측) ──
-  // 모든 경기에서 왼쪽(t1) → A팀, 오른쪽(t2) → B팀으로 고정
-  const playerSide={};  // {이름: 'A'|'B'}
-  const playerStats={}; // {이름: {wins,losses,pf,pa,team:'A'|'B'}}
+  // 선수별 스탯 수집
+  const playerSide={}, playerStats={};
   rounds.forEach(r=>{
     (r.matches||[]).forEach(m=>{
-      const p1s=[m.t1?.p1_name, m.t1?.p2_name].filter(Boolean);
-      const p2s=[m.t2?.p1_name, m.t2?.p2_name].filter(Boolean);
-      p1s.forEach(n=>{if(!playerSide[n]) playerSide[n]='A';});
-      p2s.forEach(n=>{if(!playerSide[n]) playerSide[n]='B';});
-      if(m.done && m.s1!==null){
-        const s1=parseInt(m.s1), s2=parseInt(m.s2);
-        const aWin=s1>s2;
-        [...p1s,...p2s].forEach(n=>{
-          if(!playerStats[n]) playerStats[n]={wins:0,losses:0,pf:0,pa:0,team:playerSide[n]||'A'};
-        });
-        p1s.forEach(n=>{
-          if(!playerStats[n]) return;
-          playerStats[n].pf+=s1; playerStats[n].pa+=s2;
-          if(aWin) playerStats[n].wins++; else playerStats[n].losses++;
-        });
-        p2s.forEach(n=>{
-          if(!playerStats[n]) return;
-          playerStats[n].pf+=s2; playerStats[n].pa+=s1;
-          if(!aWin) playerStats[n].wins++; else playerStats[n].losses++;
-        });
+      const p1s=[m.t1?.p1_name,m.t1?.p2_name].filter(Boolean);
+      const p2s=[m.t2?.p1_name,m.t2?.p2_name].filter(Boolean);
+      p1s.forEach(n=>{if(!playerSide[n])playerSide[n]='A';});
+      p2s.forEach(n=>{if(!playerSide[n])playerSide[n]='B';});
+      if(m.done&&m.s1!==null){
+        const s1=parseInt(m.s1),s2=parseInt(m.s2),aWin=s1>s2;
+        [...p1s,...p2s].forEach(n=>{if(!playerStats[n])playerStats[n]={wins:0,losses:0,pf:0,pa:0,team:playerSide[n]||'A'};});
+        p1s.forEach(n=>{if(!playerStats[n])return;playerStats[n].pf+=s1;playerStats[n].pa+=s2;if(aWin)playerStats[n].wins++;else playerStats[n].losses++;});
+        p2s.forEach(n=>{if(!playerStats[n])return;playerStats[n].pf+=s2;playerStats[n].pa+=s1;if(!aWin)playerStats[n].wins++;else playerStats[n].losses++;});
       }
     });
   });
 
-  // ── 팀별 라운드 승패 집계 ──
-  const roundSummary=[]; // [{label, aWins, bWins}]
-  rounds.forEach(r=>{
+  // 라운드별 승패
+  const roundSummary=rounds.map(r=>{
     let aW=0,bW=0;
-    (r.matches||[]).forEach(m=>{
-      if(!m.done||m.s1===null) return;
-      const s1=parseInt(m.s1),s2=parseInt(m.s2);
-      if(s1>s2) aW++; else bW++;
-    });
-    roundSummary.push({label:r.label||'R?',aWins:aW,bWins:bW,total:aW+bW});
+    (r.matches||[]).forEach(m=>{if(!m.done||m.s1===null)return;parseInt(m.s1)>parseInt(m.s2)?aW++:bW++;});
+    return {label:r.label||'R?',aWins:aW,bWins:bW};
   });
   const totalA=roundSummary.reduce((s,r)=>s+r.aWins,0);
   const totalB=roundSummary.reduce((s,r)=>s+r.bWins,0);
   const winner=totalA>totalB?'A':totalA<totalB?'B':null;
-
-  let html=`<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">`;
-
-  // ── 팀 헤더 배너 ──
-  // 득실 집계
   let diffA=0,diffB=0;
-  rounds.forEach(r=>{(r.matches||[]).forEach(m=>{if(!m.done||m.s1===null) return;diffA+=parseInt(m.s1)-parseInt(m.s2);diffB+=parseInt(m.s2)-parseInt(m.s1);});});
-  html+=`<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;background:var(--bg2);border-radius:12px;padding:10px 14px;border:1px solid var(--border);">
-    <div style="text-align:center;">
-      <div style="font-size:.72rem;color:${TEAM_A.color};font-weight:700;letter-spacing:.05em;margin-bottom:2px;">A팀</div>
-      <div style="font-size:1.5rem;font-weight:900;color:${TEAM_A.color};line-height:1;">${totalA}</div>
-      <div style="font-size:.68rem;color:${diffA>=0?TEAM_A.color:'var(--text-muted)'};margin-top:2px;">${diffA>=0?'+':''}${diffA}</div>
+  rounds.forEach(r=>{(r.matches||[]).forEach(m=>{if(!m.done||m.s1===null)return;diffA+=parseInt(m.s1)-parseInt(m.s2);diffB+=parseInt(m.s2)-parseInt(m.s1);});});
+
+  let html=`<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px;">`;
+
+  // ── 스코어보드 ──
+  const winnerBorder=winner?`border:1.5px solid ${winner==='A'?CA.c:CB.c};`:'border:1px solid var(--border);';
+  html+=`<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:0;background:var(--bg2);border-radius:12px;overflow:hidden;${winnerBorder}">
+    <div style="text-align:center;padding:14px 10px;background:${totalA>totalB?CA.dim:'transparent'};">
+      <div style="font-size:.7rem;font-weight:700;color:${CA.c};letter-spacing:.08em;margin-bottom:4px;">A팀</div>
+      <div style="font-size:2rem;font-weight:900;color:${totalA>totalB?CA.c:'var(--text)'};line-height:1;">${totalA}</div>
+      <div style="font-size:.68rem;color:var(--text-muted);margin-top:3px;">${diffA>=0?'+':''}${diffA} 득실</div>
     </div>
-    <div style="text-align:center;font-size:.72rem;color:var(--text-muted);font-weight:600;">총 승</div>
-    <div style="text-align:center;">
-      <div style="font-size:.72rem;color:${TEAM_B.color};font-weight:700;letter-spacing:.05em;margin-bottom:2px;">B팀</div>
-      <div style="font-size:1.5rem;font-weight:900;color:${TEAM_B.color};line-height:1;">${totalB}</div>
-      <div style="font-size:.68rem;color:${diffB>=0?TEAM_B.color:'var(--text-muted)'};margin-top:2px;">${diffB>=0?'+':''}${diffB}</div>
+    <div style="padding:0 14px;font-size:.72rem;color:var(--text-muted);font-weight:600;">vs</div>
+    <div style="text-align:center;padding:14px 10px;background:${totalB>totalA?CB.dim:'transparent'};">
+      <div style="font-size:.7rem;font-weight:700;color:${CB.c};letter-spacing:.08em;margin-bottom:4px;">B팀</div>
+      <div style="font-size:2rem;font-weight:900;color:${totalB>totalA?CB.c:'var(--text)'};line-height:1;">${totalB}</div>
+      <div style="font-size:.68rem;color:var(--text-muted);margin-top:3px;">${diffB>=0?'+':''}${diffB} 득실</div>
     </div>
   </div>`;
 
   // ── 라운드별 카드 ──
   rounds.forEach((round,ri)=>{
     const rs=roundSummary[ri];
-    const rAWin=rs.aWins>rs.bWins, rBWin=rs.bWins>rs.aWins;
+    const rAW=rs.aWins>rs.bWins, rBW=rs.bWins>rs.aWins;
     html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;">`;
-    // 라운드 헤더: 라운드명 + 이 라운드 승패
-    html+=`<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:7px 12px;background:var(--bg3);border-bottom:1px solid var(--border);">
-      <div style="font-size:.8rem;font-weight:700;color:${rAWin?TEAM_A.color:'var(--text-muted)'};">${rs.aWins}승</div>
-      <div style="font-size:.78rem;font-weight:700;color:var(--text-muted);">${rs.label}</div>
-      <div style="font-size:.8rem;font-weight:700;color:${rBWin?TEAM_B.color:'var(--text-muted)'};text-align:right;">${rs.bWins}승</div>
+    // 라운드 헤더
+    html+=`<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:6px 12px;border-bottom:1px solid var(--border);">
+      <div style="font-size:.78rem;font-weight:700;color:${rAW?CA.c:'var(--text-muted)'};">${rs.aWins}승</div>
+      <div style="font-size:.74rem;color:var(--text-muted);font-weight:600;padding:0 10px;">${rs.label}</div>
+      <div style="font-size:.78rem;font-weight:700;color:${rBW?CB.c:'var(--text-muted)'};text-align:right;">${rs.bWins}승</div>
     </div>`;
-    // 개별 경기들
-    html+=`<div style="display:flex;flex-direction:column;gap:0;">`;
+    // 개별 경기
     (round.matches||[]).forEach((m,mi)=>{
       const n1=_tl(m.t1)||'TBD', n2=_tl(m.t2)||'TBD';
       const done=m.done&&m.s1!==null;
-      const w1=done&&parseInt(m.s1)>parseInt(m.s2);
-      const w2=done&&!w1;
-      const borderTop=mi>0?'border-top:1px solid var(--border);':'';
-      html+=`<div style="display:grid;grid-template-columns:1fr 56px 1fr;align-items:stretch;${borderTop}">
-        <div style="padding:8px 10px;background:${w1?TEAM_A.bg:TEAM_A.light};display:flex;align-items:center;gap:4px;">
-          <div style="width:3px;height:100%;min-height:16px;background:${w1?TEAM_A.color:'rgba(120,120,130,.3)'};border-radius:2px;flex-shrink:0;align-self:stretch;"></div>
-          <span style="font-size:.78rem;${w1?`font-weight:700;color:${TEAM_A.color};`:'color:var(--text-muted);'}">${n1}</span>
+      const w1=done&&parseInt(m.s1)>parseInt(m.s2), w2=done&&!w1;
+      const sep=mi>0?'border-top:1px solid var(--border);':'';
+      html+=`<div style="display:grid;grid-template-columns:1fr 52px 1fr;align-items:center;${sep}">
+        <div style="padding:9px 12px;display:flex;align-items:center;gap:6px;">
+          <div style="width:2px;height:18px;background:${w1?CA.c:'var(--border)'};border-radius:1px;flex-shrink:0;"></div>
+          <span style="font-size:.8rem;${w1?`font-weight:700;color:var(--text);`:'color:var(--text-muted);'}">${n1}</span>
         </div>
-        <div style="display:flex;align-items:center;justify-content:center;gap:2px;background:var(--bg3);border-left:1px solid var(--border);border-right:1px solid var(--border);">
-          <span style="font-size:.88rem;font-weight:900;color:${done?(w1?TEAM_A.color:TEAM_B.color):'var(--text-muted)'};">${done?m.s1:'—'}</span>
-          <span style="font-size:.7rem;color:var(--text-muted);">:</span>
-          <span style="font-size:.88rem;font-weight:900;color:${done?(w2?TEAM_B.color:TEAM_A.color):'var(--text-muted)'};">${done?m.s2:'—'}</span>
+        <div style="display:flex;align-items:center;justify-content:center;gap:3px;border-left:1px solid var(--border);border-right:1px solid var(--border);height:100%;padding:6px 0;">
+          <span style="font-size:.9rem;font-weight:800;color:${w1?CA.c:done?'var(--text-muted)':'var(--text-muted)'};">${done?m.s1:'—'}</span>
+          <span style="font-size:.65rem;color:var(--text-dim);">:</span>
+          <span style="font-size:.9rem;font-weight:800;color:${w2?CB.c:done?'var(--text-muted)':'var(--text-muted)'};">${done?m.s2:'—'}</span>
         </div>
-        <div style="padding:8px 10px;background:${w2?TEAM_B.bg:TEAM_B.light};display:flex;align-items:center;justify-content:flex-end;gap:4px;">
-          <span style="font-size:.78rem;${w2?`font-weight:700;color:${TEAM_B.color};`:'color:var(--text-muted);'}">${n2}</span>
-          <div style="width:3px;height:100%;min-height:16px;background:${w2?TEAM_B.color:'rgba(120,120,130,.3)'};border-radius:2px;flex-shrink:0;align-self:stretch;"></div>
+        <div style="padding:9px 12px;display:flex;align-items:center;justify-content:flex-end;gap:6px;">
+          <span style="font-size:.8rem;${w2?`font-weight:700;color:var(--text);`:'color:var(--text-muted);'}">${n2}</span>
+          <div style="width:2px;height:18px;background:${w2?CB.c:'var(--border)'};border-radius:1px;flex-shrink:0;"></div>
         </div>
       </div>`;
     });
-    html+=`</div></div>`;
+    html+=`</div>`;
   });
 
-  // ── 개인별 스탯 테이블 ──
-  const players=Object.entries(playerStats).sort((a,b)=>{
-    if(a[1].team!==b[1].team) return a[1].team==='A'?-1:1;
-    return b[1].wins-a[1].wins||(b[1].pf-b[1].pa)-(a[1].pf-a[1].pa);
-  });
+  // ── 개인별 전적 ──
+  const players=Object.entries(playerStats).sort((a,b)=>a[1].team!==b[1].team?(a[1].team==='A'?-1:1):b[1].wins-a[1].wins);
   if(players.length){
     html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
-      <div style="font-weight:700;font-size:.8rem;margin-bottom:8px;">📊 개인별 전적</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">`;
+      <div style="font-size:.78rem;font-weight:700;color:var(--text-muted);margin-bottom:8px;">📋 개인별 전적</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">`;
     ['A','B'].forEach(side=>{
-      const T=side==='A'?TEAM_A:TEAM_B;
-      const sidePlayers=players.filter(([,s])=>s.team===side);
-      html+=`<div style="background:${T.bg};border:1px solid ${T.border};border-radius:8px;padding:8px 10px;">
-        <div style="font-size:.72rem;font-weight:700;color:${T.color};margin-bottom:6px;">${T.name}</div>`;
-      sidePlayers.forEach(([name,s])=>{
-        const diff=s.pf-s.pa;
-        const total=s.wins+s.losses;
-        const total2=s.wins+s.losses;
-        html+=`<div style="display:flex;align-items:center;gap:4px;padding:3px 0;border-bottom:1px solid ${T.border};">
-          <span style="flex:1;font-size:.75rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>
-          <span style="font-size:.68rem;color:var(--text-muted);white-space:nowrap;">${total2}전</span>
-          <span style="font-size:.7rem;color:${T.color};font-weight:700;white-space:nowrap;">${s.wins}승</span>
-          <span style="font-size:.7rem;color:var(--text-muted);">${s.losses}패</span>
-          <span style="font-size:.68rem;color:${diff>=0?T.color:'var(--danger)'};white-space:nowrap;">${diff>=0?'+':''}${diff}</span>
+      const T=side==='A'?CA:CB;
+      const sp=players.filter(([,s])=>s.team===side);
+      html+=`<div>
+        <div style="font-size:.7rem;font-weight:700;color:${T.c};margin-bottom:5px;padding-bottom:4px;border-bottom:1.5px solid ${T.c}40;">${side}팀</div>`;
+      sp.forEach(([name,s])=>{
+        const total=s.wins+s.losses, diff=s.pf-s.pa;
+        html+=`<div style="display:flex;align-items:center;gap:4px;padding:4px 0;border-bottom:1px solid var(--border);">
+          <span style="flex:1;font-size:.76rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>
+          <span style="font-size:.68rem;color:var(--text-muted);">${total}전</span>
+          <span style="font-size:.7rem;font-weight:700;color:${T.c};">${s.wins}승</span>
+          <span style="font-size:.68rem;color:var(--text-muted);">${s.losses}패</span>
+          <span style="font-size:.67rem;color:${diff>=0?T.c:'var(--danger)'};">${diff>=0?'+':''}${diff}</span>
         </div>`;
       });
       html+=`</div>`;
@@ -4041,13 +4001,13 @@ function _renderTeamRounds(rounds){
 
   // ── 우승 배너 ──
   if(winner){
-    const WT=winner==='A'?TEAM_A:TEAM_B;
-    html+=`<div style="text-align:center;background:${WT.bg};border:1.5px solid ${WT.border};border-radius:10px;padding:10px;">
-      <span style="font-size:.85rem;font-weight:800;color:${WT.color};">🏆 ${WT.name} 우승! (${winner==='A'?totalA:totalB} : ${winner==='A'?totalB:totalA})</span>
+    const T=winner==='A'?CA:CB;
+    html+=`<div style="text-align:center;background:${T.dim};border:1.5px solid ${T.c}60;border-radius:10px;padding:10px;">
+      <span style="font-size:.88rem;font-weight:800;color:${T.c};">🏆 ${winner}팀 우승 &nbsp;${winner==='A'?totalA:totalB} : ${winner==='A'?totalB:totalA}</span>
     </div>`;
   } else if(totalA+totalB>0){
     html+=`<div style="text-align:center;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;">
-      <span style="font-size:.82rem;font-weight:700;color:var(--text-muted);">🤝 무승부 (${totalA} : ${totalB})</span>
+      <span style="font-size:.82rem;font-weight:700;color:var(--text-muted);">🤝 무승부 &nbsp;${totalA} : ${totalB}</span>
     </div>`;
   }
 
@@ -4182,14 +4142,15 @@ function balGoStep(n){
 // ── 참석자 로딩 (CI 포함) ──
 async function _balLoadAttendees(){
   try{
-    // profiles: 정회원 로드
-    const{data:users,error}=await sb.from('profiles').select('id,name').eq('status','approved').order('name');
+    // profiles: 정회원 로드 (exclude_stats 포함 — 통계제외 회원은 밸런스에서도 제외)
+    const{data:users,error}=await sb.from('profiles').select('id,name,exclude_stats').eq('status','approved').order('name');
     if(error) throw error;
     // matches 캐시에서 통계 계산
     const matches=window._allMatchesCache||[];
-    const memberNames=new Set((users||[]).map(u=>u.name));
+    const activeUsers=(users||[]).filter(u=>!u.exclude_stats);
+    const memberNames=new Set((users||[]).map(u=>u.name)); // 이름 중복 방지용 (제외 회원 포함)
     const stats={};
-    (users||[]).forEach(u=>{stats[u.id]={id:u.id,name:u.name,isGuest:false,games:0,wins:0,scored:0,conceded:0};});
+    activeUsers.forEach(u=>{stats[u.id]={id:u.id,name:u.name,isGuest:false,games:0,wins:0,scored:0,conceded:0};});
     // 비회원(id없음, 게스트모드 제외) 수집
     const guestModeNames=window._guestModeNamesCache||await _loadGuestModeNames();
     const guestStats={};
