@@ -3632,6 +3632,8 @@ async function _openBalanceDetail(bt){
   const actionsEl=document.getElementById('bd-actions');
   if(titleEl) titleEl.textContent='⚖️ '+bt.name;
   if(!contentEl) return;
+  // score 보완용 pool 미리 로드
+  if(!window._balUserPool||window._balUserPool.length===0) await _balLoadAttendees();
   const isAdmin=ME?.role==='admin';
   contentEl.innerHTML=_renderBalanceSavedView(bt, data);
   if(actionsEl) actionsEl.innerHTML=
@@ -3816,11 +3818,19 @@ function _renderBalanceSavedView(bt, data){
   const isDuo=tType==='duo';
   const pal=['#5B9CF6','#F59E0B','#10B981','#F472B6','#A78BFA','#34D399'];
 
+  // score 보완: 저장된 score가 없으면 _balUserPool에서 찾음
+  const _scoreByName=(name,savedScore)=>{
+    if(savedScore) return savedScore;
+    const u=(window._balUserPool||[]).find(x=>x.name===name);
+    return u?.score||0;
+  };
+
   let groups=[], scores=[];
   if(isTeam){
     (data.teams||[]).forEach(t=>{
       // players 배열(score 포함) 우선, 없으면 members 이름만
-      const players=t.players||(t.members||[]).map(n=>({name:n,score:0}));
+      const rawPlayers=t.players||(t.members||[]).map(n=>({name:n,score:0}));
+      const players=rawPlayers.map(p=>({...p,score:_scoreByName(p.name,p.score)}));
       const avg=players.length?Math.round(players.reduce((s,p)=>s+(p.score||0),0)/players.length):0;
       groups.push({name:t.name,players,captain:t.captain,isTeam:true});
       scores.push(avg);
@@ -3828,7 +3838,11 @@ function _renderBalanceSavedView(bt, data){
   } else {
     (data.groups||[]).forEach(g=>{
       if(isDuo){
-        const pairs=g.teams||[];
+        const pairs=(g.teams||[]).map(t=>({
+          ...t,
+          p1_score:_scoreByName(t.p1_name,t.p1_score),
+          p2_score:t.p2_name?_scoreByName(t.p2_name,t.p2_score):0,
+        }));
         const avg=pairs.length?Math.round(pairs.reduce((s,t)=>{
           const s1=t.p1_score||0, s2=t.p2_score||0;
           return s+(s1+(t.p2_name?s2:0))/(t.p2_name?2:1);
@@ -3836,7 +3850,7 @@ function _renderBalanceSavedView(bt, data){
         groups.push({name:g.name,pairs,isDuo:true});
         scores.push(avg);
       } else {
-        const players=g.players||[];
+        const players=(g.players||[]).map(p=>({...p,score:_scoreByName(p.name,p.score)}));
         const avg=players.length?Math.round(players.reduce((s,p)=>s+(p.score||0),0)/players.length):0;
         groups.push({name:g.name,players,isDuo:false});
         scores.push(avg);
