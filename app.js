@@ -4102,32 +4102,81 @@ let _balResult    = null; // 배분 결과
 let _balDuoPairs  = [];   // [{p1,p2}] 듀오 페어 (수동 구성)
 
 // ── 밸런스 페이지 진입 ──
+let _balCurrentTab='compare';
 function renderBalancePage(){
   if(ME?.role!=='admin'){toast('관리자만 사용 가능합니다','error');return;}
-  // 페이지 전환 후 DOM이 준비된 뒤 실행
   setTimeout(()=>{
-    _balAttendees=[];_balType='individual';_balResult=null;_balDuoPairs=[];
-    window._balUserPool=null; // 매번 새로 로딩
-    balGoStep(1);
-    balSetType('individual');
-    const w=document.getElementById('bal-attendee-list');
-    if(w) w.innerHTML='<div style="color:var(--text-muted);font-size:.8rem;">불러오는 중…</div>';
-    _balLoadAttendees();
+    balSwitchTab(_balCurrentTab||'compare');
   },50);
+}
+function balSwitchTab(tab){
+  _balCurrentTab=tab;
+  const isCompare=tab==='compare';
+  // 탭 버튼 스타일
+  const tc=document.getElementById('bal-tab-compare');
+  const th=document.getElementById('bal-tab-history');
+  if(tc){tc.style.background=isCompare?'var(--primary)':'transparent';tc.style.color=isCompare?'#fff':'var(--text-muted)';}
+  if(th){th.style.background=!isCompare?'var(--primary)':'transparent';th.style.color=!isCompare?'#fff':'var(--text-muted)';}
+  // 탭 콘텐츠
+  const cc=document.getElementById('bal-tab-content-compare');
+  const ch=document.getElementById('bal-tab-content-history');
+  if(cc) cc.style.display=isCompare?'block':'none';
+  if(ch) ch.style.display=!isCompare?'block':'none';
+  // 초기화 버튼: 비교탭만
+  const rb=document.getElementById('bal-reset-btn');
+  if(rb) rb.style.display=isCompare?'':'none';
+  if(isCompare){
+    if(!window._balUserPool){
+      _balAttendees=[];_balType='individual';_balResult=null;_balDuoPairs=[];
+      balGoStep(1);balSetType('individual');
+      const w=document.getElementById('bal-attendee-list');
+      if(w) w.innerHTML='<div style="color:var(--text-muted);font-size:.8rem;">불러오는 중…</div>';
+      _balLoadAttendees();
+    }
+  } else {
+    _balRenderHistory();
+  }
 }
 function balReset(){
   _balAttendees=[];_balType='individual';_balResult=null;_balDuoPairs=[];
   window._balUserPool=null;
   const w=document.getElementById('bal-attendee-list');
   if(w) w.innerHTML='<div style="color:var(--text-muted);font-size:.8rem;">불러오는 중…</div>';
-  balGoStep(1);
-  balSetType('individual');
+  balGoStep(1);balSetType('individual');
   _balLoadAttendees();
 }
 function toggleBalanceForm(){ navigateTo('balance'); }
 function balGoStep(n){
   document.getElementById('bal-step1').style.display=n===1?'block':'none';
   document.getElementById('bal-step2').style.display=n===2?'block':'none';
+}
+async function _balRenderHistory(){
+  const el=document.getElementById('bal-history-list');
+  if(!el) return;
+  el.innerHTML='<div style="color:var(--text-muted);font-size:.8rem;text-align:center;padding:20px 0;">불러오는 중…</div>';
+  const{data,error}=await sb.from('bracket_tournaments')
+    .select('id,name,match_date,tournament_type,created_at')
+    .eq('status','balance')
+    .order('created_at',{ascending:false});
+  if(error||!data?.length){
+    el.innerHTML='<div style="color:var(--text-muted);font-size:.82rem;text-align:center;padding:30px 0;">저장된 밸런스 내역이 없습니다</div>';
+    return;
+  }
+  const typeLabel={individual:'👤 개인전',duo:'👥 듀오전',team:'🚩 팀장전'};
+  let html='<div style="display:flex;flex-direction:column;gap:8px;">';
+  data.forEach(bt=>{
+    const tl=typeLabel[bt.tournament_type]||'';
+    const dateStr=bt.match_date||bt.created_at?.slice(0,10)||'';
+    html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="openBracketDetail('${bt.id}')">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:.86rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(bt.name)}</div>
+        <div style="font-size:.72rem;color:var(--text-muted);margin-top:2px;">${tl} &nbsp;·&nbsp; ${dateStr}</div>
+      </div>
+      <div style="font-size:.75rem;color:var(--primary);font-weight:600;flex-shrink:0;">보기 ›</div>
+    </div>`;
+  });
+  html+='</div>';
+  el.innerHTML=html;
 }
 
 // ── 참석자 로딩 (CI 포함) ──
@@ -4180,6 +4229,29 @@ async function _balLoadAttendees(){
   }
   _balRenderAttendees();
 }
+function balAddManual(){
+  const nameEl=document.getElementById('bal-manual-name');
+  const rpEl=document.getElementById('bal-manual-rp');
+  const name=(nameEl?.value||'').trim();
+  const rp=parseInt(rpEl?.value||'0');
+  if(!name){toast('이름을 입력하세요','error');return;}
+  if(isNaN(rp)||rp<0){toast('RP를 입력하세요','error');return;}
+  // 중복 체크
+  const pool=window._balUserPool||[];
+  if(pool.some(u=>u.name===name)){toast('이미 존재하는 이름입니다','error');return;}
+  // rpDisp 역산: 입력값은 이미 /10된 값이므로 *10 저장
+  const score=rp*10;
+  const id='manual:'+name;
+  const u={id,name,isGuest:true,isManual:true,games:0,wins:0,scored:0,conceded:0,diff:0,score,ci:score};
+  pool.push(u);
+  window._balUserPool=pool;
+  // 즉시 선택 상태로 추가
+  _balAttendees.push({...u});
+  _balAttendees.sort((a,b)=>b.score-a.score);
+  nameEl.value=''; rpEl.value='';
+  _balRenderAttendees();
+  if(_balType==='duo') _balRenderDuoPairUI();
+}
 function _balRenderAttendees(){
   const wrap=document.getElementById('bal-attendee-list');
   const cnt=document.getElementById('bal-attendee-count');
@@ -4202,8 +4274,16 @@ function balToggleAttendee(id){
   const raw=(window._balUserPool||[]).find(x=>x.id===id);
   if(!raw) return;
   const idx=_balAttendees.findIndex(a=>a.id===id);
-  if(idx>=0) _balAttendees.splice(idx,1);
-  else _balAttendees.push({...raw});
+  if(idx>=0){
+    _balAttendees.splice(idx,1);
+    // 직접입력 선수는 pool에서도 제거
+    if(raw.isManual){
+      const pi=(window._balUserPool||[]).findIndex(u=>u.id===id);
+      if(pi>=0) window._balUserPool.splice(pi,1);
+    }
+  } else {
+    _balAttendees.push({...raw});
+  }
   _balAttendees.sort((a,b)=>b.score-a.score);
   _balRenderAttendees();
   if(_balType==='duo') _balRenderDuoPairUI();
@@ -4222,7 +4302,7 @@ function balSetType(t){
 }
 function _balUpdateCaptainSelects(){
   if(_balType!=='team') return;
-  const opts='<option value="">선택</option>'+_balAttendees.map(a=>`<option value="${a.id}">${a.name} (${a.score})</option>`).join('');
+  const opts='<option value="">선택</option>'+_balAttendees.map(a=>`<option value="${a.id}">${a.name} (${rpDisp(a.score)})</option>`).join('');
   ['bal-captain-a','bal-captain-b'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el) return;
@@ -4269,14 +4349,14 @@ function _balRenderDuoPairUI(){
         <div style="background:var(--surface);border-radius:6px;padding:4px 8px;min-height:30px;display:flex;align-items:center;justify-content:space-between;">
           ${pair.p1
             ?`<span style="font-size:.78rem;font-weight:600;">${pair.p1.name}</span>
-               <span style="font-size:.62rem;color:var(--text-muted);">${pair.p1.score}</span>`
+               <span style="font-size:.62rem;color:var(--text-muted);">${rpDisp(pair.p1.score)}</span>`
             :`<span style="font-size:.72rem;color:var(--text-muted);">파트너1</span>`}
         </div>
         <!-- 파트너2 슬롯 -->
         <div style="background:var(--surface);border-radius:6px;padding:4px 8px;min-height:30px;display:flex;align-items:center;justify-content:space-between;">
           ${pair.p2
             ?`<span style="font-size:.78rem;font-weight:600;">${pair.p2.name}</span>
-               <span style="font-size:.62rem;color:var(--text-muted);">${pair.p2.score}</span>`
+               <span style="font-size:.62rem;color:var(--text-muted);">${rpDisp(pair.p2.score)}</span>`
             :`<span style="font-size:.72rem;color:var(--text-muted);">파트너2</span>`}
         </div>
         <div style="display:flex;gap:3px;">
@@ -4334,40 +4414,62 @@ function balDuoAutoPair(){
 function _balArrangeIndividual(){
   const sorted=[..._balAttendees].sort((a,b)=>b.score-a.score);
   const n=sorted.length;
-  // 조 수 결정: 각 조 4~5명, 3명 조 불가
-  // 가능한 조 수 중 최적값 선택
-  let groupCount=1;
-  for(let g=Math.floor(n/5);g>=1;g--){
-    const base=Math.floor(n/g), rem=n%g;
-    // base = 4 or 5, rem만큼의 조는 base+1명
-    if(base>=4 && base<=5){ groupCount=g; break; }
-    if(base===3 && rem===0 && g>=2){ continue; } // 3명 조만 나오면 패스
-  }
-  // fallback: n이 너무 작으면 1조
   if(n<4){ toast('개인전은 최소 4명 필요합니다','error'); return null; }
-  // 검증: 3명 조 생기면 조 수 조정
-  const validate=(g)=>{
-    const base=Math.floor(n/g), rem=n%g;
-    return base>=4; // base가 4이상이면 OK (일부 조는 base+1명)
-  };
-  // 최소 조 수부터 탐색
-  for(let g=Math.ceil(n/5);g<=Math.floor(n/4);g++){
-    if(validate(g)){ groupCount=g; break; }
-  }
-  if(!validate(groupCount)) groupCount=Math.ceil(n/5);
 
-  const groups=Array.from({length:groupCount},(_,gi)=>({
+  // 조 수 결정: 각 조 4~5명, 3명 조 불가
+  let groupCount=Math.ceil(n/5);
+  for(let g=Math.ceil(n/5);g<=Math.floor(n/4);g++){
+    if(Math.floor(n/g)>=4){ groupCount=g; break; }
+  }
+
+  // ── 핵심 알고리즘: 조내 균일 + 조간 평균 균형 동시 최적화 ──
+  // 1단계: 뱀배열로 초기 배분 (조간 평균 균형 확보)
+  const initGroups=Array.from({length:groupCount},(_,gi)=>({
     name:`${String.fromCharCode(65+gi)}조`,
     players:[],
   }));
-  // 뱀배열
   sorted.forEach((p,i)=>{
     const row=Math.floor(i/groupCount);
     const col=i%groupCount;
     const gi=row%2===0?col:groupCount-1-col;
-    groups[gi].players.push({...p});
+    initGroups[gi].players.push({...p});
   });
-  return {groups};
+
+  // 평가 함수: 조내 표준편차 합 * 0.5 + 조간 평균 표준편차 * 0.5
+  const evaluate=(gs)=>{
+    const avgs=gs.map(g=>g.players.reduce((s,p)=>s+(p.score||0),0)/(g.players.length||1));
+    const globalMean=avgs.reduce((s,v)=>s+v,0)/avgs.length;
+    // 조간 평균 표준편차
+    const interStd=Math.sqrt(avgs.reduce((s,v)=>s+(v-globalMean)**2,0)/avgs.length);
+    // 조내 표준편차 평균
+    const intraStd=gs.reduce((s,g)=>{
+      const avg=g.players.reduce((a,p)=>a+(p.score||0),0)/(g.players.length||1);
+      return s+Math.sqrt(g.players.reduce((a,p)=>a+(p.score-avg)**2,0)/(g.players.length||1));
+    },0)/gs.length;
+    // 두 목표를 동등 가중치로 합산 (낮을수록 좋음)
+    return interStd*0.5 + intraStd*0.5;
+  };
+
+  // 2단계: 개선 탐색 — 무작위 2명 스왑 반복으로 점수 개선
+  let best=initGroups.map(g=>({...g,players:[...g.players]}));
+  let bestScore=evaluate(best);
+
+  // 같은 조 내 원소 교환 (조내 균일) + 다른 조간 교환 (조간 균형) 탐색
+  for(let iter=0;iter<800;iter++){
+    // 무작위 두 조 선택
+    const gi=Math.floor(Math.random()*groupCount);
+    const gj=Math.floor(Math.random()*groupCount);
+    if(gi===gj) continue;
+    const pi=Math.floor(Math.random()*best[gi].players.length);
+    const pj=Math.floor(Math.random()*best[gj].players.length);
+    // 스왑 시도
+    const candidate=best.map(g=>({...g,players:[...g.players]}));
+    [candidate[gi].players[pi],candidate[gj].players[pj]]=[candidate[gj].players[pj],candidate[gi].players[pi]];
+    const s=evaluate(candidate);
+    if(s<bestScore){ best=candidate; bestScore=s; }
+  }
+
+  return {groups:best};
 }
 
 // 듀오전: 페어 단위 → 각 조 3~4팀
@@ -4417,6 +4519,10 @@ function balGenerate(){
   if(_balAttendees.length<(minMap[_balType]||4)){
     const msg={individual:'개인전은 최소 4명 필요합니다',duo:'듀오전은 최소 6명(3쌍) 필요합니다',team:'팀장전은 최소 2명 필요합니다'};
     toast(msg[_balType]||'참석자를 더 선택해주세요','error');return;
+  }
+  // 듀오전: 짝수 인원만 가능
+  if(_balType==='duo' && _balAttendees.length%2!==0){
+    toast(`듀오전은 짝수 인원만 가능합니다 (현재 ${_balAttendees.length}명)`,'error');return;
   }
   let result=null;
   if(_balType==='individual') result=_balArrangeIndividual();
@@ -4674,40 +4780,47 @@ async function balSave(){
   if(!_balResult){toast('먼저 밸런스 분석을 실행하세요','error');return;}
   const today=new Date().toISOString().slice(0,10);
   const typeLabel={individual:'개인전',duo:'듀오전',team:'팀장전'};
-  const name=`⚖️ ${today} ${_balAttendees.length}명 ${typeLabel[_balType]||''}`;
-  let groupsData;
-  if(_balType==='team'){
-    groupsData={groups:[],knockout:[],rounds:[],
-      teams:[
-        {name:'A팀',captain:(_balResult.teamA.find(p=>p.captain)||{}).name||null,members:_balResult.teamA.map(p=>p.name)},
-        {name:'B팀',captain:(_balResult.teamB.find(p=>p.captain)||{}).name||null,members:_balResult.teamB.map(p=>p.name)}
-      ]};
-  } else if(_balType==='duo'){
-    // 팀별 페어를 group 형태로 저장
-    groupsData={
-      groups:(_balResult.teams||[]).map(t=>({
-        name:t.name,
-        teams:t.pairs.map(pair=>({
-          p1_name:pair.p1?.name||'',p1_id:pair.p1?.id||null,
-          p2_name:pair.p2?.name||'',p2_id:pair.p2?.id||null
-        })),
-        matches:[]
-      })),
-      knockout:[],rounds:[],teams:[]
-    };
-  } else {
-    groupsData={groups:_balResult.groups,knockout:[],rounds:[],teams:[]};
-  }
-  const{data,error}=await sb.from('bracket_tournaments').insert({
-    name,match_date:today,status:'balance',
-    tournament_type:_balType,rounds:JSON.stringify([]),
-    groups:JSON.stringify(groupsData),created_by:ME.id
-  }).select().single();
-  if(error){toast('저장 실패: '+error.message,'error');return;}
-  toast('✅ 밸런스 저장 완료','success');
-  toggleBalanceForm();
-  renderBracketPage();
-  setTimeout(()=>openBracketDetail(data.id),400);
+  const defaultName=`${today} ${_balAttendees.length}명 ${typeLabel[_balType]||''}`;
+  // 제목 입력 모달
+  showConfirm({
+    icon:'💾',
+    title:'밸런스 저장',
+    message:`<div style="margin-bottom:8px;font-size:.82rem;color:var(--text-muted);">저장할 제목을 입력하세요</div>
+      <input id="bal-save-title" class="form-input" value="${escHtml(defaultName)}" style="width:100%;font-size:.84rem;padding:8px 10px;box-sizing:border-box;" placeholder="제목 입력">`,
+    confirmText:'저장',
+    onConfirm:async()=>{
+      const name=document.getElementById('bal-save-title')?.value?.trim()||defaultName;
+      let groupsData;
+      if(_balType==='team'){
+        groupsData={groups:[],knockout:[],rounds:[],
+          teams:[
+            {name:'A팀',captain:(_balResult.teamA.find(p=>p.captain)||{}).name||null,members:_balResult.teamA.map(p=>p.name)},
+            {name:'B팀',captain:(_balResult.teamB.find(p=>p.captain)||{}).name||null,members:_balResult.teamB.map(p=>p.name)}
+          ]};
+      } else if(_balType==='duo'){
+        groupsData={
+          groups:(_balResult.teams||[]).map(t=>({
+            name:t.name,
+            teams:t.pairs.map(pair=>({p1_name:pair.p1?.name||'',p1_id:pair.p1?.id||null,p2_name:pair.p2?.name||'',p2_id:pair.p2?.id||null})),
+            matches:[]
+          })),
+          knockout:[],rounds:[],teams:[]};
+      } else {
+        groupsData={groups:_balResult.groups,knockout:[],rounds:[],teams:[]};
+      }
+      const{error}=await sb.from('bracket_tournaments').insert({
+        name,match_date:today,status:'balance',
+        tournament_type:_balType,rounds:JSON.stringify([]),
+        groups:JSON.stringify(groupsData),created_by:ME.id
+      });
+      if(error){toast('저장 실패: '+error.message,'error');return;}
+      toast('✅ 저장 완료','success');
+      balGoStep(1);
+      balSwitchTab('history');
+    }
+  });
+  // 모달 열린 후 input에 포커스
+  setTimeout(()=>document.getElementById('bal-save-title')?.focus(),200);
 }
 
 
