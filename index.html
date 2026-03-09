@@ -228,11 +228,22 @@
     <div class="page" id="page-balance">
       <div class="flex-between mb-3">
         <div>
-          <div class="page-title">⚖️ 밸런스 비교</div>
+          <div class="page-title">⚖️ 밸런스</div>
           <div class="page-sub">참석자 RP 기반 균형 배분</div>
         </div>
-        <button onclick="balReset()" style="font-size:.74rem;padding:4px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text-muted);">🔄 초기화</button>
+        <button id="bal-reset-btn" onclick="balReset()" style="font-size:.74rem;padding:4px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text-muted);">🔄 초기화</button>
       </div>
+
+      <!-- 서브탭 -->
+      <div style="display:flex;gap:0;margin-bottom:14px;background:var(--bg2);border-radius:10px;padding:3px;">
+        <button id="bal-tab-compare" onclick="balSwitchTab('compare')"
+          style="flex:1;padding:7px 0;font-size:.83rem;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-family:inherit;background:var(--primary);color:#fff;">⚖️ 비교</button>
+        <button id="bal-tab-history" onclick="balSwitchTab('history')"
+          style="flex:1;padding:7px 0;font-size:.83rem;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-family:inherit;background:transparent;color:var(--text-muted);">📋 내역</button>
+      </div>
+
+      <!-- 비교 탭 -->
+      <div id="bal-tab-content-compare">
 
       <!-- STEP 1: 참석자 선택 -->
       <div id="bal-step1">
@@ -241,8 +252,14 @@
             <div style="font-size:.85rem;font-weight:700;">참석자 선택</div>
             <div id="bal-attendee-count" style="font-size:.74rem;color:var(--text-muted);">0명 선택됨</div>
           </div>
-          <div id="bal-attendee-list" style="display:flex;flex-wrap:wrap;gap:5px;min-height:50px;background:var(--bg2);border-radius:10px;padding:10px;margin-bottom:10px;">
+          <div id="bal-attendee-list" style="display:flex;flex-wrap:wrap;gap:5px;min-height:50px;background:var(--bg2);border-radius:10px;padding:10px;margin-bottom:8px;">
             <div style="color:var(--text-muted);font-size:.8rem;">불러오는 중…</div>
+          </div>
+          <!-- 직접 입력 -->
+          <div style="display:flex;gap:6px;margin-bottom:10px;">
+            <input id="bal-manual-name" class="form-input" placeholder="이름" style="flex:2;font-size:.82rem;padding:6px 10px;">
+            <input id="bal-manual-rp" class="form-input" placeholder="RP" type="number" style="flex:1;font-size:.82rem;padding:6px 10px;">
+            <button onclick="balAddManual()" style="padding:6px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:.8rem;font-family:inherit;color:var(--text);white-space:nowrap;">+ 추가</button>
           </div>
           <div style="display:flex;gap:6px;">
             <button id="bal-type-individual" class="btn btn-primary btn-sm" onclick="balSetType('individual')" style="flex:1;">👤 개인전</button>
@@ -277,6 +294,14 @@
           <button class="btn btn-primary" style="flex:1;" onclick="balSave()">💾 저장</button>
         </div>
       </div>
+
+      </div><!-- /bal-tab-content-compare -->
+
+      <!-- 내역 탭 -->
+      <div id="bal-tab-content-history" style="display:none;">
+        <div id="bal-history-list"><div style="color:var(--text-muted);font-size:.8rem;text-align:center;padding:20px 0;">불러오는 중…</div></div>
+      </div>
+
     </div>
 
 
@@ -501,7 +526,7 @@
 
 <div id="toast-container"></div>
 
-<script src="app.js?v=1773020262" defer></script>
+<script src="app.js?v=1773020796" defer></script>
 
 <!-- 점수판 모달 -->
 <div id="modal-scoreboard" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;z-index:9000;flex-direction:column;font-family:inherit;user-select:none;">
