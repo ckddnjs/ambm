@@ -4153,21 +4153,26 @@ let _balDuoPairs  = [];   // [{p1,p2}] 듀오 페어 (수동 구성)
 // ── 밸런스 페이지 진입 ──
 function renderBalancePage(){
   if(ME?.role!=='admin'){toast('관리자만 사용 가능합니다','error');return;}
-  _balAttendees=[];_balType='individual';_balResult=null;_balDuoPairs=[];
-  balGoStep(1);
-  balSetType('individual');
-  const w=document.getElementById('bal-attendee-list');
-  if(w) w.innerHTML='<div style="color:var(--text-muted);font-size:.8rem;">불러오는 중…</div>';
-  _balLoadAttendees();
+  // 페이지 전환 후 DOM이 준비된 뒤 실행
+  setTimeout(()=>{
+    _balAttendees=[];_balType='individual';_balResult=null;_balDuoPairs=[];
+    window._balUserPool=null; // 매번 새로 로딩
+    balGoStep(1);
+    balSetType('individual');
+    const w=document.getElementById('bal-attendee-list');
+    if(w) w.innerHTML='<div style="color:var(--text-muted);font-size:.8rem;">불러오는 중…</div>';
+    _balLoadAttendees();
+  },50);
 }
-// 초기화 버튼
 function balReset(){
   _balAttendees=[];_balType='individual';_balResult=null;_balDuoPairs=[];
+  window._balUserPool=null;
+  const w=document.getElementById('bal-attendee-list');
+  if(w) w.innerHTML='<div style="color:var(--text-muted);font-size:.8rem;">불러오는 중…</div>';
   balGoStep(1);
   balSetType('individual');
-  _balRenderAttendees();
+  _balLoadAttendees();
 }
-// 구버전 호환 (대회 탭 버튼이 남아있을 경우 대비)
 function toggleBalanceForm(){ navigateTo('balance'); }
 function balGoStep(n){
   document.getElementById('bal-step1').style.display=n===1?'block':'none';
@@ -4177,24 +4182,39 @@ function balGoStep(n){
 // ── 참석자 로딩 (CI 포함) ──
 async function _balLoadAttendees(){
   try{
-    const res=await sb.from('profiles').select('id,name,wins,losses,games,scored,conceded').eq('status','approved').order('name');
-    const users=res.data||[];
-    console.log('[bal] profiles loaded:', users.length);
-    window._balUserPool=users.map(u=>{
-      const diff=(u.scored||0)-(u.conceded||0);
-      const ci=Math.round(calcCI(u.wins||0,u.games||0,diff));
-      return {id:u.id,name:u.name,wins:u.wins||0,losses:u.losses||0,games:u.games||0,diff,score:ci,ci};
+    // profiles: id,name만 조회 (wins/scored 컬럼 없음 - matches에서 계산)
+    const{data:users,error}=await sb.from('profiles').select('id,name').eq('status','approved').order('name');
+    if(error) throw error;
+    // matches 캐시에서 통계 계산
+    const matches=window._allMatchesCache||[];
+    const stats={};
+    (users||[]).forEach(u=>{stats[u.id]={id:u.id,name:u.name,games:0,wins:0,scored:0,conceded:0};});
+    matches.forEach(m=>{
+      const aWin=m.score_a>m.score_b;
+      [{id:m.a1_id,win:aWin,s:m.score_a,c:m.score_b},{id:m.a2_id,win:aWin,s:m.score_a,c:m.score_b},
+       {id:m.b1_id,win:!aWin,s:m.score_b,c:m.score_a},{id:m.b2_id,win:!aWin,s:m.score_b,c:m.score_a}]
+      .filter(p=>p.id&&stats[p.id]).forEach(p=>{
+        stats[p.id].games++;if(p.win)stats[p.id].wins++;
+        stats[p.id].scored+=p.s;stats[p.id].conceded+=p.c;
+      });
     });
+    window._balUserPool=Object.values(stats).map(u=>{
+      const diff=u.scored-u.conceded;
+      const ci=Math.round(calcCI(u.wins,u.games,diff));
+      return {...u,diff,score:ci,ci};
+    }).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+    console.log('[bal] pool 완성:', window._balUserPool.length,'명');
   }catch(e){
     console.error('[bal] load error',e);
     window._balUserPool=[];
+    toast('참석자 로딩 실패: '+e.message,'error');
   }
   _balRenderAttendees();
 }
 function _balRenderAttendees(){
   const wrap=document.getElementById('bal-attendee-list');
   const cnt=document.getElementById('bal-attendee-count');
-  if(!wrap) return;
+  if(!wrap){console.warn('[bal] bal-attendee-list not found in DOM');return;}
   const all=window._balUserPool||[];
   const chips=all.map(u=>{
     const sel=_balAttendees.some(a=>a.id===u.id);
@@ -4712,12 +4732,10 @@ async function _loadBfAttendees(){
   window._bfUsersMap={};
   window._bfAllUsers=[];
   // 정회원 로드
-  const{data:users}=await sb.from('profiles').select('id,name,wins,losses,games,scored,conceded').eq('status','approved').order('name');
+  const{data:users}=await sb.from('profiles').select('id,name').eq('status','approved').order('name');
   (users||[]).forEach(u=>{
-    const diff=(u.scored||0)-(u.conceded||0);
-    const ci=calcCI(u.wins||0,u.games||0,diff);
-    window._bfUsersMap[u.id]={id:u.id,name:u.name,score:Math.round(ci),ci,wins:u.wins||0,losses:u.losses||0,games:u.games||0,scored:u.scored||0,conceded:u.conceded||0,diff};
-    window._bfAllUsers.push({...u,diff,ci,isGuest:false});
+    window._bfUsersMap[u.id]={id:u.id,name:u.name,score:1000,ci:1000};
+    window._bfAllUsers.push({...u,isGuest:false});
   });
   // 비회원 로드 (게스트모드 제외)
   const guestModeNames=await _loadGuestModeNames();
