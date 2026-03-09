@@ -4748,8 +4748,8 @@ function _balRenderGauge(){
     const pct=Math.round(sc/maxSc*100);
     html+=`<div style="margin-bottom:9px;">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
-        <div style="font-size:.78rem;font-weight:700;color:${color};min-width:30px;">${labels[gi]}</div>
-        <div style="font-size:.7rem;color:var(--text-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${memberLists[gi]}</div>
+        <div style="font-size:.88rem;font-weight:800;color:${color};min-width:34px;">${labels[gi]}</div>
+        <div style="font-size:.78rem;color:var(--text-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${memberLists[gi]}</div>
         <div style="font-size:.75rem;font-weight:700;color:${color};margin-left:4px;">${rpDisp(sc)}</div>
       </div>
       <div style="height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;">
@@ -4777,14 +4777,14 @@ function _balRenderEdit(){
       const avgCI=Math.round(g.players.reduce((s,p)=>s+(p.score||0),0)/(g.players.length||1));
       html+=`<div style="background:var(--bg2);border:1px solid ${color}40;border-radius:10px;padding:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
-          <div style="font-size:.78rem;font-weight:700;color:${color};">${g.name} <span style="font-weight:400;color:var(--text-muted);font-size:.7rem;">(${g.players.length}명)</span></div>
-          <div style="font-size:.72rem;color:${color};">${rpDisp(avgCI)}</div>
+          <div style="font-size:.9rem;font-weight:800;color:${color};">${g.name} <span style="font-weight:400;color:var(--text-muted);font-size:.76rem;">(${g.players.length}명)</span></div>
+          <div style="font-size:.8rem;font-weight:700;color:${color};">${rpDisp(avgCI)}</div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;">`;
       g.players.forEach((p,pi)=>{
         html+=`<div style="display:flex;align-items:center;gap:4px;background:var(--surface);border-radius:7px;padding:4px 8px;">
-          <span style="font-size:.77rem;font-weight:600;">${p.name}</span>
-          <span style="font-size:.63rem;color:var(--text-muted);">${rpDisp(p.score)}</span>
+          <span style="font-size:.9rem;font-weight:700;">${p.name}</span>
+          <span style="font-size:.72rem;color:var(--text-muted);">${rpDisp(p.score)}</span>
           <button onclick="balShowGroupMove(${gi},${pi},this)" style="font-size:.65rem;padding:1px 6px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--bg3);color:var(--text-muted);">🔀</button>
         </div>`;
       });
@@ -4802,19 +4802,19 @@ function _balRenderEdit(){
       const avgRP=Math.round(t.pairs.reduce((s,p)=>s+((p.p1?.score||0)+(p.p2?.score||0))/(p.p2?2:1),0)/(t.pairs.length||1));
       html+=`<div style="background:var(--bg2);border:1px solid ${color}40;border-radius:10px;padding:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
-          <div style="font-size:.78rem;font-weight:700;color:${color};">${t.name} <span style="font-weight:400;color:var(--text-muted);font-size:.7rem;">(${t.pairs.length}팀)</span></div>
-          <div style="font-size:.72rem;color:${color};">${rpDisp(avgRP)}</div>
+          <div style="font-size:.9rem;font-weight:800;color:${color};">${t.name} <span style="font-weight:400;color:var(--text-muted);font-size:.76rem;">(${t.pairs.length}팀)</span></div>
+          <div style="font-size:.8rem;font-weight:700;color:${color};">${rpDisp(avgRP)}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;">`;
       t.pairs.forEach((pair,pi)=>{
         html+=`<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:4px;align-items:center;background:var(--surface);border-radius:7px;padding:5px 7px;">
           <div style="background:${color}18;border-radius:5px;padding:3px 6px;text-align:center;">
-            <div style="font-size:.72rem;font-weight:600;">${pair.p1?.name||'—'}</div>
-            <div style="font-size:.6rem;color:var(--text-muted);">${rpDisp(pair.p1?.score)}</div>
+            <div style="font-size:.88rem;font-weight:700;">${pair.p1?.name||'—'}</div>
+            <div style="font-size:.7rem;color:var(--text-muted);">${rpDisp(pair.p1?.score)}</div>
           </div>
           <div style="background:${color}18;border-radius:5px;padding:3px 6px;text-align:center;">
-            <div style="font-size:.72rem;font-weight:600;">${pair.p2?.name||'미정'}</div>
-            <div style="font-size:.6rem;color:var(--text-muted);">${rpDisp(pair.p2?.score)}</div>
+            <div style="font-size:.88rem;font-weight:700;">${pair.p2?.name||'미정'}</div>
+            <div style="font-size:.7rem;color:var(--text-muted);">${rpDisp(pair.p2?.score)}</div>
           </div>
           <button onclick="balShowDuoMove(${ti},${pi},this)" style="font-size:.65rem;padding:2px 6px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--bg3);color:var(--text-muted);">🔀</button>
         </div>`;
@@ -4832,16 +4832,16 @@ function _balRenderEdit(){
       const avgCI=Math.round(members.reduce((s,p)=>s+(p.score||0),0)/(members.length||1));
       html+=`<div style="background:var(--bg2);border:1px solid ${color}40;border-radius:10px;padding:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
-          <div style="font-size:.78rem;font-weight:700;color:${color};">${side}팀 (${members.length}명)</div>
-          <div style="font-size:.72rem;color:${color};">${rpDisp(avgCI)}</div>
+          <div style="font-size:.9rem;font-weight:800;color:${color};">${side}팀 <span style="font-weight:400;font-size:.76rem;">(${members.length}명)</span></div>
+          <div style="font-size:.8rem;font-weight:700;color:${color};">${rpDisp(avgCI)}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;">`;
       members.forEach((p,pi)=>{
         const arrow=side==='A'?'→B':'←A';
         html+=`<div style="display:flex;align-items:center;gap:5px;background:var(--surface);border-radius:7px;padding:5px 8px;">
           <div style="width:3px;align-self:stretch;background:${p.captain?color:'rgba(120,120,130,.3)'};border-radius:2px;"></div>
-          <span style="flex:1;font-size:.77rem;${p.captain?'font-weight:700;color:'+color+';':''}">${p.captain?'⭐':''} ${p.name}</span>
-          <span style="font-size:.63rem;color:var(--text-muted);">${rpDisp(p.score)}</span>
+          <span style="flex:1;font-size:.9rem;${p.captain?'font-weight:800;color:'+color+';':'font-weight:600;'}">${p.captain?'⭐':''} ${p.name}</span>
+          <span style="font-size:.72rem;color:var(--text-muted);">${rpDisp(p.score)}</span>
           ${!p.captain?`<button onclick="balMoveTeam('${side}',${pi})" style="font-size:.68rem;padding:2px 7px;border:1px solid var(--border);border-radius:5px;cursor:pointer;background:var(--bg3);color:var(--text-muted);">${arrow}</button>`:''}
         </div>`;
       });
