@@ -330,13 +330,25 @@ function ciToLabel(ci){
 async function renderDashboard(){
   const{data:prof}=await sb.from('profiles').select('*').eq('id',ME.id).single();
   if(prof) ME=prof;
-  const{data:allMatches}=await sb.from('matches').select('*').eq('status','approved').order('match_date',{ascending:false}).order('created_at',{ascending:false});
-  _allMatchesCache=allMatches||[];window._allMatchesCache=_allMatchesCache;
+  // 경기 캐시: 30초 이내면 재조회 생략
+  const _now=Date.now();
+  if(!window._matchCacheTime||_now-window._matchCacheTime>30000||!_allMatchesCache.length){
+    const{data:allMatches}=await sb.from('matches').select('*').eq('status','approved').order('match_date',{ascending:false}).order('created_at',{ascending:false});
+    _allMatchesCache=allMatches||[];window._allMatchesCache=_allMatchesCache;
+    window._matchCacheTime=_now;
+    window._profilesCache=null; // 경기 새로 불러오면 프로필도 갱신
+  }
   const myMatches=_allMatchesCache.filter(m=>[m.a1_id,m.a2_id,m.b1_id,m.b2_id].includes(ME.id));
   const stats=computeStats(myMatches,ME.id);
 
   // 전체 유저 통계로 순위 계산 (exclude_stats 제외, 5경기 이상만 랭킹 산정)
-  const{data:allUsers}=await sb.from('profiles').select('id,exclude_stats').eq('status','approved');
+  // profiles 전체 캐시 저장 (renderRankTable 재사용)
+  if(!window._profilesCache||window._profilesCache.length===0){
+    const{data:pCache}=await sb.from('profiles').select('*').eq('status','approved');
+    window._profilesCache=pCache||[];
+    window._guestModeNamesCache=await _loadGuestModeNames();
+  }
+  const allUsers=window._profilesCache;
   const uStats={};
   (allUsers||[]).filter(u=>!u.exclude_stats).forEach(u=>uStats[u.id]={games:0,wins:0,diff:0,scored:0,conceded:0});
   _allMatchesCache.forEach(m=>{
@@ -980,12 +992,12 @@ function renderWrTrend(myMatches){
   });
 }
 
-async function renderRankTable(allMatches){
-  const{data:users}=await sb.from('profiles').select('*').eq('status','approved');
-  if(!users) return;
+function renderRankTable(allMatches){
+  // profiles는 대시보드 로딩 시 캐시된 것 사용 (매번 DB 재조회 X)
+  const users=window._profilesCache||[];
+  if(!users.length) return;
   const excludedIds=new Set(users.filter(u=>u.exclude_stats).map(u=>u.id));
-  // 게스트 모드 이름 목록 로드 (관리자가 설정한 랭킹 미반영 비회원 이름들)
-  const guestModeNames=await _loadGuestModeNames();
+  const guestModeNames=window._guestModeNamesCache||new Set();
   const userStats={};
   users.filter(u=>!u.exclude_stats).forEach(u=>{userStats[u.id]={id:u.id,name:u.name,games:0,wins:0,losses:0,scored:0,conceded:0,isGuest:false,isGuestMode:false};});
   const filtered=rankTab==='all'?allMatches:allMatches.filter(m=>m.match_type===rankTab);
@@ -4150,6 +4162,8 @@ function toggleBalanceForm(){
   _balAttendees=[];_balType='individual';_balResult=null;_balDuoPairs=[];
   balGoStep(1);
   balSetType('individual');
+  const w=document.getElementById('bal-attendee-list');
+  if(w) w.innerHTML='<div style="color:var(--text-muted);font-size:.8rem;">불러오는 중…</div>';
   _balLoadAttendees();
 }
 function balGoStep(n){
@@ -4174,7 +4188,7 @@ function _balRenderAttendees(){
   const cnt=document.getElementById('bal-attendee-count');
   if(!wrap) return;
   const all=window._balUserPool||[];
-  wrap.innerHTML=all.map(u=>{
+  const chips=all.map(u=>{
     const sel=_balAttendees.some(a=>a.id===u.id);
     return `<button onclick="balToggleAttendee('${u.id}')" style="
       padding:5px 11px;border-radius:20px;font-size:.78rem;cursor:pointer;
@@ -4183,7 +4197,8 @@ function _balRenderAttendees(){
       color:${sel?'#fff':'var(--text-muted)'};
       border:1.5px solid ${sel?'var(--primary)':'var(--border)'};
     ">${u.name}<span style="font-size:.63rem;opacity:.7;margin-left:3px;">${u.score}</span></button>`;
-  }).join('')||'<div style="color:var(--text-muted);font-size:.8rem;">불러오는 중…</div>';
+  });
+  wrap.innerHTML=chips.length?chips.join(''):'<div style="color:var(--text-muted);font-size:.8rem;">회원 없음</div>';
   if(cnt) cnt.textContent=`${_balAttendees.length}명 선택됨`;
 }
 function balToggleAttendee(id){
