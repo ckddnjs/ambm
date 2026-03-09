@@ -299,6 +299,15 @@ function navigateTo(page){
 }
 
 /* ── GRADE ── */
+// ── profiles 캐시 헬퍼 ──
+async function _getApprovedUsers(forceRefresh=false){
+  if(!forceRefresh && window._profilesCache && window._profilesCache.length>0)
+    return window._profilesCache;
+  const{data}=await sb.from('profiles').select('id,name,exclude_stats').eq('status','approved').order('name');
+  window._profilesCache=data||[];
+  return window._profilesCache;
+}
+
 /* ── CI 상수 ── */
 const BASE_RATING=1000, CONFIDENCE_DENOMINATOR=10, PD_WEIGHT=5,
       WR_WEIGHT=200, SYNERGY_WEIGHT=100, SYNERGY_CAP=50,
@@ -1600,8 +1609,7 @@ async function openRegisterModal(){
 }
 
 async function renderRegisterPage(){
-  const{data:users}=await sb.from('profiles').select('id,name').eq('status','approved').order('name');
-  _usersCache=users||[];
+  _usersCache=await _getApprovedUsers();
   updateRegisterSelects();
 }
 let _usersCache=[];
@@ -1669,6 +1677,17 @@ function setMatchType(t){
 }
 
 async function submitMatch(){
+  if(window._submitLock){toast('처리 중입니다…','');return;}
+  window._submitLock=true;
+  const submitBtn=document.querySelector('[onclick="submitMatch()"]');
+  if(submitBtn){submitBtn.disabled=true;submitBtn.textContent='등록 중…';}
+  try{ await _doSubmitMatch(); }
+  finally{
+    window._submitLock=false;
+    if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='등록 요청';}
+  }
+}
+async function _doSubmitMatch(){
   const matchDate=document.getElementById('reg-date').value;
   const sa=parseInt(document.getElementById('reg-sa').value)||0;
   const sbv=parseInt(document.getElementById('reg-sb').value)||0;
@@ -1883,8 +1902,11 @@ async function renderAdminMembers(){
               <div style="font-size:.81rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(nm)}</div>
               ${isGM?'<div style="font-size:.62rem;color:#E65100;">랭킹제외</div>':''}
             </div>
-            <input type="checkbox" id="${safeId}" ${isGM?'checked':''} onchange="toggleGuestMode('${escHtml(nm)}',this.checked)"
-              title="게스트모드" style="width:15px;height:15px;cursor:pointer;accent-color:var(--primary);flex-shrink:0;">
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer;flex-shrink:0;" title="랭킹 제외 (경기 기록은 유지)">
+              <input type="checkbox" id="${safeId}" ${isGM?'checked':''} onchange="toggleGuestMode('${escHtml(nm)}',this.checked)"
+                style="width:15px;height:15px;cursor:pointer;accent-color:var(--primary);">
+              <span style="font-size:.65rem;color:var(--text-muted);white-space:nowrap;">랭킹<br>제외</span>
+            </label>
             <button onclick="openLinkGuestModal('${escHtml(nm)}')"
               style="font-size:.7rem;padding:3px 8px;background:var(--primary);border:none;border-radius:5px;cursor:pointer;color:#fff;white-space:nowrap;font-family:inherit;font-weight:600;flex-shrink:0;">
               연계
@@ -3084,8 +3106,7 @@ async function renderComparePage(){
   const el=document.getElementById('page-compare');
   if(!el) return;
   // 유저 목록 로드
-  const{data:users}=await sb.from('profiles').select('id,name').eq('status','approved').order('name');
-  const allUsers=users||[];
+  const allUsers=await _getApprovedUsers();
   // _allMatchesCache가 없으면 직접 로드
   if(!_allMatchesCache||_allMatchesCache.length===0){
     const{data:matches}=await sb.from('matches').select('*').eq('status','approved').order('match_date',{ascending:false});
@@ -3606,15 +3627,74 @@ function renderTournamentPage(){ renderBracketPage(); }
 async function _openBalanceDetail(bt){
   const rawG=bt.groups?(typeof bt.groups==='string'?JSON.parse(bt.groups):bt.groups):{};
   const data=Array.isArray(rawG)?{}:rawG;
-  // 기존 모달 재사용
   const titleEl=document.getElementById('bd-title');
   const contentEl=document.getElementById('bd-content');
   const actionsEl=document.getElementById('bd-actions');
   if(titleEl) titleEl.textContent='⚖️ '+bt.name;
   if(!contentEl) return;
+  const isAdmin=ME?.role==='admin';
   contentEl.innerHTML=_renderBalanceSavedView(bt, data);
-  if(actionsEl) actionsEl.innerHTML=`<button class="btn btn-ghost" onclick="closeModal('modal-bracket-detail')">닫기</button>`;
+  if(actionsEl) actionsEl.innerHTML=
+    `<button class="btn btn-ghost" onclick="closeModal('modal-bracket-detail')">닫기</button>`+
+    (isAdmin?`<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="balDeleteFromDetail('${bt.id}')">🗑 삭제</button>`+
+    `<button class="btn btn-primary" onclick="closeModal('modal-bracket-detail');balEditFromHistory('${bt.id}')">✏️ 수정</button>`:'');
   openModal('modal-bracket-detail');
+}
+async function balEditFromHistory(btId){
+  // DB에서 밸런스 데이터 로드 후 밸런스 탭 비교모드로 복원
+  const{data:bt}=await sb.from('bracket_tournaments').select('*').eq('id',btId).single();
+  if(!bt){toast('불러오기 실패','error');return;}
+  const rawG=bt.groups?(typeof bt.groups==='string'?JSON.parse(bt.groups):bt.groups):{};
+  const data=Array.isArray(rawG)?{}:rawG;
+  const tType=bt.tournament_type||'individual';
+  // 밸런스 탭으로 이동 후 복원
+  navigateTo('balance');
+  setTimeout(async()=>{
+    balSwitchTab('compare');
+    _balType=tType;
+    // userPool 로드
+    if(!window._balUserPool) await _balLoadAttendees();
+    // _balResult 복원
+    if(tType==='team'){
+      const tA=(data.teams||[])[0]||{};
+      const tB=(data.teams||[])[1]||{};
+      const toP=arr=>(arr||[]).map(n=>{const u=(window._balUserPool||[]).find(x=>x.name===n)||{name:n,score:0,id:'saved:'+n};return u;});
+      _balResult={teamA:toP(tA.members),teamB:toP(tB.members)};
+    } else if(tType==='duo'){
+      _balResult={teams:(data.groups||[]).map(g=>({
+        name:g.name,
+        pairs:(g.teams||[]).map(t=>({
+          p1:{name:t.p1_name,score:t.p1_score||0,id:t.p1_id||'saved:'+t.p1_name},
+          p2:t.p2_name?{name:t.p2_name,score:t.p2_score||0,id:t.p2_id||'saved:'+t.p2_name}:null
+        }))
+      }))};
+    } else {
+      _balResult={groups:(data.groups||[]).map(g=>({
+        name:g.name,
+        players:(g.players||[]).map(p=>{const u=(window._balUserPool||[]).find(x=>x.name===p.name)||{...p,id:p.id||'saved:'+p.name};return u;})
+      }))};
+    }
+    // 참석자 목록 복원
+    const allPlayers=tType==='team'
+      ?[..._balResult.teamA,..._balResult.teamB]
+      :tType==='duo'
+        ?_balResult.teams.flatMap(t=>t.pairs.flatMap(p=>[p.p1,p.p2].filter(Boolean)))
+        :_balResult.groups.flatMap(g=>g.players);
+    _balAttendees=[...new Map(allPlayers.map(p=>[p.id,p])).values()];
+    balSetType(tType);
+    balGoStep(2);
+    _balRenderStep2();
+    toast('수정 모드로 불러왔습니다','success');
+  },150);
+}
+function balDeleteFromDetail(btId){
+  showConfirm({icon:'🗑',title:'밸런스 내역 삭제',msg:'이 내역을 삭제하시겠습니까?',okLabel:'삭제',okClass:'btn-danger',onOk:async()=>{
+    const{error}=await sb.from('bracket_tournaments').delete().eq('id',btId);
+    if(error){toast('삭제 실패','error');return;}
+    closeModal('modal-bracket-detail');
+    toast('삭제되었습니다','success');
+    _balRenderHistory();
+  }});
 }
 
 // ── 대회 상세 모달 ──
@@ -4230,8 +4310,8 @@ async function _balRenderHistory(){
 async function _balLoadAttendees(){
   try{
     // profiles: 정회원 로드 (exclude_stats 포함 — 통계제외 회원은 밸런스에서도 제외)
-    const{data:users,error}=await sb.from('profiles').select('id,name,exclude_stats').eq('status','approved').order('name');
-    if(error) throw error;
+    const users=await _getApprovedUsers();
+    const error=null; // 캐시 헬퍼 사용
     // matches 캐시에서 통계 계산
     const matches=window._allMatchesCache||[];
     const activeUsers=(users||[]).filter(u=>!u.exclude_stats);
