@@ -4382,8 +4382,28 @@ function balDuoAutoPair(){
 function _balArrangeIndividual(){
   const sorted=[..._balAttendees].sort((a,b)=>b.score-a.score);
   const n=sorted.length;
-  // 조 수: 4명씩 기준, 나머지 1~2명은 기존 조에 분산
-  const groupCount=Math.max(1,Math.floor(n/4)+(n%4>=2?1:0));
+  // 조 수 결정: 각 조 4~5명, 3명 조 불가
+  // 가능한 조 수 중 최적값 선택
+  let groupCount=1;
+  for(let g=Math.floor(n/5);g>=1;g--){
+    const base=Math.floor(n/g), rem=n%g;
+    // base = 4 or 5, rem만큼의 조는 base+1명
+    if(base>=4 && base<=5){ groupCount=g; break; }
+    if(base===3 && rem===0 && g>=2){ continue; } // 3명 조만 나오면 패스
+  }
+  // fallback: n이 너무 작으면 1조
+  if(n<4){ toast('개인전은 최소 4명 필요합니다','error'); return null; }
+  // 검증: 3명 조 생기면 조 수 조정
+  const validate=(g)=>{
+    const base=Math.floor(n/g), rem=n%g;
+    return base>=4; // base가 4이상이면 OK (일부 조는 base+1명)
+  };
+  // 최소 조 수부터 탐색
+  for(let g=Math.ceil(n/5);g<=Math.floor(n/4);g++){
+    if(validate(g)){ groupCount=g; break; }
+  }
+  if(!validate(groupCount)) groupCount=Math.ceil(n/5);
+
   const groups=Array.from({length:groupCount},(_,gi)=>({
     name:`${String.fromCharCode(65+gi)}조`,
     players:[],
@@ -4398,19 +4418,29 @@ function _balArrangeIndividual(){
   return {groups};
 }
 
-// 듀오전: 페어 단위 뱀배열 → 팀간 밸런스
+// 듀오전: 페어 단위 → 각 조 3~4팀
 function _balArrangeDuo(){
-  if(_balDuoPairs.length<2){toast('페어가 2쌍 이상 필요합니다','error');return null;}
-  const avgCI=pair=>Math.round(((pair.p1?.score||0)+(pair.p2?.score||0))/(pair.p2?2:1));
-  const sorted=[..._balDuoPairs].sort((a,b)=>avgCI(b)-avgCI(a));
+  if(_balDuoPairs.length<3){toast('듀오전은 페어 3쌍 이상 필요합니다','error');return null;}
+  const avgRP=pair=>Math.round(((pair.p1?.score||0)+(pair.p2?.score||0))/(pair.p2?2:1));
+  const sorted=[..._balDuoPairs].sort((a,b)=>avgRP(b)-avgRP(a));
   const n=sorted.length;
-  // 팀 수: 2팀으로 고정 (밸런스 비교 목적)
-  const teams=[{name:'A조',pairs:[]},{name:'B조',pairs:[]}];
+  // 조 수 결정: 각 조 3~4팀
+  let groupCount=1;
+  for(let g=Math.ceil(n/4);g<=Math.floor(n/3);g++){
+    const base=Math.floor(n/g);
+    if(base>=3 && base<=4){ groupCount=g; break; }
+  }
+  if(groupCount<1) groupCount=Math.max(1,Math.round(n/3.5));
+
+  const teams=Array.from({length:groupCount},(_,gi)=>({
+    name:`${String.fromCharCode(65+gi)}조`,
+    pairs:[],
+  }));
+  // 뱀배열
   sorted.forEach((pair,i)=>{
-    // 뱀배열 (짝수i→A, 홀수i→B, 다음 홀수→A...)
-    const row=Math.floor(i/2);
-    const col=i%2;
-    const ti=row%2===0?col:1-col;
+    const row=Math.floor(i/groupCount);
+    const col=i%groupCount;
+    const ti=row%2===0?col:groupCount-1-col;
     teams[ti].pairs.push(pair);
   });
   return {teams};
@@ -4431,7 +4461,11 @@ function _balArrangeTeam(){
 
 // ── 분석 실행 ──
 function balGenerate(){
-  if(_balAttendees.length<4){toast('참석자 4명 이상 선택해주세요','error');return;}
+  const minMap={individual:4,duo:6,team:2}; // 듀오전: 3쌍=6명
+  if(_balAttendees.length<(minMap[_balType]||4)){
+    const msg={individual:'개인전은 최소 4명 필요합니다',duo:'듀오전은 최소 6명(3쌍) 필요합니다',team:'팀장전은 최소 2명 필요합니다'};
+    toast(msg[_balType]||'참석자를 더 선택해주세요','error');return;
+  }
   let result=null;
   if(_balType==='individual') result=_balArrangeIndividual();
   else if(_balType==='duo')   result=_balArrangeDuo();
@@ -4557,20 +4591,20 @@ function _balRenderEdit(){
     html+=`</div>`;
 
   } else if(_balType==='duo'){
-    html+=`<div style="font-size:.76rem;color:var(--text-muted);margin-bottom:8px;">팀(조) 간 페어 이동 가능.</div>`;
-    html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">`;
-    (_balResult.teams||[]).forEach((t,ti)=>{
-      const color=teamPal[ti%teamPal.length];
-      const avgCI=Math.round(t.pairs.reduce((s,p)=>s+((p.p1?.score||0)+(p.p2?.score||0))/(p.p2?2:1),0)/(t.pairs.length||1));
+    const teams=_balResult.teams||[];
+    const gc=teams.length;
+    html+=`<div style="font-size:.76rem;color:var(--text-muted);margin-bottom:8px;">🔀 페어 클릭 → 다른 조로 이동. 이동 즉시 균형 재계산.</div>`;
+    html+=`<div style="display:flex;flex-direction:column;gap:6px;">`;
+    teams.forEach((t,ti)=>{
+      const color=pal[ti%pal.length];
+      const avgRP=Math.round(t.pairs.reduce((s,p)=>s+((p.p1?.score||0)+(p.p2?.score||0))/(p.p2?2:1),0)/(t.pairs.length||1));
       html+=`<div style="background:var(--bg2);border:1px solid ${color}40;border-radius:10px;padding:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
-          <div style="font-size:.78rem;font-weight:700;color:${color};">${t.name}</div>
-          <div style="font-size:.72rem;color:${color};">RP ${avgCI}</div>
+          <div style="font-size:.78rem;font-weight:700;color:${color};">${t.name} <span style="font-weight:400;color:var(--text-muted);font-size:.7rem;">(${t.pairs.length}팀)</span></div>
+          <div style="font-size:.72rem;color:${color};">평균 RP ${avgRP}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;">`;
       t.pairs.forEach((pair,pi)=>{
-        const pairCI=Math.round(((pair.p1?.score||0)+(pair.p2?.score||0))/(pair.p2?2:1));
-        const arrow=ti===0?'→B':'←A';
         html+=`<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:4px;align-items:center;background:var(--surface);border-radius:7px;padding:5px 7px;">
           <div style="background:${color}18;border-radius:5px;padding:3px 6px;text-align:center;">
             <div style="font-size:.72rem;font-weight:600;">${pair.p1?.name||'—'}</div>
@@ -4580,7 +4614,7 @@ function _balRenderEdit(){
             <div style="font-size:.72rem;font-weight:600;">${pair.p2?.name||'미정'}</div>
             <div style="font-size:.6rem;color:var(--text-muted);">RP ${pair.p2?.score||0}</div>
           </div>
-          <button onclick="balDuoMovePair(${ti},${pi})" style="font-size:.65rem;padding:2px 6px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--bg3);color:var(--text-muted);">${arrow}</button>
+          <button onclick="balShowDuoMove(${ti},${pi},this)" style="font-size:.65rem;padding:2px 6px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--bg3);color:var(--text-muted);">🔀</button>
         </div>`;
       });
       html+=`</div></div>`;
@@ -4632,6 +4666,33 @@ function balDuoMovePair(fromTi,pi){
   _balRenderStep2();
 }
 
+function balShowDuoMove(fromTi,pi,btn){
+  const teams=_balResult?.teams;
+  if(!teams) return;
+  document.querySelectorAll('.bal-move-popup').forEach(e=>e.remove());
+  const other=teams.map((t,i)=>i).filter(i=>i!==fromTi);
+  if(other.length===1){balDuoMoveToGroup(fromTi,pi,other[0]);return;}
+  const pop=document.createElement('div');
+  pop.className='bal-move-popup';
+  pop.style.cssText='position:absolute;z-index:999;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px;box-shadow:0 4px 16px rgba(0,0,0,.3);display:flex;flex-direction:column;gap:4px;';
+  other.forEach(ti=>{
+    const b=document.createElement('button');
+    b.textContent=teams[ti].name+'으로 이동';
+    b.style.cssText='padding:6px 14px;border-radius:7px;border:none;background:var(--bg3);color:var(--text);cursor:pointer;font-family:inherit;font-size:.8rem;';
+    b.onclick=()=>{pop.remove();balDuoMoveToGroup(fromTi,pi,ti);};
+    pop.appendChild(b);
+  });
+  btn.parentNode.style.position='relative';
+  btn.parentNode.appendChild(pop);
+  setTimeout(()=>document.addEventListener('click',()=>pop.remove(),{once:true}),10);
+}
+function balDuoMoveToGroup(fromTi,pi,toTi){
+  const teams=_balResult?.teams;
+  if(!teams) return;
+  const pair=teams[fromTi].pairs.splice(pi,1)[0];
+  teams[toTi].pairs.push(pair);
+  _balRenderStep2();
+}
 let _balGrpMoveCtx=null;
 function balShowGroupMove(gi,pi,btn){
   document.querySelectorAll('.bal-gpopup').forEach(e=>e.remove());
