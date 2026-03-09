@@ -3602,6 +3602,21 @@ function bdCalcStandings(groups, isIndividual){
 // ── renderTournamentPage: renderBracketPage alias ──
 function renderTournamentPage(){ renderBracketPage(); }
 
+// ── 밸런스 상세 모달 ──
+async function _openBalanceDetail(bt){
+  const rawG=bt.groups?(typeof bt.groups==='string'?JSON.parse(bt.groups):bt.groups):{};
+  const data=Array.isArray(rawG)?{}:rawG;
+  // 기존 모달 재사용
+  const titleEl=document.getElementById('bd-title');
+  const contentEl=document.getElementById('bd-content');
+  const actionsEl=document.getElementById('bd-actions');
+  if(titleEl) titleEl.textContent='⚖️ '+bt.name;
+  if(!contentEl) return;
+  contentEl.innerHTML=_renderBalanceSavedView(bt, data);
+  if(actionsEl) actionsEl.innerHTML=`<button class="btn btn-ghost" onclick="closeModal('modal-bracket-detail')">닫기</button>`;
+  openModal('modal-bracket-detail');
+}
+
 // ── 대회 상세 모달 ──
 async function openBracketDetail(id){
   _bdId=id;
@@ -4031,7 +4046,7 @@ async function renderBracketPage(){
   const el=document.getElementById('bracket-list');
   if(!el) return;
   el.innerHTML=`<div class="skeleton sk-card"></div>`.repeat(3);
-  const{data:list}=await sb.from('bracket_tournaments').select('*').order('created_at',{ascending:false});
+  const{data:list}=await sb.from('bracket_tournaments').select('*').neq('status','balance').order('created_at',{ascending:false});
   if(!list||!list.length){
     el.innerHTML=`<div class="empty-state"><div class="empty-icon">🎯</div><div>등록된 대회가 없어요</div></div>`;
     return;
