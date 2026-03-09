@@ -3734,30 +3734,33 @@ function _renderBalanceSavedView(bt, data){
   const tType=bt.tournament_type||'individual';
   const isTeam=tType==='team';
   const isDuo=tType==='duo';
-  const pal=['#00C896','#FF7043','#4FC3F7','#FFB74D','#AED581','#CE93D8'];
+  const pal=['#5B9CF6','#F59E0B','#10B981','#F472B6','#A78BFA','#34D399'];
 
-  // CI 점수 재계산 (저장된 이름으로 _bfUsersMap 조회)
-  const pScore=(name)=>{
-    const u=Object.values(window._bfUsersMap||{}).find(u=>u.name===name)||{};
-    const wr=u.wr??u.score??0;
-    return wr; // 저장된 뷰에선 승률만 표시
-  };
-
-  let groups=[], scores=[], labels=[];
+  let groups=[], scores=[];
   if(isTeam){
-    (data.teams||[]).forEach((t,i)=>{
-      const members=(t.members||[]);
-      const avg=members.length?Math.round(members.reduce((s,n)=>s+pScore(n),0)/members.length):0;
-      groups.push({name:t.name,members,captain:t.captain});
-      scores.push(avg); labels.push(t.name);
+    (data.teams||[]).forEach(t=>{
+      // players 배열(score 포함) 우선, 없으면 members 이름만
+      const players=t.players||(t.members||[]).map(n=>({name:n,score:0}));
+      const avg=players.length?Math.round(players.reduce((s,p)=>s+(p.score||0),0)/players.length):0;
+      groups.push({name:t.name,players,captain:t.captain,isTeam:true});
+      scores.push(avg);
     });
   } else {
-    (data.groups||[]).forEach((g,i)=>{
-      const members=isDuo?(g.teams||[]):(g.players||[]);
-      const names=isDuo?members.map(t=>t.p1_name):members.map(p=>p.name);
-      const avg=names.length?Math.round(names.reduce((s,n)=>s+pScore(n),0)/names.length):0;
-      groups.push({name:g.name,members,names,isDuo});
-      scores.push(avg); labels.push(g.name);
+    (data.groups||[]).forEach(g=>{
+      if(isDuo){
+        const pairs=g.teams||[];
+        const avg=pairs.length?Math.round(pairs.reduce((s,t)=>{
+          const s1=t.p1_score||0, s2=t.p2_score||0;
+          return s+(s1+(t.p2_name?s2:0))/(t.p2_name?2:1);
+        },0)/pairs.length):0;
+        groups.push({name:g.name,pairs,isDuo:true});
+        scores.push(avg);
+      } else {
+        const players=g.players||[];
+        const avg=players.length?Math.round(players.reduce((s,p)=>s+(p.score||0),0)/players.length):0;
+        groups.push({name:g.name,players,isDuo:false});
+        scores.push(avg);
+      }
     });
   }
 
@@ -3765,32 +3768,52 @@ function _renderBalanceSavedView(bt, data){
   const maxSc=Math.max(...scores,1);
 
   let html=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">`;
-  html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-    <div style="font-size:.8rem;font-weight:700;">밸런스 평가</div>
-    <div style="font-size:.8rem;font-weight:700;color:${grade.color};">${grade.label} <span style="font-weight:400;color:var(--text-muted);">(균형 ${grade.pct}점)</span></div>
+  html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+    <div style="font-size:.88rem;font-weight:700;">밸런스 평가</div>
+    <div style="font-size:.86rem;font-weight:700;color:${grade.color};">${grade.label} <span style="font-weight:400;color:var(--text-muted);">(${grade.pct}점)</span></div>
   </div>
   <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:14px;">
     <div style="height:100%;width:${grade.pct}%;background:${grade.color};border-radius:3px;"></div>
   </div>`;
 
   groups.forEach((g,gi)=>{
-    const color=isTeam?pal[gi]:pal[gi%pal.length];
+    const color=pal[gi%pal.length];
     const pct=maxSc>0?Math.round(scores[gi]/maxSc*100):0;
-    const memberNames=isTeam
-      ?(g.members||[]).map(n=>n+(n===g.captain?'⭐':'')).join('·')
-      :g.isDuo
-        ?(g.members||[]).map(t=>t.p2_name?`${t.p1_name}/${t.p2_name}`:t.p1_name).join('·')
-        :(g.names||[]).join('·');
-    html+=`<div style="margin-bottom:10px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
-        <div style="font-size:.8rem;font-weight:700;color:${color};">${g.name}</div>
-        <div style="font-size:.72rem;color:var(--text-muted);flex:1;margin:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;">${memberNames}</div>
-        <div style="font-size:.78rem;font-weight:700;color:${color};margin-left:6px;">${scores[gi]}점</div>
+    html+=`<div style="margin-bottom:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <div style="font-size:.92rem;font-weight:700;color:${color};">${g.name}</div>
+        <div style="font-size:.84rem;font-weight:700;color:${color};">평균 ${rpDisp(scores[gi])}</div>
       </div>
-      <div style="height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;">
-        <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;"></div>
+      <div style="height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:10px;">
+        <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;"></div>
       </div>
-    </div>`;
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">`;
+    if(g.isTeam){
+      (g.players||[]).forEach(p=>{
+        html+=`<div style="display:flex;align-items:center;gap:5px;background:var(--bg3);border-radius:8px;padding:6px 12px;">
+          <span style="font-size:.92rem;font-weight:600;">${p.name}${p.name===g.captain?'⭐':''}</span>
+          <span style="font-size:.78rem;color:var(--text-muted);">${rpDisp(p.score||0)}</span>
+        </div>`;
+      });
+    } else if(g.isDuo){
+      (g.pairs||[]).forEach(t=>{
+        html+=`<div style="background:var(--bg3);border-radius:8px;padding:6px 12px;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:.92rem;font-weight:600;">${t.p1_name}</span>
+          <span style="font-size:.78rem;color:var(--text-muted);">${rpDisp(t.p1_score||0)}</span>
+          ${t.p2_name?`<span style="font-size:.78rem;color:var(--text-dim);">/</span>
+          <span style="font-size:.92rem;font-weight:600;">${t.p2_name}</span>
+          <span style="font-size:.78rem;color:var(--text-muted);">${rpDisp(t.p2_score||0)}</span>`:''}
+        </div>`;
+      });
+    } else {
+      (g.players||[]).forEach(p=>{
+        html+=`<div style="display:flex;align-items:center;gap:5px;background:var(--bg3);border-radius:8px;padding:6px 12px;">
+          <span style="font-size:.92rem;font-weight:600;">${p.name}</span>
+          <span style="font-size:.78rem;color:var(--text-muted);">${rpDisp(p.score||0)}</span>
+        </div>`;
+      });
+    }
+    html+=`</div></div>`;
   });
   html+=`</div>`;
   return html;
@@ -4165,6 +4188,14 @@ function balGoStep(n){
   document.getElementById('bal-step1').style.display=n===1?'block':'none';
   document.getElementById('bal-step2').style.display=n===2?'block':'none';
 }
+function balDeleteHistory(id){
+  showConfirm({icon:'🗑',title:'밸런스 내역 삭제',msg:'이 내역을 삭제하시겠습니까?',okLabel:'삭제',okClass:'btn-danger',onOk:async()=>{
+    const{error}=await sb.from('bracket_tournaments').delete().eq('id',id);
+    if(error){toast('삭제 실패: '+error.message,'error');return;}
+    toast('삭제되었습니다','success');
+    _balRenderHistory();
+  }});
+}
 async function _balRenderHistory(){
   const el=document.getElementById('bal-history-list');
   if(!el) return;
@@ -4182,12 +4213,13 @@ async function _balRenderHistory(){
   data.forEach(bt=>{
     const tl=typeLabel[bt.tournament_type]||'';
     const dateStr=bt.match_date||bt.created_at?.slice(0,10)||'';
-    html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="openBracketDetail('${bt.id}')">
-      <div style="flex:1;min-width:0;">
+    html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:8px;">
+      <div style="flex:1;min-width:0;cursor:pointer;" onclick="openBracketDetail('${bt.id}')">
         <div style="font-size:.86rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(bt.name)}</div>
         <div style="font-size:.72rem;color:var(--text-muted);margin-top:2px;">${tl} &nbsp;·&nbsp; ${dateStr}</div>
       </div>
-      <div style="font-size:.75rem;color:var(--primary);font-weight:600;flex-shrink:0;">보기 ›</div>
+      <div style="font-size:.75rem;color:var(--primary);font-weight:600;flex-shrink:0;cursor:pointer;" onclick="openBracketDetail('${bt.id}')">보기 ›</div>
+      <button onclick="balDeleteHistory('${bt.id}')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.82rem;padding:4px 6px;flex-shrink:0;" title="삭제">🗑</button>
     </div>`;
   });
   html+='</div>';
@@ -4840,14 +4872,18 @@ async function _balDoSave(){
   if(_balType==='team'){
     groupsData={groups:[],knockout:[],rounds:[],
       teams:[
-        {name:'A팀',captain:(_balResult.teamA.find(p=>p.captain)||{}).name||null,members:_balResult.teamA.map(p=>p.name)},
-        {name:'B팀',captain:(_balResult.teamB.find(p=>p.captain)||{}).name||null,members:_balResult.teamB.map(p=>p.name)}
+        {name:'A팀',captain:(_balResult.teamA.find(p=>p.captain)||{}).name||null,
+         members:_balResult.teamA.map(p=>p.name),
+         players:_balResult.teamA.map(p=>({name:p.name,score:p.score||0}))},
+        {name:'B팀',captain:(_balResult.teamB.find(p=>p.captain)||{}).name||null,
+         members:_balResult.teamB.map(p=>p.name),
+         players:_balResult.teamB.map(p=>({name:p.name,score:p.score||0}))}
       ]};
   } else if(_balType==='duo'){
     groupsData={
       groups:(_balResult.teams||[]).map(t=>({
         name:t.name,
-        teams:t.pairs.map(pair=>({p1_name:pair.p1?.name||'',p1_id:pair.p1?.id||null,p2_name:pair.p2?.name||'',p2_id:pair.p2?.id||null})),
+        teams:t.pairs.map(pair=>({p1_name:pair.p1?.name||'',p1_id:pair.p1?.id||null,p1_score:pair.p1?.score||0,p2_name:pair.p2?.name||'',p2_id:pair.p2?.id||null,p2_score:pair.p2?.score||0})),
         matches:[]
       })),
       knockout:[],rounds:[],teams:[]};
