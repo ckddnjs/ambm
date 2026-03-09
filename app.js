@@ -319,6 +319,9 @@ function calcCI(wins, games, diff){
 }
 
 /** 하위 호환: SABCD 등급 → 수치 기반 등급 표시 */
+// RP 표시용: /10 반올림
+const rpDisp=v=>Math.round((v||0)/10);
+
 function ciToLabel(ci){
   if(ci>=1110) return 'S';
   if(ci>=1060) return 'A';
@@ -1870,34 +1873,22 @@ async function renderAdminMembers(){
         게스트모드 체크 시 경기 기록은 유지되지만 전체 랭킹에서 제외됩니다.
       </div>
 
-      <!-- 헤더 -->
-      <div style="display:grid;grid-template-columns:1fr 32px 80px;gap:0;align-items:center;padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px 8px 0 0;font-size:.72rem;font-weight:700;color:var(--text-muted);">
-        <span>비회원 이름</span>
-        <span style="text-align:center;">👻</span>
-        <span style="text-align:center;">연계</span>
-      </div>
-
-      <!-- 행 목록 -->
-      <div style="border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;overflow:hidden;">
-        ${guestArr.map((nm,idx)=>{
+      <!-- 2단 그리드 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+        ${guestArr.map((nm)=>{
           const isGM=guestModeNames.has(nm);
           const safeId='gm-'+nm.replace(/[^a-zA-Z0-9가-힣]/g,'_');
-          const isLast=idx===guestArr.length-1;
-          return `<div style="display:grid;grid-template-columns:1fr 32px 80px;gap:0;align-items:center;padding:8px 10px;background:var(--surface);${!isLast?'border-bottom:1px solid var(--border);':''}">
-            <div style="display:flex;flex-direction:column;gap:2px;">
-              <span style="font-size:.84rem;font-weight:600;color:var(--text);">${escHtml(nm)}</span>
-              ${isGM?'<span style="font-size:.66rem;color:#E65100;">👻 랭킹 제외 중</span>':''}
+          return `<div style="display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:.81rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(nm)}</div>
+              ${isGM?'<div style="font-size:.62rem;color:#E65100;">랭킹제외</div>':''}
             </div>
-            <div style="display:flex;justify-content:center;">
-              <input type="checkbox" id="${safeId}" ${isGM?'checked':''} onchange="toggleGuestMode('${escHtml(nm)}',this.checked)"
-                style="width:16px;height:16px;cursor:pointer;accent-color:var(--primary);">
-            </div>
-            <div style="display:flex;justify-content:center;">
-              <button onclick="openLinkGuestModal('${escHtml(nm)}')"
-                style="font-size:.72rem;padding:4px 10px;background:var(--primary);border:none;border-radius:6px;cursor:pointer;color:#fff;white-space:nowrap;font-family:inherit;font-weight:600;">
-                연계
-              </button>
-            </div>
+            <input type="checkbox" id="${safeId}" ${isGM?'checked':''} onchange="toggleGuestMode('${escHtml(nm)}',this.checked)"
+              title="게스트모드" style="width:15px;height:15px;cursor:pointer;accent-color:var(--primary);flex-shrink:0;">
+            <button onclick="openLinkGuestModal('${escHtml(nm)}')"
+              style="font-size:.7rem;padding:3px 8px;background:var(--primary);border:none;border-radius:5px;cursor:pointer;color:#fff;white-space:nowrap;font-family:inherit;font-weight:600;flex-shrink:0;">
+              연계
+            </button>
           </div>`;
         }).join('')}
       </div>
@@ -4202,7 +4193,7 @@ function _balRenderAttendees(){
       background:${sel?'var(--primary)':'var(--bg3)'};
       color:${sel?'#fff':'var(--text-muted)'};
       border:1.5px solid ${sel?'var(--primary)':'var(--border)'};
-    ">${u.name}<span style="font-size:.63rem;opacity:.7;margin-left:3px;">${u.score}</span></button>`;
+    ">${u.name}<span style="font-size:.63rem;opacity:.7;margin-left:3px;">${rpDisp(u.score)}</span></button>`;
   });
   wrap.innerHTML=chips.length?chips.join(''):'<div style="color:var(--text-muted);font-size:.8rem;">회원 없음</div>';
   if(cnt) cnt.textContent=`${_balAttendees.length}명 선택됨`;
@@ -4262,7 +4253,7 @@ function _balRenderDuoPairUI(){
       html+=`<button onclick="balDuoAssign('${p.id}')" style="
         padding:4px 10px;border-radius:16px;font-size:.76rem;cursor:pointer;font-family:inherit;
         background:var(--bg3);color:var(--text-muted);border:1.5px solid var(--border);">
-        ${p.name} <span style="font-size:.62rem;opacity:.7;">${p.score}</span>
+        ${p.name} <span style="font-size:.62rem;opacity:.7;">${rpDisp(p.score)}</span>
       </button>`;
     });
     html+=`</div></div>`;
@@ -4509,7 +4500,7 @@ function _balRenderGauge(){
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
         <div style="font-size:.78rem;font-weight:700;color:${color};min-width:30px;">${labels[gi]}</div>
         <div style="font-size:.7rem;color:var(--text-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${memberLists[gi]}</div>
-        <div style="font-size:.75rem;font-weight:700;color:${color};margin-left:4px;">RP ${sc}</div>
+        <div style="font-size:.75rem;font-weight:700;color:${color};margin-left:4px;">${rpDisp(sc)}</div>
       </div>
       <div style="height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;">
         <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width .4s;"></div>
@@ -4537,13 +4528,13 @@ function _balRenderEdit(){
       html+=`<div style="background:var(--bg2);border:1px solid ${color}40;border-radius:10px;padding:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
           <div style="font-size:.78rem;font-weight:700;color:${color};">${g.name} <span style="font-weight:400;color:var(--text-muted);font-size:.7rem;">(${g.players.length}명)</span></div>
-          <div style="font-size:.72rem;color:${color};">평균 RP ${avgCI}</div>
+          <div style="font-size:.72rem;color:${color};">${rpDisp(avgCI)}</div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;">`;
       g.players.forEach((p,pi)=>{
         html+=`<div style="display:flex;align-items:center;gap:4px;background:var(--surface);border-radius:7px;padding:4px 8px;">
           <span style="font-size:.77rem;font-weight:600;">${p.name}</span>
-          <span style="font-size:.63rem;color:var(--text-muted);">RP ${p.score||0}</span>
+          <span style="font-size:.63rem;color:var(--text-muted);">${rpDisp(p.score)}</span>
           <button onclick="balShowGroupMove(${gi},${pi},this)" style="font-size:.65rem;padding:1px 6px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--bg3);color:var(--text-muted);">🔀</button>
         </div>`;
       });
@@ -4562,18 +4553,18 @@ function _balRenderEdit(){
       html+=`<div style="background:var(--bg2);border:1px solid ${color}40;border-radius:10px;padding:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
           <div style="font-size:.78rem;font-weight:700;color:${color};">${t.name} <span style="font-weight:400;color:var(--text-muted);font-size:.7rem;">(${t.pairs.length}팀)</span></div>
-          <div style="font-size:.72rem;color:${color};">평균 RP ${avgRP}</div>
+          <div style="font-size:.72rem;color:${color};">${rpDisp(avgRP)}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;">`;
       t.pairs.forEach((pair,pi)=>{
         html+=`<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:4px;align-items:center;background:var(--surface);border-radius:7px;padding:5px 7px;">
           <div style="background:${color}18;border-radius:5px;padding:3px 6px;text-align:center;">
             <div style="font-size:.72rem;font-weight:600;">${pair.p1?.name||'—'}</div>
-            <div style="font-size:.6rem;color:var(--text-muted);">RP ${pair.p1?.score||0}</div>
+            <div style="font-size:.6rem;color:var(--text-muted);">${rpDisp(pair.p1?.score)}</div>
           </div>
           <div style="background:${color}18;border-radius:5px;padding:3px 6px;text-align:center;">
             <div style="font-size:.72rem;font-weight:600;">${pair.p2?.name||'미정'}</div>
-            <div style="font-size:.6rem;color:var(--text-muted);">RP ${pair.p2?.score||0}</div>
+            <div style="font-size:.6rem;color:var(--text-muted);">${rpDisp(pair.p2?.score)}</div>
           </div>
           <button onclick="balShowDuoMove(${ti},${pi},this)" style="font-size:.65rem;padding:2px 6px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--bg3);color:var(--text-muted);">🔀</button>
         </div>`;
@@ -4592,7 +4583,7 @@ function _balRenderEdit(){
       html+=`<div style="background:var(--bg2);border:1px solid ${color}40;border-radius:10px;padding:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
           <div style="font-size:.78rem;font-weight:700;color:${color};">${side}팀 (${members.length}명)</div>
-          <div style="font-size:.72rem;color:${color};">평균 RP ${avgCI}</div>
+          <div style="font-size:.72rem;color:${color};">${rpDisp(avgCI)}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;">`;
       members.forEach((p,pi)=>{
@@ -4600,7 +4591,7 @@ function _balRenderEdit(){
         html+=`<div style="display:flex;align-items:center;gap:5px;background:var(--surface);border-radius:7px;padding:5px 8px;">
           <div style="width:3px;align-self:stretch;background:${p.captain?color:'rgba(120,120,130,.3)'};border-radius:2px;"></div>
           <span style="flex:1;font-size:.77rem;${p.captain?'font-weight:700;color:'+color+';':''}">${p.captain?'⭐':''} ${p.name}</span>
-          <span style="font-size:.63rem;color:var(--text-muted);">RP ${p.score||0}</span>
+          <span style="font-size:.63rem;color:var(--text-muted);">${rpDisp(p.score)}</span>
           ${!p.captain?`<button onclick="balMoveTeam('${side}',${pi})" style="font-size:.68rem;padding:2px 7px;border:1px solid var(--border);border-radius:5px;cursor:pointer;background:var(--bg3);color:var(--text-muted);">${arrow}</button>`:''}
         </div>`;
       });
