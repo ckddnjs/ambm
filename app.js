@@ -1026,27 +1026,41 @@ function renderMvpPodium(allMatches, users) {
   var wrap = document.getElementById('mvp-podium-wrap');
   if (!wrap) return;
 
-  // 5경기 이상 + exclude_stats 제외 유저 통계
-  // ✅ 수정: profiles 기반 초기화 대신, matches에 실제 등장한 유저 기준으로 집계
-  // (profiles.status !== 'approved' 이거나 캐시 누락된 유저도 포함되도록)
+  // 5경기 이상 + exclude_stats 제외 유저 통계 (회원 + 비회원 모두 포함)
   var excludeIds = new Set((users||[]).filter(u=>u.exclude_stats).map(u=>u.id));
   var userMap = {};
   (users||[]).forEach(u=>{ if(u.id&&u.name) userMap[u.id]=u; });
+  var guestModeNames = window._guestModeNamesCache||new Set();
 
   var uStats = {};
   (allMatches||[]).filter(m=>m.status==='approved').forEach(m=>{
     var aWin=m.score_a>m.score_b;
+    // 회원 (id 기반)
     [{id:m.a1_id,win:aWin,s:m.score_a,c:m.score_b},{id:m.a2_id,win:aWin,s:m.score_a,c:m.score_b},
      {id:m.b1_id,win:!aWin,s:m.score_b,c:m.score_a},{id:m.b2_id,win:!aWin,s:m.score_b,c:m.score_a}]
-    .filter(p=>p.id && !excludeIds.has(p.id) && userMap[p.id])
+    .filter(p=>p.id && !excludeIds.has(p.id))
     .forEach(p=>{
       if(!uStats[p.id]){
         var u=userMap[p.id];
-        uStats[p.id]={id:p.id,name:u.name,games:0,wins:0,diff:0,scored:0,conceded:0};
+        var nm=u?u.name:p.id;
+        uStats[p.id]={id:p.id,name:nm,games:0,wins:0,diff:0,scored:0,conceded:0};
       }
       uStats[p.id].games++;
       if(p.win)uStats[p.id].wins++;
       uStats[p.id].scored+=p.s; uStats[p.id].conceded+=p.c;
+    });
+    // 비회원 (id null, name 기반)
+    [{id:m.a1_id,name:m.a1_name,win:aWin,s:m.score_a,c:m.score_b},
+     {id:m.a2_id,name:m.a2_name,win:aWin,s:m.score_a,c:m.score_b},
+     {id:m.b1_id,name:m.b1_name,win:!aWin,s:m.score_b,c:m.score_a},
+     {id:m.b2_id,name:m.b2_name,win:!aWin,s:m.score_b,c:m.score_a}]
+    .filter(p=>!p.id && p.name && !guestModeNames.has(p.name))
+    .forEach(p=>{
+      var key='name:'+p.name;
+      if(!uStats[key]) uStats[key]={id:key,name:p.name,games:0,wins:0,diff:0,scored:0,conceded:0};
+      uStats[key].games++;
+      if(p.win)uStats[key].wins++;
+      uStats[key].scored+=p.s; uStats[key].conceded+=p.c;
     });
   });
   Object.values(uStats).forEach(u=>{
