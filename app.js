@@ -1333,7 +1333,6 @@ function renderPartner(allMatches){
     const aWin=m.score_a>m.score_b;
     const won=onA?aWin:!aWin;
     let partnerId=null, partnerName=null;
-    let partnerId=null, partnerName=null;
     if(onA){
       if(m.a1_id===ME.id){ partnerId=m.a2_id||('name:'+m.a2_name); partnerName=m.a2_name; }
       else if(m.a2_id===ME.id){ partnerId=m.a1_id||('name:'+m.a1_name); partnerName=m.a1_name; }
