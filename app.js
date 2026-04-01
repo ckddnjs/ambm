@@ -264,21 +264,21 @@ const NAV_ICONS={
   community:`<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>`,
   balance:`<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>`,
   admin:`<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>`,
+  settings:`<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96a7.02 7.02 0 00-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.37 1.04.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>`,
 };
 
 const USER_NAVS=[
   {id:'dashboard',label:'홈'},
   {id:'feed',label:'기록'},
-  {id:'tournament',label:'대회'},
-  {id:'community',label:'소식'}
+  {id:'community',label:'소식'},
+  {id:'settings',label:'설정'},
 ];
 const ADMIN_NAVS=[
   {id:'dashboard',label:'홈'},
   {id:'feed',label:'기록'},
-  {id:'tournament',label:'대회'},
   {id:'community',label:'소식'},
-  {id:'balance',label:'밸런스'},
-  {id:'admin',label:'관리'}
+  {id:'admin',label:'관리'},
+  {id:'settings',label:'설정'},
 ];
 function buildNav(){
   const navs=ME.role==='admin'?ADMIN_NAVS:USER_NAVS;
@@ -302,6 +302,7 @@ function navigateTo(page){
     case 'community':renderCommunityPage();break;
     case 'compare':renderComparePage();break;
     case 'balance':renderBalancePage();break;
+    case 'settings':renderSettingsPage();break;
   }
 }
 
@@ -1641,7 +1642,7 @@ function feedDateHeader(dateStr,count){
   const yy=String(d.getFullYear()).slice(2);
   const label=`${yy}.${d.getMonth()+1}.${d.getDate()}.(${days[d.getDay()]})`;
   const countBadge=count>1?` <span style="font-size:.68rem;color:var(--text-muted);font-weight:400;">${count}경기</span>`:'';
-  return `<div class="feed-date-header"><span>${label}${countBadge}</span><button onclick="event.stopPropagation();openDateSummaryPage('${dateStr}')" style="margin-left:auto;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text-muted);font-family:inherit;font-size:.68rem;cursor:pointer;">더보기 ›</button></div>`;
+  return `<div style="display:flex;align-items:center;gap:6px;padding:10px 0 6px;margin-top:2px;"><div class="feed-date-header" style="flex:1;margin:0;padding:0;"><span>${label}${countBadge}</span></div><button onclick="event.stopPropagation();openDateSummaryPage('${dateStr}')" style="flex-shrink:0;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text-muted);font-family:inherit;font-size:.68rem;cursor:pointer;">더보기 ›</button></div>`;
 }
 
 /* ── 날짜별 요약 페이지 ── */
@@ -1676,11 +1677,12 @@ async function renderDateSummaryContent(dateStr){
   const playerMap={};
   allM.forEach(m=>{
     [[m.a1_id,m.a1_name],[m.a2_id,m.a2_name],[m.b1_id,m.b1_name],[m.b2_id,m.b2_name]].forEach(([id,name])=>{
-      if(!id||!name) return;
-      if(!playerMap[id]) playerMap[id]={id,name,wins:0,losses:0};
-      const onA=[m.a1_id,m.a2_id].includes(id);
+      if(!name) return;
+      const key=id||('name:'+name);
+      if(!playerMap[key]) playerMap[key]={id:key,realId:id||null,name,wins:0,losses:0};
+      const onA=[m.a1_id,m.a2_id].includes(id)||((!id)&&[m.a1_name,m.a2_name].includes(name));
       const won=(m.score_a>m.score_b)?onA:!onA;
-      won?playerMap[id].wins++:playerMap[id].losses++;
+      won?playerMap[key].wins++:playerMap[key].losses++;
     });
   });
   const players=Object.values(playerMap);
@@ -1693,7 +1695,7 @@ async function renderDateSummaryContent(dateStr){
     const total=p.wins+p.losses;
     const wr=total?Math.round(p.wins/total*100):0;
     const isMvp=p.id===mvp?.id;
-    const u=users.find(x=>x.id===p.id);
+    const u=users.find(x=>x.id===p.realId);
     const av=u?.avatar_url
       ?`<img src="${u.avatar_url}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">`
       :`<div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;">${p.name[0]}</div>`;
@@ -1730,21 +1732,23 @@ function matchCardHTML(m,isAdmin=false){
   const emojiSlotL=`<span class="mc-me-slot">${onATeam?myEmoji:''}</span>`;
   const emojiSlotR=`<span class="mc-me-slot">${onBTeam?myEmoji:''}</span>`;
 
-  // 상대전적 계산
+  // 상대전적 계산 (회원 id + 비회원 name 모두 포함)
   let h2hWinA=0,h2hWinB=0;
   try{
     const allM=window._allMatchesCache||[];
-    const aIds=[m.a1_id,m.a2_id].filter(Boolean).sort();
-    const bIds=[m.b1_id,m.b2_id].filter(Boolean).sort();
+    // id가 있으면 id, 없으면 'n:이름' 으로 선수 식별
+    const pKey=(id,name)=>id||(name?'n:'+name:null);
+    const aKeys=[pKey(m.a1_id,m.a1_name),pKey(m.a2_id,m.a2_name)].filter(Boolean).sort();
+    const bKeys=[pKey(m.b1_id,m.b1_name),pKey(m.b2_id,m.b2_name)].filter(Boolean).sort();
     allM.filter(x=>x.status==='approved').filter(x=>{
       if(x.match_date<m.match_date) return true;
       if(x.match_date===m.match_date) return (x.created_at||'')<=(m.created_at||'')||x.id===m.id;
       return false;
     }).forEach(x=>{
-      const xA=[x.a1_id,x.a2_id].filter(Boolean).sort();
-      const xB=[x.b1_id,x.b2_id].filter(Boolean).sort();
-      const sameDir=xA.join()==aIds.join()&&xB.join()==bIds.join();
-      const flipDir=xA.join()==bIds.join()&&xB.join()==aIds.join();
+      const xA=[pKey(x.a1_id,x.a1_name),pKey(x.a2_id,x.a2_name)].filter(Boolean).sort();
+      const xB=[pKey(x.b1_id,x.b1_name),pKey(x.b2_id,x.b2_name)].filter(Boolean).sort();
+      const sameDir=xA.join()==aKeys.join()&&xB.join()==bKeys.join();
+      const flipDir=xA.join()==bKeys.join()&&xB.join()==aKeys.join();
       if(sameDir){x.score_a>x.score_b?h2hWinA++:h2hWinB++;}
       else if(flipDir){x.score_a>x.score_b?h2hWinB++:h2hWinA++;}
     });
@@ -5976,4 +5980,31 @@ function bfDuoMoveTeam(sel,fromGi,ti){
   _bfArrangement.groups[toGi].teams.push(team);
   _bfArrangement.groups.forEach(g=>{g.matches=[];for(let i=0;i<g.teams.length;i++)for(let j=i+1;j<g.teams.length;j++)g.matches.push({t1:g.teams[i],t2:g.teams[j],s1:'',s2:'',done:false});});
   _bfRenderDuoArrangeUI(document.getElementById('bf-arrange-wrap'));
+}
+
+/* ── 푸시 알림 토글 (설정 페이지) ── */
+async function togglePushNotification(){
+  const btn=document.getElementById('push-toggle-settings');
+  const txt=document.getElementById('push-status-text');
+  if(!('Notification' in window)||!('serviceWorker' in navigator)){
+    toast('이 환경에서는 푸시 알림을 지원하지 않아요.','error'); return;
+  }
+  try{
+    const reg=await navigator.serviceWorker.ready.catch(()=>null);
+    if(!reg){toast('서비스 워커가 준비되지 않았어요.','error');return;}
+    const sub=await reg.pushManager.getSubscription().catch(()=>null);
+    const isOn=Notification.permission==='granted'&&sub;
+    if(isOn){
+      await sub.unsubscribe();
+      if(txt) txt.textContent='알림이 꺼져 있어요';
+      if(btn){btn.textContent='🔕 켜기';btn.style.color='var(--text)';}
+      toast('알림을 껐어요.','info');
+    } else {
+      const perm=await Notification.requestPermission();
+      if(perm!=='granted'){toast('알림 권한이 거부됐어요.','error');return;}
+      if(txt) txt.textContent='✅ 알림이 켜져 있어요';
+      if(btn){btn.textContent='🔔 끄기';btn.style.color='var(--primary)';}
+      toast('알림을 켰어요.','success');
+    }
+  }catch(e){toast('알림 설정 중 오류가 발생했어요.','error');console.error(e);}
 }

@@ -407,4 +407,4 @@ body.light-mode .toast.success{background:#E3F2FD;border-color:rgba(21,101,192,.
 .feed-date-header{display:flex;align-items:center;gap:10px;padding:10px 0 6px;margin-top:2px;}
 .feed-date-header::before{content:'';flex:1;height:1px;background:var(--border);}
 .feed-date-header span{font-size:.75rem;font-weight:700;color:var(--text-muted);white-space:nowrap;padding:0 4px;}
-.feed-date-header::after{display:none;}
+.feed-date-header::after{content:'';flex:1;height:1px;background:var(--border);}
