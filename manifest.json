@@ -1,0 +1,24 @@
+{
+  "name": "새벽민턴 AM BADMINTON",
+  "short_name": "새벽민턴",
+  "description": "새벽을 깨우는 배드민턴 클럽 스코어 관리 시스템",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D1117",
+  "theme_color": "#00C896",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>새벽민턴 AM BADMINTON</title>
 
+<!-- PWA -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#00C896">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="새벽민턴">
+<link rel="apple-touch-icon" href="/icon-192.png">
+
 <!-- OG 메타데이터 -->
 <meta property="og:url" content="https://ambm.vercel.app/">
 <meta property="og:title" content="새벽민턴 AM BADMINTON">
@@ -391,22 +400,10 @@
           <div style="display:flex;align-items:center;gap:12px;">
             <button onclick="adjustFontScale(-1)" style="width:40px;height:40px;border-radius:50%;border:1px solid var(--border);background:var(--bg2);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text);">－</button>
             <div style="flex:1;height:4px;background:var(--border);border-radius:2px;position:relative;">
-              <div style="position:absolute;left:0;top:0;height:100%;border-radius:2px;background:var(--primary);width:33%;"></div>
+              <div id="font-scale-bar" style="position:absolute;left:0;top:0;height:100%;border-radius:2px;background:var(--primary);width:33%;transition:width .2s;"></div>
             </div>
             <button onclick="adjustFontScale(1)" style="width:40px;height:40px;border-radius:50%;border:1px solid var(--border);background:var(--bg2);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text);">＋</button>
           </div>
-        </div>
-      </div>
-
-      <!-- 알림 설정 -->
-      <div class="card" style="padding:16px;">
-        <div style="font-size:.8rem;font-weight:700;color:var(--text-muted);margin-bottom:12px;letter-spacing:.5px;">알림 설정</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;">
-          <div>
-            <div style="font-size:.9rem;font-weight:600;">푸시 알림</div>
-            <div id="push-status-text" style="font-size:.75rem;color:var(--text-muted);margin-top:2px;"></div>
-          </div>
-          <button id="push-toggle-settings" onclick="togglePushNotification()" style="background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 14px;font-size:.82rem;font-family:inherit;cursor:pointer;font-weight:600;"></button>
         </div>
       </div>
 
@@ -674,5 +671,15 @@
     </div>
   </div>
 </div>
+<!-- Service Worker 등록 (PWA) -->
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg=>console.log('[SW] 등록 완료:', reg.scope))
+      .catch(err=>console.warn('[SW] 등록 실패:', err));
+  });
+}
+</script>
 </body>
 </html>

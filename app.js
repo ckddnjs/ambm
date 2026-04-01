@@ -39,7 +39,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
     if(!handled){
       console.warn('[AMBM] safety timer triggered - forcing ready');
       handled=true;
-      initTheme();document.body.classList.add('ready');
+      initTheme();initFontScale();document.body.classList.add('ready');
       fadeOutLoading();
       ME?showApp():showLogin();
     }
@@ -54,7 +54,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
       }
       clearTimeout(_safetyTimer);
       handled=true;
-      initTheme();document.body.classList.add('ready');
+      initTheme();initFontScale();document.body.classList.add('ready');
       await fadeOutLoading();
       if(!ME) showLogin();
       else if(ME.status==='approved') showApp();
@@ -184,6 +184,34 @@ async function doEmailSignup(){
     toast('가입 신청 완료! 관리자 승인 후 로그인 가능합니다 ✅','success');
     ['signup-name','signup-email','signup-pw'].forEach(id=>document.getElementById(id).value='');
   } catch(e){toast('가입 실패: '+e.message,'error');}
+}
+
+/* ── 글자 크기 ── */
+const _FONT_STEPS=[
+  {size:14,label:'작게',  sub:'기본보다 작음'},
+  {size:15,label:'보통',  sub:'기본 크기'},
+  {size:17,label:'크게',  sub:'기본보다 큼'},
+  {size:19,label:'매우 크게',sub:'최대 크기'},
+];
+let _fontStepIdx=1;
+function applyFontScale(idx,save=true){
+  idx=Math.max(0,Math.min(_FONT_STEPS.length-1,idx));
+  _fontStepIdx=idx;
+  const step=_FONT_STEPS[idx];
+  document.documentElement.style.fontSize=step.size+'px';
+  if(save) localStorage.setItem('font_scale_idx',idx);
+  const label=document.getElementById('font-scale-label');
+  const sub=document.getElementById('font-scale-sub');
+  if(label) label.textContent=step.label;
+  if(sub)   sub.textContent=step.sub;
+  // 슬라이더 바 진행도 업데이트
+  const bar=document.getElementById('font-scale-bar');
+  if(bar) bar.style.width=(idx/(_FONT_STEPS.length-1)*100)+'%';
+}
+function adjustFontScale(delta){ applyFontScale(_fontStepIdx+delta); }
+function initFontScale(){
+  const saved=localStorage.getItem('font_scale_idx');
+  applyFontScale(saved!==null?parseInt(saved):1,false);
 }
 
 /* ── DARK MODE ── */
@@ -5982,29 +6010,90 @@ function bfDuoMoveTeam(sel,fromGi,ti){
   _bfRenderDuoArrangeUI(document.getElementById('bf-arrange-wrap'));
 }
 
-/* ── 푸시 알림 토글 (설정 페이지) ── */
-async function togglePushNotification(){
-  const btn=document.getElementById('push-toggle-settings');
-  const txt=document.getElementById('push-status-text');
-  if(!('Notification' in window)||!('serviceWorker' in navigator)){
-    toast('이 환경에서는 푸시 알림을 지원하지 않아요.','error'); return;
-  }
-  try{
-    const reg=await navigator.serviceWorker.ready.catch(()=>null);
-    if(!reg){toast('서비스 워커가 준비되지 않았어요.','error');return;}
-    const sub=await reg.pushManager.getSubscription().catch(()=>null);
-    const isOn=Notification.permission==='granted'&&sub;
-    if(isOn){
-      await sub.unsubscribe();
-      if(txt) txt.textContent='알림이 꺼져 있어요';
-      if(btn){btn.textContent='🔕 켜기';btn.style.color='var(--text)';}
-      toast('알림을 껐어요.','info');
+/* ── 설정 페이지 렌더 ── */
+async function renderSettingsPage(){
+  // 글자 크기 UI 동기화
+  applyFontScale(_fontStepIdx, false);
+
+  // 아바타
+  const avatarEl=document.getElementById('settings-avatar');
+  if(avatarEl){
+    if(ME.avatar_url){
+      avatarEl.innerHTML=`<img src="${ME.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`;
     } else {
-      const perm=await Notification.requestPermission();
-      if(perm!=='granted'){toast('알림 권한이 거부됐어요.','error');return;}
-      if(txt) txt.textContent='✅ 알림이 켜져 있어요';
-      if(btn){btn.textContent='🔔 끄기';btn.style.color='var(--primary)';}
-      toast('알림을 켰어요.','success');
+      avatarEl.textContent=ME.name?.[0]||'?';
     }
-  }catch(e){toast('알림 설정 중 오류가 발생했어요.','error');console.error(e);}
+  }
+  // 이름/이메일
+  const nameEl=document.getElementById('settings-name');
+  const emailEl=document.getElementById('settings-email');
+  if(nameEl) nameEl.textContent=ME.name||'';
+  const genderLabel=ME.gender==='female'?'여성':ME.gender==='male'?'남성':'';
+  if(emailEl) emailEl.textContent=[ME.email,genderLabel].filter(Boolean).join(' · ');
+
+  // 다크모드 버튼
+  const dmBtn=document.getElementById('darkmode-settings-btn');
+  if(dmBtn){
+    const isLight=document.body.classList.contains('light-mode');
+    dmBtn.textContent=isLight?'🌙 다크로 변경':'☀️ 라이트로 변경';
+  }
+}
+
+/* ── 아바타 업로드 ── */
+async function uploadAvatar(input){
+  let file=input.files[0];
+  if(!file) return;
+  input.value='';
+
+  if(file.size>2*1024*1024){
+    toast('이미지 최적화 중...','info');
+    file=await new Promise(resolve=>{
+      const img=new Image();
+      const url=URL.createObjectURL(file);
+      img.onload=()=>{
+        URL.revokeObjectURL(url);
+        const MAX=1200;
+        let w=img.width,h=img.height;
+        if(w>h&&w>MAX){h=Math.round(h*MAX/w);w=MAX;}
+        else if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
+        const canvas=document.createElement('canvas');
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        canvas.toBlob(blob=>resolve(new File([blob],'avatar.jpg',{type:'image/jpeg'})),'image/jpeg',0.88);
+      };
+      img.src=url;
+    });
+  }
+
+  toast('업로드 중...','info');
+  try{
+    const path=`${ME.id}/avatar.jpg`;
+    let{error:upErr}=await sb.storage.from('avatars').upload(path,file,{
+      contentType:'image/jpeg',cacheControl:'0',upsert:true
+    });
+    if(upErr&&(upErr.message?.includes('already exists')||upErr.statusCode==='409'||upErr.error==='Duplicate')){
+      await sb.storage.from('avatars').remove([path]).catch(()=>{});
+      const{error:upErr2}=await sb.storage.from('avatars').upload(path,file,{contentType:'image/jpeg',cacheControl:'0'});
+      upErr=upErr2;
+    }
+    if(upErr) throw upErr;
+
+    const{data}=sb.storage.from('avatars').getPublicUrl(path);
+    const url=data.publicUrl+'?t='+Date.now();
+    await sb.from('profiles').update({avatar_url:url}).eq('id',ME.id);
+    ME.avatar_url=url;
+
+    const avatarEl=document.getElementById('settings-avatar');
+    if(avatarEl) avatarEl.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    const hdrAvatar=document.getElementById('hdr-avatar');
+    if(hdrAvatar) hdrAvatar.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    _usersCache=[];
+    toast('✅ 프로필 사진이 업데이트됐어요!','success');
+  }catch(e){
+    console.error(e);
+    const msg=e.message?.includes('row-level security')||e.message?.includes('policy')
+      ?'저장 권한 오류 — Supabase Storage 버킷 RLS 정책을 확인해주세요'
+      :'업로드 실패: '+e.message;
+    toast(msg,'error');
+  }
 }
