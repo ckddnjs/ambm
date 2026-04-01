@@ -138,7 +138,6 @@
     <div class="page active" id="page-dashboard">
       <div class="flex-between mb-2">
         <div><div class="page-title" id="dash-hello">안녕하세요 👋</div><div class="page-sub">나의 경기 통계</div></div>
-        <button class="btn btn-ghost btn-sm" onclick="renderDashboard()">↻</button>
       </div>
       <div class="card green-glow" id="my-overview-card"></div>
       <div class="card">
@@ -182,7 +181,10 @@
     <!-- 경기내역 -->
     <div class="page" id="page-feed">
       <div class="flex-between mb-2">
-        <div><div class="page-title">📋 기록</div><div class="page-sub">경기 내역</div></div>
+        <div style="display:flex;align-items:baseline;gap:8px;">
+          <div class="page-title" style="margin-bottom:0;">📋 기록</div>
+          <div class="page-sub" style="margin-bottom:0;">경기 내역</div>
+        </div>
         <div style="display:flex;gap:6px;align-items:center;">
           <button id="btn-batch-register" class="btn btn-ghost btn-sm" onclick="toggleBatchPanel()" style="display:none;border:1px solid var(--border);color:var(--text-muted);font-size:.78rem;">📋 일괄등록</button>
           <button id="btn-feed-register" class="btn btn-primary btn-sm" onclick="openRegisterModal()" style="font-size:.82rem;display:none;">✍️ 등록</button>
@@ -336,7 +338,10 @@
     <!-- 커뮤니티 -->
     <div class="page" id="page-community">
       <div class="flex-between mb-2">
-        <div><div class="page-title">📢 공지사항</div><div class="page-sub">관리자 공지</div></div>
+        <div style="display:flex;align-items:baseline;gap:8px;">
+          <div class="page-title" style="margin-bottom:0;">📢 소식</div>
+          <div class="page-sub" style="margin-bottom:0;">공지사항</div>
+        </div>
         <button id="btn-comm-write" class="btn btn-primary btn-sm" onclick="openPostForm()" style="display:none;">✍️ 글쓰기</button>
       </div>
       <div class="sub-tabs" id="comm-tabs">
@@ -409,12 +414,12 @@
   </div>
 
   <!-- 날짜별 요약 페이지 -->
-  <div id="page-date-summary" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:300;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+  <div id="page-date-summary" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:300;overflow-y:scroll;-webkit-overflow-scrolling:touch;height:100%;height:100dvh;">
     <div style="display:flex;align-items:center;gap:10px;padding:14px 14px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10;">
       <button onclick="closeDateSummaryPage()" style="background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;padding:2px 6px 2px 0;line-height:1;">‹</button>
       <div id="dsp-title" style="font-size:1rem;font-weight:700;"></div>
     </div>
-    <div id="dsp-content" style="padding:14px;"></div>
+    <div id="dsp-content" style="padding:14px;padding-bottom:40px;"></div>
   </div>
 
   <nav class="bottom-nav" id="bottom-nav"></nav>
