@@ -60,7 +60,7 @@ body.light-mode #loading-logo{filter:drop-shadow(0 2px 8px rgba(0,0,0,.12));}
 .kakao-icon{width:22px;height:22px}
 #app{display:none;min-height:100vh;flex-direction:column}
 #app.show{display:flex}
-.app-header{background:linear-gradient(90deg,var(--bg2) 0%,var(--surface) 60%,rgba(41,121,255,.05) 100%);border-bottom:1px solid var(--border);padding:0 16px;min-height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;flex-shrink:0}
+.app-header{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 16px;min-height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;flex-shrink:0}
 .app-header-logo{font-family:'Black Han Sans',sans-serif;font-size:1.1rem;color:var(--primary);cursor:pointer;letter-spacing:.5px;display:flex;align-items:center;gap:8px}
 .header-right{display:flex;align-items:center;gap:8px}
 .header-chip{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:.82rem;color:var(--text);display:flex;align-items:center;gap:6px}
@@ -413,6 +413,14 @@ body.light-mode .toast.success{background:#E3F2FD;border-color:rgba(21,101,192,.
 
 /* ── PWA standalone safe-area ── */
 @media (display-mode: standalone) {
+  /* black-translucent: 콘텐츠가 status bar 아래까지 올라옴
+     헤더에 padding-top = safe-area-inset-top 줘서 배경이 status bar 영역까지 채워지게 함 */
+  .app-header {
+    padding-top: env(safe-area-inset-top, 0px);
+    min-height: calc(52px + env(safe-area-inset-top, 0px));
+    align-items: flex-end;
+    padding-bottom: 8px;
+  }
   .bottom-nav {
     padding-bottom: max(env(safe-area-inset-bottom, 0px), 24px);
     min-height: 72px;
