@@ -870,7 +870,7 @@ function renderRankTable(allMatches){
     <td style="text-align:center;">${u.losses}</td>
     <td style="text-align:center;" class="rank-wr">${wr}</td>
     <td style="text-align:center;font-weight:700;">${diff}</td>
-    <td style="text-align:center;font-size:.85rem;background:rgba(41,121,255,.08);border-radius:6px;">${ciVal}</td>
+    <td style="text-align:center;font-size:.85rem;">${ciVal}</td>
   </tr>`;}).join('');
   const moreRow=(!isExpanded&&allDisplay.length>LIMIT)
     ?`<tr><td colspan="8" style="text-align:center;padding:10px;"><button onclick="document.getElementById('rank-table-wrap').dataset.expanded='true';renderRankTable(window._allMatchesCache)" style="background:var(--bg2);border:1px solid var(--border);color:var(--primary);border-radius:8px;padding:6px 18px;font-family:inherit;font-size:.82rem;cursor:pointer;">더보기 (${allDisplay.length-LIMIT}명 더)</button></td></tr>`

@@ -10,7 +10,7 @@
 <meta name="theme-color" id="meta-theme-color" content="#0D1117">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="새벽민턴">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <!-- 앱 테마(localStorage) 기준으로 status bar 색 즉시 결정 -->
@@ -180,7 +180,6 @@
       <div class="flex-between mb-2">
         <div><div class="page-title">📋 기록</div><div class="page-sub">경기 내역</div></div>
         <div style="display:flex;gap:6px;align-items:center;">
-          <button class="btn btn-ghost btn-sm" onclick="renderFeed()" style="color:var(--text-muted);">↻</button>
           <button id="btn-batch-register" class="btn btn-ghost btn-sm" onclick="toggleBatchPanel()" style="display:none;border:1px solid var(--border);color:var(--text-muted);font-size:.78rem;">📋 일괄등록</button>
           <button id="btn-feed-register" class="btn btn-primary btn-sm" onclick="openRegisterModal()" style="font-size:.82rem;display:none;">✍️ 등록</button>
         </div>

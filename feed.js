@@ -118,7 +118,6 @@ function _attachFeedScroll(){
   _feedScrollHandler=()=>{
     const sentinel=document.getElementById('feed-sentinel');
     if(!sentinel||!window._feedAllMatches) return;
-    // appBody 기준으로 sentinel 위치 체크
     const bodyRect=appBody.getBoundingClientRect();
     const sentRect=sentinel.getBoundingClientRect();
     if(sentRect.top < bodyRect.bottom + 300){
@@ -127,6 +126,8 @@ function _attachFeedScroll(){
     }
   };
   appBody.addEventListener('scroll',_feedScrollHandler,{passive:true});
+  // 초기 렌더 직후 sentinel이 이미 보이면 즉시 추가 로드
+  setTimeout(_feedScrollHandler, 100);
 }
 function _detachFeedScroll(){
   if(!_feedScrollHandler) return;

@@ -413,14 +413,6 @@ body.light-mode .toast.success{background:#E3F2FD;border-color:rgba(21,101,192,.
 
 /* ── PWA standalone safe-area ── */
 @media (display-mode: standalone) {
-  .app-header {
-    position: sticky;
-    top: 0;
-    padding-top: env(safe-area-inset-top, 44px);
-    min-height: calc(52px + env(safe-area-inset-top, 44px));
-    align-items: flex-end;
-    padding-bottom: 8px;
-  }
   .bottom-nav {
     padding-bottom: max(env(safe-area-inset-bottom, 0px), 24px);
     min-height: 72px;
@@ -436,3 +428,7 @@ body.light-mode .toast.success{background:#E3F2FD;border-color:rgba(21,101,192,.
     padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* 랭킹 CI 색상: 다크=밝은파랑, 라이트=진한파랑 */
+.rank-table td:last-child span { color: #5BA4F5; }
+body.light-mode .rank-table td:last-child span { color: #1565C0; }
