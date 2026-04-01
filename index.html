@@ -134,6 +134,14 @@
         <div class="card-title">🤝 베스트 파트너</div>
         <div id="partner-list"></div>
       </div>
+      <!-- MVP 시상대 -->
+      <div class="card" id="mvp-podium-card" style="padding:18px 14px 14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div class="card-title" style="margin:0;">🥇 이번 시즌 MVP</div>
+          <span style="font-size:.68rem;color:var(--text-muted);font-weight:400;">종합점수(CI) 기준</span>
+        </div>
+        <div id="mvp-podium-wrap"></div>
+      </div>
       <div class="card">
         <div class="card-title">🏆 전체 랭킹 <span style="font-size:.68rem;font-weight:400;color:var(--text-muted);">5경기 이상 반영</span></div>
         <div class="sort-row">
@@ -160,14 +168,14 @@
     <!-- 경기내역 -->
     <div class="page" id="page-feed">
       <div class="flex-between mb-2">
-        <div><div class="page-title">📋 경기 내역</div><div class="page-sub">최근 경기 결과</div></div>
+        <div><div class="page-title">📋 기록</div><div class="page-sub">경기 내역</div></div>
         <div style="display:flex;gap:6px;align-items:center;">
           <button class="btn btn-ghost btn-sm" onclick="renderFeed()" style="color:var(--text-muted);">↻</button>
           <button id="btn-batch-register" class="btn btn-ghost btn-sm" onclick="toggleBatchPanel()" style="display:none;border:1px solid var(--border);color:var(--text-muted);font-size:.78rem;">📋 일괄등록</button>
-          <!-- <button class="btn btn-ghost btn-sm" onclick="openScoreboard()" style="border:1px solid var(--border);color:var(--text-muted);font-size:.78rem;">🏸 점수판</button> -->
           <button class="btn btn-primary btn-sm" onclick="openRegisterModal()" style="font-size:.82rem;">✍️ 등록</button>
         </div>
       </div>
+      <div id="feed-filters-wrap">
       <div class="filter-row">
         <select class="form-select" id="feed-date-filter" onchange="renderFeed()" style="flex:1.4;">
           <option value="">전체 날짜</option>
@@ -189,6 +197,7 @@
         </div>
         <button onclick="feedMyMatches()" style="white-space:nowrap;background:var(--bg3);border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:0 12px;height:44px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0;">내 경기</button>
       </div>
+      </div><!-- /feed-filters-wrap -->
       <!-- 일괄등록 패널 (관리자) -->
       <div id="batch-panel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;">
         <div style="font-size:.85rem;font-weight:700;margin-bottom:6px;">📋 경기 일괄 등록</div>

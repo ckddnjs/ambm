@@ -114,19 +114,35 @@ body.light-mode #loading-logo{filter:drop-shadow(0 2px 8px rgba(0,0,0,.12));}
 .type-mixed{color:var(--primary)}
 .type-doubles{color:var(--primary)}
 /* ── 경기 카드 ── */
-.match-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:0.5px 10px 0.5px 12px;margin-bottom:7px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden;border-left:4px solid var(--border)}
+.match-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:7px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden;border-left:none}
 .match-card:hover{border-color:var(--border-strong)}
-.match-card.my-match{border-color:rgba(41,121,255,.45);background:linear-gradient(135deg,rgba(41,121,255,.05),var(--surface))}
+.match-card:active{transform:scale(.985);opacity:.9;transition:transform .1s}
 .match-card.my-match .my-badge{display:inline-block}
-.match-card.mc-mixed{border-left:4px solid #2979FF}
-.match-card.mc-men{border-left:4px solid #2979FF}
-.match-card.mc-women{border-left:4px solid #2979FF}
-.match-card.mc-doubles{border-left:4px solid #2979FF}
+.match-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:2px 0 0 0;}
+.match-card{border-left:3px solid var(--primary)}
 .my-badge{display:none;font-size:.68rem;color:var(--primary);font-weight:700;background:rgba(41,121,255,.1);border:1px solid rgba(41,121,255,.25);padding:1px 7px;border-radius:8px;margin-left:6px;vertical-align:middle}
+.mc-body{display:flex;align-items:center;padding:8px 10px 8px;gap:4px}
+.mc-h2h-txt{font-size:.62rem;font-weight:400;color:rgba(255,255,255,.35);letter-spacing:.2px;text-align:center}
+.mc-wl-badge{font-size:.62rem;font-weight:900;letter-spacing:.5px;padding:3px 7px;border-radius:5px;flex-shrink:0}
+.mc-wl-badge.win{background:rgba(41,121,255,.2);color:var(--primary);border:1px solid rgba(41,121,255,.4)}
+.mc-wl-badge.lose{background:rgba(255,255,255,.06);color:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.1)}
+.mc-team-col{flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:10px;padding-right:10px}
+.mc-team-col.right{justify-content:flex-start;padding-right:0;padding-left:10px}
+.mc-pnames-v{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mc-pnames-v.right{align-items:flex-end}
+.mc-pname{font-size:.82rem;font-weight:800;white-space:nowrap;line-height:1.35}
+.mc-pname.win{color:var(--primary)}
+.mc-pname.lose{color:rgba(255,255,255,.75);font-weight:600}
+.mc-score-center{display:flex;flex-direction:column;align-items:center;gap:0;flex-shrink:0;padding:0 6px;margin-top:-6px;min-width:80px}
+.mc-score-row{display:flex;align-items:center;gap:3px;margin-top:1px}
+.mc-score-num{font-family:'Black Han Sans',sans-serif;font-size:1.5rem;line-height:1;min-width:1.8rem;text-align:center}
+.mc-score-win{color:var(--primary)}.mc-score-lose{color:rgba(255,255,255,.75)}
+.mc-sep{color:var(--text-dim);font-size:1rem;font-weight:700;flex-shrink:0}
+.mc-me-slot{width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0}
 /* 경기카드 점수행 */
-.match-score-row{display:flex;align-items:center;gap:4px;margin:4px 0}
 .mc-team{flex:1;min-width:0;display:flex;align-items:center;gap:4px;overflow:hidden}
 .mc-team.right{justify-content:flex-end}
+.match-score-row{display:flex;align-items:center;gap:4px;margin:4px 0}
 .mc-names{font-size:.92rem;font-weight:600;letter-spacing:.2px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mc-score-block{display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--bg3);border-radius:10px;padding:6px 16px;min-width:90px;justify-content:center}
 .mc-score-num{font-family:'Black Han Sans',sans-serif;font-size:1.5rem;line-height:1}
@@ -328,6 +344,10 @@ body.light-mode .match-card.my-match{
   border-color:rgba(21,101,192,0.40);
   background:rgba(21,101,192,0.04);
 }
+body.light-mode .mc-pname.lose{color:rgba(0,0,0,.55);font-weight:600}
+body.light-mode .mc-wl-badge.lose{background:rgba(0,0,0,.05);color:rgba(0,0,0,.4);border:1px solid rgba(0,0,0,.1)}
+body.light-mode .mc-h2h-txt{color:rgba(0,0,0,.3)}
+body.light-mode .mc-score-lose{color:rgba(0,0,0,.55)}
 
 /* 스켈레톤 */
 body.light-mode .sk-card{
