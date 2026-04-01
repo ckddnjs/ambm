@@ -14,6 +14,7 @@ const sb=createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{redirectTo:APP_URL,autoR
 
 /* ── STATE ── */
 let ME=null, currentPage='', rankTab='all', sortBy='ci', sortDir=1; // sortDir: 1=내림차순, -1=오름차순
+let _explicitLogout=false; // 명시적 로그아웃 여부 (네트워크 오류 구분용)
 let regMatchType='doubles', adminTab='pending', editMatchId='';
 
 let _allMatchesCache=[];window._allMatchesCache=_allMatchesCache;
@@ -46,11 +47,12 @@ window.addEventListener('DOMContentLoaded',async()=>{
   },2000);
   sb.auth.onAuthStateChange(async(event,session)=>{
     if(event==='INITIAL_SESSION'){
+      // PWA 재시작 시 저장된 세션 복원
+      if(handled) return;
       try{
         if(session?.user) await loadProfile(session.user);
       } catch(e){
-        console.error('[AMBM] loadProfile error on INITIAL_SESSION',e);
-        ME=null;
+        console.warn('[AMBM] INITIAL_SESSION loadProfile err',e);
       }
       clearTimeout(_safetyTimer);
       handled=true;
@@ -61,7 +63,10 @@ window.addEventListener('DOMContentLoaded',async()=>{
       else if(ME.status==='pending') showPendingScreen(ME.name);
       else{await sb.auth.signOut();showLogin();}
     } else if(event==='SIGNED_IN'){
-      if(session?.user?.app_metadata?.provider==='email') return;
+      // INITIAL_SESSION 이후 중복 실행 방지
+      if(handled&&ME) return;
+      // 이메일 로그인은 직접 처리
+      if(session?.user?.app_metadata?.provider==='email'&&handled) return;
       try{
         if(session?.user) await loadProfile(session.user);
       } catch(e){
@@ -71,11 +76,35 @@ window.addEventListener('DOMContentLoaded',async()=>{
       document.body.classList.add('ready');
       await fadeOutLoading();
       if(!ME){showLogin();return;}
-      if(ME.status==='approved'){showApp();toast(`어서오세요, ${ME.name}님! 🏸`,'success');}
+      if(ME.status==='approved'){showApp();if(!handled)toast(`어서오세요, ${ME.name}님! 🏸`,'success');}
       else if(ME.status==='pending'){showPendingScreen(ME.name);toast('승인 대기 중입니다','warning');}
       else{showLogin();toast('이용 불가 계정','error');await sb.auth.signOut();ME=null;}
     } else if(event==='SIGNED_OUT'){
-      ME=null;document.body.classList.add('ready');showLogin();
+      // ⚠️ 네트워크 오류로 인한 토큰 갱신 실패 시 SIGNED_OUT이 오는 경우 방지
+      // 명시적 로그아웃(doLogout)이 아니면 세션 복구 시도
+      if(!_explicitLogout){
+        // 1초 후 세션 재확인 — 네트워크 복귀 시 자동 복구
+        setTimeout(async()=>{
+          try{
+            const{data:{session:s}}=await sb.auth.getSession();
+            if(s?.user){
+              await loadProfile(s.user);
+              if(ME?.status==='approved') return; // 복구됨
+            }
+          }catch(e){}
+          ME=null;
+          document.body.classList.add('ready');
+          showLogin();
+        },1000);
+        return;
+      }
+      ME=null;_explicitLogout=false;
+      document.body.classList.add('ready');
+      showLogin();
+    } else if(event==='TOKEN_REFRESHED'){
+      // 토큰 갱신 성공 — 이미 로그인 상태면 유지
+      if(session?.user&&ME&&session.user.id===ME.id) return;
+      try{ if(session?.user) await loadProfile(session.user); }catch(e){}
     }
   });
   setTimeout(async()=>{
@@ -244,6 +273,7 @@ function initTheme(){
 }
 async function doLogout(){
   if(ME) addLog(`로그아웃: ${ME.name}`,ME.id);
+  _explicitLogout=true;
   await sb.auth.signOut();ME=null;showLogin();
 }
 
@@ -272,7 +302,7 @@ function showPendingScreen(name){
     <button onclick="doLogoutFromPending()" style="background:var(--bg2);border:1px solid var(--border);color:var(--text-muted);border-radius:10px;padding:10px 24px;font-family:inherit;cursor:pointer;">↩ 로그아웃</button>`;
   document.body.appendChild(el);
 }
-async function doLogoutFromPending(){await sb.auth.signOut();ME=null;document.getElementById('pending-screen')?.remove();showLogin();}
+async function doLogoutFromPending(){_explicitLogout=true;await sb.auth.signOut();ME=null;document.getElementById('pending-screen')?.remove();showLogin();}
 function switchTab(t){
   document.querySelectorAll('.login-tab').forEach((el,i)=>el.classList.toggle('active',(i===0&&t==='login')||(i===1&&t==='signup')));
   document.querySelectorAll('.login-panel').forEach(p=>p.classList.remove('active'));
@@ -434,5 +464,3 @@ function ciToLabel(ci){
   if(ci>=960)  return 'C';
   return 'D';
 }
-
-
