@@ -87,7 +87,7 @@ body.light-mode #loading-logo{filter:drop-shadow(0 2px 8px rgba(0,0,0,.12));}
 .page-title{font-family:'Black Han Sans',sans-serif;font-size:1.3rem;color:var(--text);margin-bottom:4px;letter-spacing:.5px}
 .page-sub{font-size:.84rem;color:var(--text-muted);margin-bottom:16px}
 .page-title+.page-sub{margin-bottom:0}
-#dash-hello{font-family:'Noto Sans KR',sans-serif;font-size:.95rem;font-weight:400;letter-spacing:0;color:var(--text-muted)}
+#dash-hello{font-family:'Noto Sans KR',sans-serif;font-size:1.05rem;font-weight:700;letter-spacing:0;color:var(--text)}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
 .card.green-glow{border-color:var(--border-strong);box-shadow:0 0 24px rgba(41,121,255,.12)}
 .card-title{font-size:.9rem;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.5px}
