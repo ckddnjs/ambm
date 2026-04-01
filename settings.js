@@ -56,26 +56,37 @@ async function uploadAvatar(input){
   toast('업로드 중...','info');
   try{
     const path=`${ME.id}/avatar.jpg`;
-    let{error:upErr}=await sb.storage.from('avatars').upload(path,file,{
-      contentType:'image/jpeg',cacheControl:'0',upsert:true
+    // 항상 삭제 후 재업로드 (upsert 캐시 문제 방지)
+    await sb.storage.from('avatars').remove([path]).catch(()=>{});
+    const{error:upErr}=await sb.storage.from('avatars').upload(path,file,{
+      contentType:'image/jpeg',
+      cacheControl:'3600',
+      upsert:false
     });
-    if(upErr&&(upErr.message?.includes('already exists')||upErr.statusCode==='409'||upErr.error==='Duplicate')){
-      await sb.storage.from('avatars').remove([path]).catch(()=>{});
-      const{error:upErr2}=await sb.storage.from('avatars').upload(path,file,{contentType:'image/jpeg',cacheControl:'0'});
-      upErr=upErr2;
-    }
     if(upErr) throw upErr;
 
     const{data}=sb.storage.from('avatars').getPublicUrl(path);
     const url=data.publicUrl+'?t='+Date.now();
-    await sb.from('profiles').update({avatar_url:url}).eq('id',ME.id);
+
+    // DB 업데이트
+    const{error:dbErr}=await sb.from('profiles').update({avatar_url:url}).eq('id',ME.id);
+    if(dbErr) throw dbErr;
+
+    // 캐시 전체 갱신
     ME.avatar_url=url;
+    if(window._profilesCache){
+      const idx=window._profilesCache.findIndex(u=>u.id===ME.id);
+      if(idx>=0) window._profilesCache[idx].avatar_url=url;
+    }
+    if(window._usersCache){
+      const idx2=window._usersCache.findIndex(u=>u.id===ME.id);
+      if(idx2>=0) window._usersCache[idx2].avatar_url=url;
+    }
 
     const avatarEl=document.getElementById('settings-avatar');
     if(avatarEl) avatarEl.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
     const hdrAvatar=document.getElementById('hdr-avatar');
     if(hdrAvatar) hdrAvatar.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-    _usersCache=[];
     toast('✅ 프로필 사진이 업데이트됐어요!','success');
   }catch(e){
     console.error(e);

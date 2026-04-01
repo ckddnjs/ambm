@@ -149,7 +149,7 @@ async function renderDashboard(){
           (myCIRank?'<div style="font-size:.86rem;color:var(--primary);font-weight:700;">전체 '+myCIRank+'위 / '+total+'명</div>':'<div style="font-size:.82rem;color:var(--text-muted);">5경기 미만</div>')+
         '</div>'+
         '<div style="display:flex;align-items:baseline;gap:6px;">'+
-          '<span style="font-family:Black Han Sans,sans-serif;font-size:2.4rem;color:var(--primary);">'+ciVal+'</span>'+
+          '<span style="font-family:Black Han Sans,sans-serif;font-size:2.4rem;color:#5BA4F5;">'+ciVal+'</span>'+
         '</div>'+
       '</div>'+
       '<div style="height:8px;background:linear-gradient(to right,#4fc3f7,#00C896,#FFD700);border-radius:4px;position:relative;margin-bottom:4px;">'+
@@ -860,17 +860,17 @@ function renderRankTable(allMatches){
       :`<span class="rank-no" style="color:var(--text-dim);font-size:.8rem;">-</span>`;
     const wr=u.games>0?Math.round(u.wins/u.games*100)+'%':'0%';
     const diff=`<span style="${diffColor(u.diff)}">${u.diff>0?'+':''}${u.diff}</span>`;
-    const ciVal=`<span style="font-weight:700;">${Math.round(u.ci)}</span>`;
+    const ciVal=`<span style="font-weight:700;color:#5BA4F5;">${Math.round(u.ci)}</span>`;
     const guestBadge='';
     return `<tr class="${u.id===ME.id?'me':''}" ${!isRanked?'style="opacity:0.55;"':''}>
     <td>${rankCell}</td>
     <td><span class="rank-name" onclick="goToFeedByName('${u.name.replace(/'/g,"\\'")}')">${u.name}</span>${guestBadge}</td>
     <td style="text-align:center;">${u.games}</td>
-    <td style="text-align:center;font-weight:700;">${u.wins}</td>
-    <td style="text-align:center;font-weight:700;">${u.losses}</td>
+    <td style="text-align:center;">${u.wins}</td>
+    <td style="text-align:center;">${u.losses}</td>
     <td style="text-align:center;" class="rank-wr">${wr}</td>
     <td style="text-align:center;font-weight:700;">${diff}</td>
-    <td style="text-align:center;font-size:.85rem;">${ciVal}</td>
+    <td style="text-align:center;font-size:.85rem;background:rgba(41,121,255,.08);border-radius:6px;">${ciVal}</td>
   </tr>`;}).join('');
   const moreRow=(!isExpanded&&allDisplay.length>LIMIT)
     ?`<tr><td colspan="8" style="text-align:center;padding:10px;"><button onclick="document.getElementById('rank-table-wrap').dataset.expanded='true';renderRankTable(window._allMatchesCache)" style="background:var(--bg2);border:1px solid var(--border);color:var(--primary);border-radius:8px;padding:6px 18px;font-family:inherit;font-size:.82rem;cursor:pointer;">더보기 (${allDisplay.length-LIMIT}명 더)</button></td></tr>`

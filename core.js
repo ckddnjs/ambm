@@ -374,10 +374,16 @@ function navigateTo(page){
   document.getElementById('page-'+page)?.classList.add('active');
   document.getElementById('nav-'+page)?.classList.add('active');
   document.querySelector('.app-body').scrollTop=0;
+  // feed 탭 이탈 시 스크롤 이벤트 정리
+  if(page!=='feed' && typeof _detachFeedScroll==='function') _detachFeedScroll();
   switch(page){
     case 'dashboard':renderDashboard();break;
-    case 'feed':renderFeed();break;
-    case 'register':break; // 모달로 대체
+    case 'feed':
+      // 이전 렌더 결과 초기화 후 새로 시작
+      window._feedAllMatches=null;
+      renderFeed();
+      break;
+    case 'register':break;
     case 'admin':renderAdminPage();break;
     case 'tournament':renderTournamentPage();break;
     case 'bracket':navigateTo('tournament');break;

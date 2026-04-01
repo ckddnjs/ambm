@@ -20,51 +20,73 @@ function toggleBatchPanel(){
   if(btn) btn.style.color=open?'var(--text-muted)':'var(--primary)';
 }
 
+/* ── 초성 추출 ── */
+function _getChosung(str){
+  const cho=['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+  return (str||'').split('').map(c=>{
+    const code=c.charCodeAt(0)-0xAC00;
+    if(code<0||code>11171) return c;
+    return cho[Math.floor(code/588)];
+  }).join('');
+}
+function _matchSearch(name,q){
+  if(!name||!q) return false;
+  const n=name.toLowerCase(), qq=q.toLowerCase();
+  if(n.includes(qq)) return true;
+  // 초성 검색
+  const chosung=_getChosung(name);
+  if(chosung.includes(qq)) return true;
+  return false;
+}
+
 async function renderFeed(forceNameQ){
   _feedPage=1;
   const batchBtn=document.getElementById('btn-batch-register');
   if(batchBtn) batchBtn.style.display=ME?.role==='admin'?'':'none';
-  _detachFeedScroll(); // 기존 스크롤 이벤트 제거
+  _detachFeedScroll();
   await _renderFeedInner(forceNameQ);
 }
 
 async function _renderFeedInner(forceNameQ){
   const el=document.getElementById('feed-list');
-  if(_feedPage===1) el.innerHTML=`<div class="skeleton sk-card"></div>`.repeat(4);
+  el.innerHTML=`<div class="skeleton sk-card"></div>`.repeat(4);
   const dateF=document.getElementById('feed-date-filter')?.value||'';
   const statF=document.getElementById('feed-status-filter')?.value;
   const rawName=forceNameQ!==undefined?forceNameQ:(document.getElementById('feed-name-search')?.value||'');
-  const nameQ=rawName.trim().toLowerCase();
+  const nameQ=rawName.trim();
   const clearBtn=document.getElementById('feed-search-clear');
   if(clearBtn) clearBtn.style.display=nameQ?'block':'none';
   const sortF=document.getElementById('feed-sort-filter')?.value||'desc';
-  let q=sb.from('matches').select('*').order('match_date',{ascending:false}).order('created_at',{ascending:false}).limit(1000);
-  if(statF&&statF!==''){
-    q=q.eq('status',statF);
-  } else if(!statF){
-    q=q.eq('status','approved');
-  }
+
+  // 항상 approved만 (필터 UI 제거됐으므로 고정)
+  let q=sb.from('matches').select('*')
+    .eq('status', statF&&statF!==''&&ME?.role==='admin' ? statF : 'approved')
+    .order('match_date',{ascending:false})
+    .order('created_at',{ascending:false})
+    .limit(2000);
   if(dateF) q=q.eq('match_date',dateF);
+
   let{data:matches,error:feedErr}=await q;
   if(feedErr){ console.error('[Feed]',feedErr); matches=[]; }
   matches=matches||[];
   _populateFeedDateFilter(matches,dateF);
 
-  (matches||[]).sort((a,b)=>{
+  matches.sort((a,b)=>{
     const dd=(b.match_date||'').localeCompare(a.match_date||'');
     if(dd!==0) return sortF==='asc'?-dd:dd;
-    const ct=(b.created_at||'').localeCompare(a.created_at||'');
-    return sortF==='asc'?-ct:ct;
+    return sortF==='asc'
+      ?(a.created_at||'').localeCompare(b.created_at||'')
+      :(b.created_at||'').localeCompare(a.created_at||'');
   });
   const _fullCountByDate={};
-  (matches||[]).forEach(m=>{ const d=m.match_date||''; _fullCountByDate[d]=(_fullCountByDate[d]||0)+1; });
+  matches.forEach(m=>{ const d=m.match_date||''; _fullCountByDate[d]=(_fullCountByDate[d]||0)+1; });
   window._feedFullCountByDate=_fullCountByDate;
 
   if(nameQ){
-    matches=(matches||[]).filter(m=>[m.a1_name,m.a2_name,m.b1_name,m.b2_name]
-      .some(n=>(n||'').toLowerCase().includes(nameQ)));
+    matches=matches.filter(m=>[m.a1_name,m.a2_name,m.b1_name,m.b2_name]
+      .some(n=>_matchSearch(n,nameQ)));
   }
-  if(!matches||!matches.length){
+  if(!matches.length){
     el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><div>${nameQ?`'${rawName}' 검색 결과 없음`:'경기 내역 없음'}</div></div>`;
     return;
   }
@@ -74,18 +96,17 @@ async function _renderFeedInner(forceNameQ){
   _attachFeedScroll();
 }
 
-const PAGE=15;
+const PAGE=20;
 function _renderFeedSlice(){
   const el=document.getElementById('feed-list');
   if(!el||!window._feedAllMatches) return;
   const slice=window._feedAllMatches.slice(0,_feedPage*PAGE);
   const hasMore=window._feedAllMatches.length>slice.length;
   el.innerHTML=renderMatchesWithDateHeaders(slice, window._feedFullCountByDate||{});
-  // 더 있으면 sentinel(감지 요소) 추가
   if(hasMore){
     const sentinel=document.createElement('div');
     sentinel.id='feed-sentinel';
-    sentinel.style.height='20px';
+    sentinel.style.cssText='height:40px;margin-top:4px;';
     el.appendChild(sentinel);
   }
 }
@@ -96,9 +117,11 @@ function _attachFeedScroll(){
   if(!appBody) return;
   _feedScrollHandler=()=>{
     const sentinel=document.getElementById('feed-sentinel');
-    if(!sentinel) return;
-    const rect=sentinel.getBoundingClientRect();
-    if(rect.top < window.innerHeight+200){
+    if(!sentinel||!window._feedAllMatches) return;
+    // appBody 기준으로 sentinel 위치 체크
+    const bodyRect=appBody.getBoundingClientRect();
+    const sentRect=sentinel.getBoundingClientRect();
+    if(sentRect.top < bodyRect.bottom + 300){
       _feedPage++;
       _renderFeedSlice();
     }
@@ -112,10 +135,7 @@ function _detachFeedScroll(){
   _feedScrollHandler=null;
 }
 
-function loadMoreFeed(){ // 하위 호환 유지
-  _feedPage++;
-  _renderFeedSlice();
-}
+function loadMoreFeed(){ _feedPage++; _renderFeedSlice(); }
 function feedMyMatches(){
   const el=document.getElementById('feed-name-search');
   if(el&&ME?.name){el.value=ME.name;renderFeed();}
@@ -149,7 +169,7 @@ function feedDateHeader(dateStr,count){
   const yy=String(d.getFullYear()).slice(2);
   const label=`${yy}.${d.getMonth()+1}.${d.getDate()}.(${days[d.getDay()]})`;
   const countBadge=count>1?` <span style="font-size:.68rem;color:var(--text-muted);font-weight:400;">${count}경기</span>`:'';
-  return `<div style="display:flex;align-items:center;gap:6px;padding:10px 0 6px;margin-top:2px;"><div class="feed-date-header" style="flex:1;margin:0;padding:0;"><span>${label}${countBadge}</span></div><button onclick="event.stopPropagation();openDateSummaryPage('${dateStr}')" style="flex-shrink:0;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text-muted);font-family:inherit;font-size:.68rem;cursor:pointer;">더보기 ›</button></div>`;
+  return `<div style="display:flex;align-items:center;gap:6px;padding:10px 0 6px;margin-top:2px;"><div style="flex:1;height:1px;background:var(--border);"></div><span style="font-size:.75rem;font-weight:700;color:var(--text-muted);white-space:nowrap;padding:0 6px;">${label}${countBadge}</span><button onclick="event.stopPropagation();openDateSummaryPage('${dateStr}')" style="flex-shrink:0;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text-muted);font-family:inherit;font-size:.68rem;cursor:pointer;">더보기 ›</button><div style="flex:1;height:1px;background:var(--border);"></div></div>`;
 }
 
 /* ── 날짜별 요약 페이지 ── */

@@ -161,13 +161,6 @@
       </div>
       <div class="card">
         <div class="card-title">🏆 전체 랭킹 <span style="font-size:.68rem;font-weight:400;color:var(--text-muted);">5경기 이상 반영</span></div>
-        <div class="sort-row">
-          <button class="sort-pill active" onclick="setSort('ci')">종합</button>
-          <button class="sort-pill" onclick="setSort('winrate')">승률</button>
-          <button class="sort-pill" onclick="setSort('wins')">승수</button>
-          <button class="sort-pill" onclick="setSort('diff')">득실</button>
-          <button class="sort-pill" onclick="setSort('games')">경기수</button>
-        </div>
         <div style="overflow-x:auto"><div id="rank-table-wrap"></div></div>
       </div>
       <div class="card">
@@ -193,23 +186,9 @@
         </div>
       </div>
       <div id="feed-filters-wrap">
-      <div class="filter-row">
-        <select class="form-select" id="feed-date-filter" onchange="renderFeed()" style="flex:1.4;">
-          <option value="">전체 날짜</option>
-        </select>
-        <select class="form-select" id="feed-status-filter" onchange="renderFeed()">
-          <option value="approved">승인 경기</option>
-          <option value="">전체</option>
-          <option value="pending">대기중</option>
-        </select>
-        <select class="form-select" id="feed-sort-filter" onchange="renderFeed()">
-          <option value="desc">최신순</option>
-          <option value="asc">오래된순</option>
-        </select>
-      </div>
       <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center;">
         <div style="position:relative;flex:1;">
-          <input class="form-input" type="search" id="feed-name-search" placeholder="🔍 선수 이름 검색..." oninput="renderFeed()" style="padding-right:36px;">
+          <input class="form-input" type="search" id="feed-name-search" placeholder="🔍 선수 이름 검색 (초성 가능)..." oninput="renderFeed()" style="padding-right:36px;">
           <button id="feed-search-clear" onclick="clearFeedSearch()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);font-size:1.1rem;cursor:pointer;line-height:1;">✕</button>
         </div>
         <button onclick="feedMyMatches()" style="white-space:nowrap;background:var(--bg3);border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:0 12px;height:44px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0;">내 경기</button>
