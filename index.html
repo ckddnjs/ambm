@@ -7,13 +7,20 @@
 
 <!-- PWA -->
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#0D1117" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" id="meta-theme-color" content="#0D1117">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="새벽민턴">
 <link rel="apple-touch-icon" href="/icon-192.png">
+<!-- 앱 테마(localStorage) 기준으로 status bar 색 즉시 결정 -->
+<script>
+(function(){
+  const isLight=localStorage.getItem('theme')==='light';
+  document.getElementById('meta-theme-color').content=isLight?'#ffffff':'#0D1117';
+  if(isLight) document.documentElement.classList.add('pre-light');
+})();
+</script>
 
 <!-- OG 메타데이터 -->
 <meta property="og:url" content="https://ambm.vercel.app/">

@@ -221,11 +221,8 @@ function toggleDarkMode(){
   localStorage.setItem('theme', isLight?'light':'dark');
   _updateDmUI(isLight);
   // PWA status bar 색상 동적 업데이트
-  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.remove());
-  const tc=document.createElement('meta');
-  tc.name='theme-color';
-  tc.content=isLight?'#ffffff':'#0D1117';
-  document.head.appendChild(tc);
+  const tc=document.getElementById('meta-theme-color');
+  if(tc) tc.content=isLight?'#ffffff':'#0D1117';
   setTimeout(()=>document.body.style.transition='',350);
   if(window._logoApplyFn) setTimeout(window._logoApplyFn,10);
 }
@@ -241,12 +238,9 @@ function initTheme(){
   const isLight=saved==='light';
   if(isLight) document.body.classList.add('light-mode');
   _updateDmUI(isLight);
-  // PWA status bar 색상 초기 설정
-  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.remove());
-  const tc=document.createElement('meta');
-  tc.name='theme-color';
-  tc.content=isLight?'#ffffff':'#0D1117';
-  document.head.appendChild(tc);
+  // PWA status bar 색상 — head 인라인 스크립트에서 이미 설정되지만 혹시 모를 경우 재확인
+  const tc=document.getElementById('meta-theme-color');
+  if(tc) tc.content=isLight?'#ffffff':'#0D1117';
 }
 async function doLogout(){
   if(ME) addLog(`로그아웃: ${ME.name}`,ME.id);
