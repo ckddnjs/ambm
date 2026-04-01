@@ -267,92 +267,84 @@ function toggleTypeStats(){
 
 /* ─ 종목별 세부 통계 테이블 ─ */
 function renderMyTypeStats(stats, allM){
-  const sameType='doubles';
-  const typeLabel={doubles:'복식'};
-  const typeIcon={doubles:'🏸'};
-  // CI 순위 계산용 - 전체 랭킹 데이터 재활용
-  allM=allM||window._allMatchesCache||[];
-  const uStats2={};
-  allM.filter(m=>m.status==='approved').forEach(m=>{
-    const aWin=m.score_a>m.score_b;
-    [{id:m.a1_id,win:aWin,s:m.score_a,c:m.score_b},{id:m.a2_id,win:aWin,s:m.score_a,c:m.score_b},
-     {id:m.b1_id,win:!aWin,s:m.score_b,c:m.score_a},{id:m.b2_id,win:!aWin,s:m.score_b,c:m.score_a}]
-    .filter(p=>p.id).forEach(p=>{
-      if(!uStats2[p.id+'_'+m.match_type]) uStats2[p.id+'_'+m.match_type]={wins:0,games:0,scored:0,conceded:0};
-      const s=uStats2[p.id+'_'+m.match_type];
-      s.games++;if(p.win)s.wins++;s.scored+=p.s;s.conceded+=p.c;
-    });
-  });
-  // exclude_stats 유저 ID 셋 (window._allMatchesCache 기반 랭킹과 동일 기준 적용)
-  const _excludedIds=new Set((window._rankExcludedIds||[]));
-  const getRank=(type)=>{
-    const all={};
-    allM.filter(m=>m.status==='approved'&&m.match_type===type).forEach(m=>{
-      const aWin=m.score_a>m.score_b;
-      [{id:m.a1_id,win:aWin,s:m.score_a,c:m.score_b},{id:m.a2_id,win:aWin,s:m.score_a,c:m.score_b},
-       {id:m.b1_id,win:!aWin,s:m.score_b,c:m.score_a},{id:m.b2_id,win:!aWin,s:m.score_b,c:m.score_a}]
-      .filter(p=>p.id&&!_excludedIds.has(p.id)).forEach(p=>{
-        if(!all[p.id]) all[p.id]={id:p.id,wins:0,games:0,scored:0,conceded:0};
-        const s=all[p.id]; s.games++;if(p.win)s.wins++;s.scored+=p.s;s.conceded+=p.c;
-      });
-    });
-    // 5경기 이상만 랭킹 대상
-    const list=Object.values(all).filter(u=>u.games>=5).map(u=>({...u,ci:calcCI(u.wins,u.games,u.scored-u.conceded)})).sort((a,b)=>b.ci-a.ci);
-    const myIdx=list.findIndex(u=>u.id===ME?.id);
-    return myIdx>=0?{rank:myIdx+1,total:list.length}:null;
+  const d=stats.total||{games:0,wins:0,losses:0,diff:0,scored:0,conceded:0};
+  const games=d.games||0;
+  const wins=d.wins||0;
+  const diff=d.diff||0;
+
+  // CI 계산 분해
+  const wr=games>0?wins/games:0;
+  const confidence=games>0?games/(games+10):0;
+  const adjustedWR=wr*confidence;
+  const avgDiff=games>0?diff/games:0;
+  const wrScore=adjustedWR*200;
+  const diffScore=avgDiff*5;
+  const ci=Math.round(1000+wrScore+diffScore);
+
+  const wrPct=Math.round(wr*100);
+  const confPct=Math.round(confidence*100);
+  const adjustedPct=Math.round(adjustedWR*100);
+
+  const bar=(val,max,color)=>{
+    const pct=Math.min(100,Math.max(0,Math.round(val/max*100)));
+    return `<div style="height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;margin-top:4px;">
+      <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width .6s;"></div>
+    </div>`;
   };
 
-  const cats=['total'];
-  const catLabel={total:'합계'};
-  const catIcon={[sameType]:typeIcon[sameType],mixed:'🟡',total:'📊'};
-
-  let rows='';
-  cats.forEach(c=>{
-    const d=stats[c]||{games:0,wins:0,losses:0,diff:0};
-    const wr=d.games>0?Math.round(d.wins/d.games*100):0;
-    const ci=Math.round(calcCI(d.wins,d.games,d.diff||0));
-    const diffSign=d.diff>0?'+':'';
-    const diffCol=d.diff>0?'var(--primary)':d.diff<0?'var(--danger)':'var(--text-muted)';
-    const rankInfo=c==='total'?null:getRank(c);
-    const rankTxt=rankInfo?rankInfo.rank+'위':'—';
-    const isTotal=c==='total';
-    rows+=`<tr style="${isTotal?'border-top:2px solid var(--border);font-weight:700;background:var(--bg3);':''}">
-      <td style="padding:7px 6px;font-size:.78rem;">${catIcon[c]} ${catLabel[c]}</td>
-      <td style="text-align:center;padding:7px 4px;font-size:.8rem;">${d.games}</td>
-      <td style="text-align:center;padding:7px 4px;font-size:.8rem;">${d.wins}</td>
-      <td style="text-align:center;padding:7px 4px;font-size:.8rem;">${d.losses}</td>
-      <td style="text-align:center;padding:7px 4px;font-size:.8rem;font-weight:700;">${wr}%</td>
-      <td style="text-align:center;padding:7px 4px;font-size:.8rem;color:${diffCol};font-weight:700;">${diffSign}${d.diff||0}</td>
-      <td style="text-align:center;padding:7px 4px;font-size:.8rem;color:var(--primary);font-weight:700;">${ci}</td>
-      <td style="text-align:center;padding:7px 4px;font-size:.72rem;color:var(--text-muted);">${rankTxt}</td>
-    </tr>`;
-  });
-
-  const tableHTML=`
-    <div style="overflow-x:auto;">
-      <table style="width:100%;border-collapse:collapse;font-size:.78rem;">
-        <thead>
-          <tr style="border-bottom:1px solid var(--border);">
-            <th style="padding:5px 6px;text-align:left;font-size:.65rem;color:var(--text-muted);font-weight:600;">종목</th>
-            <th style="padding:5px 4px;text-align:center;font-size:.65rem;color:var(--text-muted);font-weight:600;">경기</th>
-            <th style="padding:5px 4px;text-align:center;font-size:.65rem;color:var(--text-muted);font-weight:600;">승</th>
-            <th style="padding:5px 4px;text-align:center;font-size:.65rem;color:var(--text-muted);font-weight:600;">패</th>
-            <th style="padding:5px 4px;text-align:center;font-size:.65rem;color:var(--text-muted);font-weight:600;">승률</th>
-            <th style="padding:5px 4px;text-align:center;font-size:.65rem;color:var(--text-muted);font-weight:600;">득실</th>
-            <th style="padding:5px 4px;text-align:center;font-size:.65rem;color:var(--text-muted);font-weight:600;">종합</th>
-            <th style="padding:5px 4px;text-align:center;font-size:.65rem;color:var(--text-muted);font-weight:600;">순위</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
+  const row=(label,value,sub,barHtml,valueColor='var(--text)')=>`
+    <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;">
+        <span style="font-size:.82rem;color:var(--text-muted);">${label}</span>
+        <span style="font-size:1rem;font-weight:700;color:${valueColor};">${value}</span>
+      </div>
+      ${sub?`<div style="font-size:.72rem;color:var(--text-dim);margin-top:2px;">${sub}</div>`:''}
+      ${barHtml||''}
     </div>`;
 
-  document.getElementById('my-type-stats').innerHTML=
-    tableHTML +
-    '<div style="margin-top:16px;" id="radar-wrap"></div>';
+  const signColor=(v)=>v>0?'var(--primary)':v<0?'var(--danger)':'var(--text-muted)';
 
-  // 레이더 차트 렌더링
-  renderRadarChart(stats, allM);
+  document.getElementById('my-type-stats').innerHTML=`
+    <!-- 종합점수 분해 -->
+    <div style="background:var(--bg3);border-radius:12px;padding:14px 16px;margin-bottom:4px;">
+      <div style="font-size:.75rem;color:var(--text-muted);font-weight:600;letter-spacing:.4px;margin-bottom:10px;">📐 종합점수 산정 내역</div>
+
+      ${row('① 기본점수','1,000','모든 선수의 시작점','')}
+
+      ${row('② 승률',`${wrPct}%`,
+        `${wins}승 ${d.losses}패 / ${games}경기`,
+        bar(wrPct,100,'#5BA4F5'),'#5BA4F5'
+      )}
+
+      ${row('③ 신뢰도 보정',`${confPct}%`,
+        `경기수 보정계수 = ${games} ÷ (${games}+10) ≈ ${confidence.toFixed(2)}<br>경기가 적을수록 승률을 낮게 반영`,
+        bar(confPct,100,'#9C6FE4'),'#9C6FE4'
+      )}
+
+      ${row('④ 보정 승률',`${adjustedPct}%`,
+        `${wrPct}% × ${confPct}% = ${adjustedPct}% → +${Math.round(wrScore)}점`,
+        bar(adjustedPct,100,'var(--primary)'),'var(--primary)'
+      )}
+
+      ${row('⑤ 평균 득실차',`${avgDiff>=0?'+':''}${avgDiff.toFixed(1)}`,
+        `경기당 평균 (득점 - 실점) → ${diffScore>=0?'+':''}${Math.round(diffScore)}점`,
+        '',signColor(avgDiff)
+      )}
+
+      <div style="border-top:2px solid var(--border);margin-top:8px;padding-top:10px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:.85rem;font-weight:700;">= 종합점수</span>
+        <span style="font-family:'Black Han Sans',sans-serif;font-size:1.6rem;color:#5BA4F5;">${ci}</span>
+      </div>
+      <div style="font-size:.72rem;color:var(--text-dim);margin-top:4px;text-align:right;">
+        1000 + ${Math.round(wrScore)} + ${Math.round(diffScore)} = ${ci}
+      </div>
+    </div>
+
+    ${games<5?`<div style="font-size:.75rem;color:var(--text-muted);text-align:center;padding:8px 0;">⚠️ 5경기 이상부터 랭킹에 반영됩니다 (현재 ${games}/5경기)</div>`:''}
+    <div style="margin-top:12px;" id="radar-wrap"></div>
+  `;
+
+  renderRadarChart(stats, allM||window._allMatchesCache||[]);
 }
 
 /* ─ 레이더 차트 ─ */
@@ -1189,4 +1181,3 @@ function renderScatter(){
     setTimeout(()=>tip.remove(),3000);
   };
 }
-
