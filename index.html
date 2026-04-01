@@ -350,6 +350,16 @@
     </div>
 
   </div>
+
+  <!-- 날짜별 요약 페이지 -->
+  <div id="page-date-summary" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:300;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+    <div style="display:flex;align-items:center;gap:10px;padding:14px 14px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10;">
+      <button onclick="closeDateSummaryPage()" style="background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;padding:2px 6px 2px 0;line-height:1;">‹</button>
+      <div id="dsp-title" style="font-size:1rem;font-weight:700;"></div>
+    </div>
+    <div id="dsp-content" style="padding:14px;"></div>
+  </div>
+
   <nav class="bottom-nav" id="bottom-nav"></nav>
 </div>
 

@@ -257,23 +257,32 @@ function initApp(){
 }
 function refreshHeader(){if(!ME) return; document.getElementById('hdr-name').textContent=ME.name;}
 
+const NAV_ICONS={
+  dashboard:`<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>`,
+  feed:`<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm-2 14l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>`,
+  tournament:`<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0011 15.9V18H9v2h6v-2h-2v-2.1a5.01 5.01 0 003.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zm-2 3c0 1.65-1.35 3-3 3s-3-1.35-3-3V5h6v3zM5 8V7h2v3.87C5.86 10.43 5 9.29 5 8zm14 0c0 1.29-.86 2.43-2 2.87V7h2v1z"/></svg>`,
+  community:`<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>`,
+  balance:`<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>`,
+  admin:`<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>`,
+};
+
 const USER_NAVS=[
-  {id:'dashboard',icon:'🏠',label:'홈'},
-  {id:'feed',icon:'📋',label:'기록'},
-  {id:'tournament',icon:'🏆',label:'대회'},
-  {id:'community',icon:'📢',label:'소식'}
+  {id:'dashboard',label:'홈'},
+  {id:'feed',label:'기록'},
+  {id:'tournament',label:'대회'},
+  {id:'community',label:'소식'}
 ];
 const ADMIN_NAVS=[
-  {id:'dashboard',icon:'🏠',label:'홈'},
-  {id:'feed',icon:'📋',label:'기록'},
-  {id:'tournament',icon:'🏆',label:'대회'},
-  {id:'community',icon:'📢',label:'소식'},
-  {id:'balance',icon:'⚖️',label:'밸런스'},
-  {id:'admin',icon:'🛡️',label:'관리'}
+  {id:'dashboard',label:'홈'},
+  {id:'feed',label:'기록'},
+  {id:'tournament',label:'대회'},
+  {id:'community',label:'소식'},
+  {id:'balance',label:'밸런스'},
+  {id:'admin',label:'관리'}
 ];
 function buildNav(){
   const navs=ME.role==='admin'?ADMIN_NAVS:USER_NAVS;
-  document.getElementById('bottom-nav').innerHTML=navs.map(n=>`<button class="bottom-nav-item" id="nav-${n.id}" onclick="navigateTo('${n.id}')"><span class="nav-icon">${n.icon}</span><span>${n.label}</span></button>`).join('');
+  document.getElementById('bottom-nav').innerHTML=navs.map(n=>`<button class="bottom-nav-item" id="nav-${n.id}" onclick="navigateTo('${n.id}')"><span class="nav-icon">${NAV_ICONS[n.id]||''}</span><span>${n.label}</span></button>`).join('');
 }
 function goHome(){navigateTo('dashboard');}
 function navigateTo(page){
@@ -557,6 +566,11 @@ async function renderDashboard(){
   _updateWrTabLabel();
   renderWrTrend(myMatches);
   await renderRankTable(_allMatchesCache);
+  // profilesCache 보장 후 MVP 렌더
+  if(!window._profilesCache||!window._profilesCache.length){
+    const{data:pCache}=await sb.from('profiles').select('*').eq('status','approved');
+    window._profilesCache=pCache||[];
+  }
   renderMvpPodium(_allMatchesCache, window._profilesCache||[]);
   renderPartner(_allMatchesCache);
   setTimeout(()=>renderScatter(),100);
@@ -1013,10 +1027,9 @@ function renderMvpPodium(allMatches, users) {
   if (!wrap) return;
 
   // 5경기 이상 + exclude_stats 제외 유저 통계
-  var excludedIds = new Set((users||[]).filter(u=>u.exclude_stats).map(u=>u.id));
   var uStats = {};
-  (users||[]).filter(u=>!u.exclude_stats && u.status==='approved').forEach(u=>{
-    uStats[u.id]={id:u.id,name:u.name,games:0,wins:0,diff:0,scored:0,conceded:0};
+  (users||[]).filter(u=>!u.exclude_stats).forEach(u=>{
+    if(u.name) uStats[u.id]={id:u.id,name:u.name,games:0,wins:0,diff:0,scored:0,conceded:0};
   });
   (allMatches||[]).filter(m=>m.status==='approved').forEach(m=>{
     var aWin=m.score_a>m.score_b;
@@ -1606,7 +1619,76 @@ function feedDateHeader(dateStr,count){
   const yy=String(d.getFullYear()).slice(2);
   const label=`${yy}.${d.getMonth()+1}.${d.getDate()}.(${days[d.getDay()]})`;
   const countBadge=count>1?` <span style="font-size:.68rem;color:var(--text-muted);font-weight:400;">${count}경기</span>`:'';
-  return `<div class="feed-date-header"><span>${label}${countBadge}</span></div>`;
+  return `<div class="feed-date-header"><span>${label}${countBadge}</span><button onclick="event.stopPropagation();openDateSummaryPage('${dateStr}')" style="margin-left:auto;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text-muted);font-family:inherit;font-size:.68rem;cursor:pointer;">더보기 ›</button></div>`;
+}
+
+/* ── 날짜별 요약 페이지 ── */
+function openDateSummaryPage(dateStr){
+  const pg=document.getElementById('page-date-summary');
+  if(pg){pg.style.display='block';pg.scrollTop=0;}
+  const d=new Date(dateStr+'T00:00:00');
+  const days=['일','월','화','수','목','금','토'];
+  document.getElementById('dsp-title').textContent=`${d.getMonth()+1}월 ${d.getDate()}일(${days[d.getDay()]}) 요약`;
+  renderDateSummaryContent(dateStr);
+}
+function closeDateSummaryPage(){
+  const pg=document.getElementById('page-date-summary');
+  if(pg) pg.style.display='none';
+}
+async function renderDateSummaryContent(dateStr){
+  const el=document.getElementById('dsp-content');
+  if(!el) return;
+  el.innerHTML='<div style="text-align:center;padding:30px 0;"><div class="spinner"></div></div>';
+  let allMatches=window._allMatchesCache||[];
+  let users=window._profilesCache||[];
+  if(!allMatches.length){
+    const[mRes,uRes]=await Promise.all([
+      sb.from('matches').select('*').eq('status','approved'),
+      sb.from('profiles').select('id,name,avatar_url').eq('status','approved'),
+    ]);
+    allMatches=mRes.data||[]; users=uRes.data||[];
+    window._allMatchesCache=allMatches; window._profilesCache=users;
+  }
+  const allM=allMatches.filter(m=>m.match_date===dateStr&&m.status==='approved');
+  if(!allM.length){el.innerHTML='<div style="text-align:center;padding:40px 0;color:var(--text-muted);">해당 날짜의 경기 데이터가 없습니다</div>';return;}
+  const playerMap={};
+  allM.forEach(m=>{
+    [[m.a1_id,m.a1_name],[m.a2_id,m.a2_name],[m.b1_id,m.b1_name],[m.b2_id,m.b2_name]].forEach(([id,name])=>{
+      if(!id||!name) return;
+      if(!playerMap[id]) playerMap[id]={id,name,wins:0,losses:0};
+      const onA=[m.a1_id,m.a2_id].includes(id);
+      const won=(m.score_a>m.score_b)?onA:!onA;
+      won?playerMap[id].wins++:playerMap[id].losses++;
+    });
+  });
+  const players=Object.values(playerMap);
+  const sortByWR=arr=>[...arr].sort((a,b)=>{
+    const wrA=a.wins/(a.wins+a.losses||1), wrB=b.wins/(b.wins+b.losses||1);
+    return wrB-wrA||b.wins-a.wins;
+  });
+  const mvp=[...players].sort((a,b)=>b.wins-a.wins||(b.wins/(b.wins+b.losses||1))-(a.wins/(a.wins+a.losses||1)))[0];
+  function playerRow(p){
+    const total=p.wins+p.losses;
+    const wr=total?Math.round(p.wins/total*100):0;
+    const isMvp=p.id===mvp?.id;
+    const u=users.find(x=>x.id===p.id);
+    const av=u?.avatar_url
+      ?`<img src="${u.avatar_url}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">`
+      :`<div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;">${p.name[0]}</div>`;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:.5px solid var(--border);">
+      ${av}
+      <div style="flex:1;font-size:.87rem;font-weight:${isMvp?700:400};">${p.name}${isMvp?' 🏆':''}</div>
+      <div style="font-size:.8rem;color:var(--text-muted);">${p.wins}승 ${p.losses}패</div>
+      <div style="font-size:.85rem;font-weight:700;color:${wr>=50?'var(--primary)':'#FF7070'};min-width:38px;text-align:right;">${wr}%</div>
+    </div>`;
+  }
+  el.innerHTML=
+    (mvp?`<div style="margin-bottom:14px;padding:8px 12px;background:rgba(41,121,255,.08);border:1px solid rgba(41,121,255,.2);border-radius:10px;display:flex;align-items:center;gap:10px;">
+      <span style="font-size:1.2rem;">🏆</span>
+      <div><div style="font-size:.68rem;color:var(--text-muted);">오늘의 MVP</div><div style="font-size:.92rem;font-weight:700;">${mvp.name} <span style="font-size:.75rem;color:var(--text-muted);font-weight:400;">${mvp.wins}승 ${mvp.losses}패 · ${Math.round(mvp.wins/(mvp.wins+mvp.losses)*100)}%</span></div></div>
+    </div>`:'')+
+    `<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:4px;">총 ${allM.length}경기 · 참석 ${players.length}명</div>`+
+    sortByWR(players).map(playerRow).join('');
 }
 
 /* ── 경기 카드: hsdTV 스타일 (좌우 팀 + 가운데 점수) ── */
@@ -1646,6 +1728,9 @@ function matchCardHTML(m,isAdmin=false){
     });
   }catch(e){}
 
+  const clashBadge=(()=>{const t=h2hWinA+h2hWinB;return t>=3&&Math.abs(h2hWinA-h2hWinB)<=1?'⚔️ ':''})();
+  const h2hLabel=(()=>{const t=h2hWinA+h2hWinB;return t>0?`${clashBadge}${h2hWinA}:${h2hWinB}`:'';})();
+
   const statusInfo=m.status==='pending'?'<span style="font-size:.62rem;color:var(--accent);font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(255,152,0,.12);border:1px solid rgba(255,152,0,.25);">대기</span>':'';
 
   return `<div class="match-card" id="mc-${m.id}" onclick="openMatchDetail('${m.id}',${isAdmin})">
@@ -1655,7 +1740,7 @@ function matchCardHTML(m,isAdmin=false){
         <div class="mc-pnames-v">${aNamesHtml}</div>
       </div>
       <div class="mc-score-center">
-        <span class="mc-h2h-txt">${h2hWinA}:${h2hWinB}</span>
+        ${h2hLabel?`<span class="mc-h2h-txt">${h2hLabel}</span>`:''}
         <div class="mc-score-row">
           <span class="mc-score-num ${aWin?'mc-score-win':'mc-score-lose'}">${m.score_a}</span>
           <span class="mc-sep">:</span>
