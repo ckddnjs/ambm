@@ -359,8 +359,8 @@ const ADMIN_NAVS=[
   {id:'dashboard',label:'홈'},
   {id:'feed',label:'기록'},
   {id:'community',label:'소식'},
-  {id:'admin',label:'관리'},
   {id:'settings',label:'설정'},
+  {id:'admin',label:'관리'},
 ];
 function buildNav(){
   const navs=ME.role==='admin'?ADMIN_NAVS:USER_NAVS;

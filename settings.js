@@ -68,9 +68,16 @@ async function uploadAvatar(input){
     const{data}=sb.storage.from('avatars').getPublicUrl(path);
     const url=data.publicUrl+'?t='+Date.now();
 
-    // DB 업데이트
-    const{error:dbErr}=await sb.from('profiles').update({avatar_url:url}).eq('id',ME.id);
-    if(dbErr) throw dbErr;
+    // profiles 업데이트 — schema cache 오류 방지: rpc 또는 직접 update
+    const{error:dbErr}=await sb.from('profiles')
+      .update({avatar_url:url})
+      .eq('id',ME.id)
+      .select('id');  // select 추가로 스키마 캐시 갱신 유도
+    if(dbErr){
+      // fallback: rpc로 재시도
+      const{error:rpcErr}=await sb.rpc('update_avatar_url',{p_user_id:ME.id, p_url:url}).catch(()=>({error:{message:'rpc unavailable'}}));
+      if(rpcErr) throw new Error('DB 업데이트 실패: '+dbErr.message);
+    }
 
     // 캐시 전체 갱신
     ME.avatar_url=url;
