@@ -134,7 +134,7 @@ async function renderDashboard(){
   // 승률 원형 게이지 SVG
   const r=28, circ=2*Math.PI*r;
   const wrFill=Math.round((wr/100)*circ*10)/10;
-  const wrCircle='<svg width="72" height="72" viewBox="0 0 72 72"><circle cx="36" cy="36" r="'+r+'" fill="none" stroke="var(--bg3)" stroke-width="7"/><circle cx="36" cy="36" r="'+r+'" fill="none" stroke="#00C896" stroke-width="7" stroke-dasharray="'+wrFill+' '+circ+'" stroke-linecap="round" transform="rotate(-90 36 36)"/></svg>';
+  const wrCircle='<svg width="72" height="72" viewBox="0 0 72 72"><circle cx="36" cy="36" r="'+r+'" fill="none" stroke="var(--bg3)" stroke-width="7"/><circle cx="36" cy="36" r="'+r+'" fill="none" stroke="#5BA4F5" stroke-width="7" stroke-dasharray="'+wrFill+' '+circ+'" stroke-linecap="round" transform="rotate(-90 36 36)"/></svg>';
 
   document.getElementById('my-overview-card').innerHTML=
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">'+
@@ -164,7 +164,7 @@ async function renderDashboard(){
         '<div style="position:relative;display:inline-flex;align-items:center;justify-content:center;">'+
           wrCircle+
           '<div style="position:absolute;text-align:center;">'+
-            '<div style="font-family:Black Han Sans,sans-serif;font-size:1.05rem;color:#00C896;">'+wr+'%</div>'+
+            '<div style="font-family:Black Han Sans,sans-serif;font-size:1.05rem;color:#5BA4F5;">'+wr+'%</div>'+
           '</div>'+
         '</div>'+
         '<div style="font-size:.76rem;color:var(--text-muted);font-weight:600;margin-top:4px;">'+stats.total.wins+'승 '+stats.total.losses+'패</div>'+
@@ -331,7 +331,7 @@ function renderMyTypeStats(stats, allM){
         '',signColor(avgDiff)
       )}
 
-      <div style="margin-top:10px;padding:12px 14px;background:rgba(91,164,245,.1);border:1px solid rgba(91,164,245,.25);border-radius:10px;">
+      <div style="margin-top:10px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <span style="font-size:.9rem;font-weight:700;color:var(--text);">종합점수</span>
           <span style="font-family:'Black Han Sans',sans-serif;font-size:1.8rem;color:#5BA4F5;">${ci}</span>

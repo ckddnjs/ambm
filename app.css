@@ -126,12 +126,12 @@ body.light-mode #loading-logo{filter:drop-shadow(0 2px 8px rgba(0,0,0,.12));}
 .type-mixed{color:var(--primary)}
 .type-doubles{color:var(--primary)}
 /* ── 경기 카드 ── */
-.match-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:7px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden;border-left:none}
+.match-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:7px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden;border-left:3px solid rgba(91,164,245,.25)}
 .match-card:hover{border-color:var(--border-strong)}
 .match-card:active{transform:scale(.985);opacity:.9;transition:transform .1s}
 .match-card.my-match .my-badge{display:inline-block}
 .match-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:2px 0 0 0;}
-.match-card{border-left:3px solid var(--primary)}
+body.light-mode .match-card{border-left:3px solid var(--primary)}
 .my-badge{display:none;font-size:.68rem;color:var(--primary);font-weight:700;background:rgba(41,121,255,.1);border:1px solid rgba(41,121,255,.25);padding:1px 7px;border-radius:8px;margin-left:6px;vertical-align:middle}
 .mc-body{display:flex;align-items:center;padding:8px 10px 8px;gap:4px}
 .mc-h2h-txt{font-size:.62rem;font-weight:400;color:rgba(255,255,255,.35);letter-spacing:.2px;text-align:center}
@@ -456,6 +456,6 @@ body.light-mode .toast.success{background:#E3F2FD;border-color:rgba(21,101,192,.
   }
 }
 
-/* 랭킹 CI 색상: 다크=밝은파랑, 라이트=진한파랑 */
+/* 랭킹 CI 색상: 다크=밝은파랑, 라이트=찐한파랑 */
 .rank-table td:last-child span { color: #5BA4F5; }
-body.light-mode .rank-table td:last-child span { color: #1D6FD8; }
+body.light-mode .rank-table td:last-child span { color: #1565C0; font-weight:800; }
