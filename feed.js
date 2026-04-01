@@ -22,9 +22,9 @@ function toggleBatchPanel(){
 
 async function renderFeed(forceNameQ){
   _feedPage=1;
-  // 일괄등록 버튼: 관리자만 표시
   const batchBtn=document.getElementById('btn-batch-register');
   if(batchBtn) batchBtn.style.display=ME?.role==='admin'?'':'none';
+  _detachFeedScroll(); // 기존 스크롤 이벤트 제거
   await _renderFeedInner(forceNameQ);
 }
 
@@ -39,19 +39,15 @@ async function _renderFeedInner(forceNameQ){
   if(clearBtn) clearBtn.style.display=nameQ?'block':'none';
   const sortF=document.getElementById('feed-sort-filter')?.value||'desc';
   let q=sb.from('matches').select('*').order('match_date',{ascending:false}).order('created_at',{ascending:false}).limit(1000);
-  // statF: 'approved'(기본), ''(전체-관리자), 'pending'
-  if(statF&&statF!=='') {
+  if(statF&&statF!==''){
     q=q.eq('status',statF);
-  } else if(!statF) {
-    // 기본값: approved만
+  } else if(!statF){
     q=q.eq('status','approved');
   }
-  // statF==='' 이면 전체 (필터 없음 - 관리자용)
   if(dateF) q=q.eq('match_date',dateF);
   let{data:matches,error:feedErr}=await q;
   if(feedErr){ console.error('[Feed]',feedErr); matches=[]; }
   matches=matches||[];
-  // 날짜 필터 옵션 채우기 (최초 로드 또는 날짜 미선택 시)
   _populateFeedDateFilter(matches,dateF);
 
   (matches||[]).sort((a,b)=>{
@@ -60,7 +56,6 @@ async function _renderFeedInner(forceNameQ){
     const ct=(b.created_at||'').localeCompare(a.created_at||'');
     return sortF==='asc'?-ct:ct;
   });
-  // 날짜별 실제 경기수 집계 (이름 필터 전 전체 기준)
   const _fullCountByDate={};
   (matches||[]).forEach(m=>{ const d=m.match_date||''; _fullCountByDate[d]=(_fullCountByDate[d]||0)+1; });
   window._feedFullCountByDate=_fullCountByDate;
@@ -73,24 +68,53 @@ async function _renderFeedInner(forceNameQ){
     el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><div>${nameQ?`'${rawName}' 검색 결과 없음`:'경기 내역 없음'}</div></div>`;
     return;
   }
-  const PAGE=10;
-  const slice=matches.slice(0,_feedPage*PAGE);
-  const hasMore=matches.length>slice.length;
-  el.innerHTML=renderMatchesWithDateHeaders(slice, _fullCountByDate) +
-    (hasMore?`<button onclick="loadMoreFeed()" style="width:100%;padding:12px;margin-top:4px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--primary);font-size:.88rem;font-weight:700;cursor:pointer;font-family:inherit;">더보기 (${matches.length-slice.length}개 더)</button>`:'');
-  // 전체 캐시 저장 (더보기 시 재사용)
   window._feedAllMatches=matches;
+  _feedPage=1;
+  _renderFeedSlice();
+  _attachFeedScroll();
 }
 
-function loadMoreFeed(){
-  _feedPage++;
+const PAGE=15;
+function _renderFeedSlice(){
   const el=document.getElementById('feed-list');
-  if(!window._feedAllMatches) return;
-  const PAGE=10;
+  if(!el||!window._feedAllMatches) return;
   const slice=window._feedAllMatches.slice(0,_feedPage*PAGE);
   const hasMore=window._feedAllMatches.length>slice.length;
-  el.innerHTML=renderMatchesWithDateHeaders(slice, window._feedFullCountByDate) +
-    (hasMore?`<button onclick="loadMoreFeed()" style="width:100%;padding:12px;margin-top:4px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--primary);font-size:.88rem;font-weight:700;cursor:pointer;font-family:inherit;">더보기 (${window._feedAllMatches.length-slice.length}개 더)</button>`:'');
+  el.innerHTML=renderMatchesWithDateHeaders(slice, window._feedFullCountByDate||{});
+  // 더 있으면 sentinel(감지 요소) 추가
+  if(hasMore){
+    const sentinel=document.createElement('div');
+    sentinel.id='feed-sentinel';
+    sentinel.style.height='20px';
+    el.appendChild(sentinel);
+  }
+}
+
+let _feedScrollHandler=null;
+function _attachFeedScroll(){
+  const appBody=document.querySelector('.app-body');
+  if(!appBody) return;
+  _feedScrollHandler=()=>{
+    const sentinel=document.getElementById('feed-sentinel');
+    if(!sentinel) return;
+    const rect=sentinel.getBoundingClientRect();
+    if(rect.top < window.innerHeight+200){
+      _feedPage++;
+      _renderFeedSlice();
+    }
+  };
+  appBody.addEventListener('scroll',_feedScrollHandler,{passive:true});
+}
+function _detachFeedScroll(){
+  if(!_feedScrollHandler) return;
+  const appBody=document.querySelector('.app-body');
+  if(appBody) appBody.removeEventListener('scroll',_feedScrollHandler);
+  _feedScrollHandler=null;
+}
+
+function loadMoreFeed(){ // 하위 호환 유지
+  _feedPage++;
+  _renderFeedSlice();
 }
 function feedMyMatches(){
   const el=document.getElementById('feed-name-search');
