@@ -1027,15 +1027,23 @@ function renderMvpPodium(allMatches, users) {
   if (!wrap) return;
 
   // 5경기 이상 + exclude_stats 제외 유저 통계
+  // ✅ 수정: profiles 기반 초기화 대신, matches에 실제 등장한 유저 기준으로 집계
+  // (profiles.status !== 'approved' 이거나 캐시 누락된 유저도 포함되도록)
+  var excludeIds = new Set((users||[]).filter(u=>u.exclude_stats).map(u=>u.id));
+  var userMap = {};
+  (users||[]).forEach(u=>{ if(u.id&&u.name) userMap[u.id]=u; });
+
   var uStats = {};
-  (users||[]).filter(u=>!u.exclude_stats).forEach(u=>{
-    if(u.name) uStats[u.id]={id:u.id,name:u.name,games:0,wins:0,diff:0,scored:0,conceded:0};
-  });
   (allMatches||[]).filter(m=>m.status==='approved').forEach(m=>{
     var aWin=m.score_a>m.score_b;
     [{id:m.a1_id,win:aWin,s:m.score_a,c:m.score_b},{id:m.a2_id,win:aWin,s:m.score_a,c:m.score_b},
      {id:m.b1_id,win:!aWin,s:m.score_b,c:m.score_a},{id:m.b2_id,win:!aWin,s:m.score_b,c:m.score_a}]
-    .filter(p=>p.id&&uStats[p.id]).forEach(p=>{
+    .filter(p=>p.id && !excludeIds.has(p.id) && userMap[p.id])
+    .forEach(p=>{
+      if(!uStats[p.id]){
+        var u=userMap[p.id];
+        uStats[p.id]={id:p.id,name:u.name,games:0,wins:0,diff:0,scored:0,conceded:0};
+      }
       uStats[p.id].games++;
       if(p.win)uStats[p.id].wins++;
       uStats[p.id].scored+=p.s; uStats[p.id].conceded+=p.c;
