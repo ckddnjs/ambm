@@ -7,7 +7,8 @@
 
 <!-- PWA -->
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#00C896">
+<meta name="theme-color" content="#0D1117" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -108,8 +109,9 @@
 
 <div id="app">
   <header class="app-header">
-    <div class="app-header-logo" onclick="goHome()">🏸 새벽민턴</div>
+    <div class="app-header-logo" onclick="goHome()" title="홈으로">🏸 새벽민턴</div>
     <div class="header-right">
+      <span id="hdr-weather" style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;padding:2px 4px;color:var(--text);font-size:.78rem;"></span>
       <button onclick="toggleDarkMode()" id="btn-darkmode-app"
         style="background:var(--bg3);border:1px solid var(--border);color:var(--text-muted);border-radius:16px;padding:4px 10px;font-size:.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;font-family:inherit;">
         <span id="dm-icon-app">🌙</span>
@@ -117,7 +119,6 @@
       <div class="header-chip">
         <span id="hdr-name">-</span>
       </div>
-      <button class="btn-icon" onclick="doLogout()">↩</button>
     </div>
   </header>
   <div class="app-body">
@@ -181,7 +182,7 @@
         <div style="display:flex;gap:6px;align-items:center;">
           <button class="btn btn-ghost btn-sm" onclick="renderFeed()" style="color:var(--text-muted);">↻</button>
           <button id="btn-batch-register" class="btn btn-ghost btn-sm" onclick="toggleBatchPanel()" style="display:none;border:1px solid var(--border);color:var(--text-muted);font-size:.78rem;">📋 일괄등록</button>
-          <button class="btn btn-primary btn-sm" onclick="openRegisterModal()" style="font-size:.82rem;">✍️ 등록</button>
+          <button id="btn-feed-register" class="btn btn-primary btn-sm" onclick="openRegisterModal()" style="font-size:.82rem;display:none;">✍️ 등록</button>
         </div>
       </div>
       <div id="feed-filters-wrap">
@@ -611,7 +612,16 @@
 
 <div id="toast-container"></div>
 
-<script src="app.js?v=1773022757" defer></script>
+<script src="utils.js?v=1775053410" defer></script>
+<script src="core.js?v=1775053410" defer></script>
+<script src="dashboard.js?v=1775053410" defer></script>
+<script src="feed.js?v=1775053410" defer></script>
+<script src="register.js?v=1775053410" defer></script>
+<script src="admin.js?v=1775053410" defer></script>
+<script src="community.js?v=1775053410" defer></script>
+<script src="tournament.js?v=1775053410" defer></script>
+<script src="balance.js?v=1775053410" defer></script>
+<script src="settings.js?v=1775053410" defer></script>
 
 <!-- 점수판 모달 -->
 <div id="modal-scoreboard" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;z-index:9000;flex-direction:column;font-family:inherit;user-select:none;">

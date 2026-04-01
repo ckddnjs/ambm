@@ -1,9 +1,18 @@
-const CACHE = 'ambm-v2';
+const CACHE = 'ambm-v3';
 const STATIC = [
   '/',
   '/index.html',
   '/app.css',
-  '/app.js',
+  '/core.js',
+  '/dashboard.js',
+  '/feed.js',
+  '/register.js',
+  '/admin.js',
+  '/community.js',
+  '/tournament.js',
+  '/balance.js',
+  '/settings.js',
+  '/utils.js',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
