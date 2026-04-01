@@ -34,7 +34,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
   // 다크모드 토글 시 필터 재적용
   window._logoApplyFn = _applyLogo;
   let handled=false;
-  // 안전 타이머: 5초 안에 ready 클래스가 안 붙으면 강제로 화면 표시
+  // 안전 타이머: 2초 안에 ready 안 붙으면 강제 표시
   const _safetyTimer=setTimeout(()=>{
     if(!handled){
       console.warn('[AMBM] safety timer triggered - forcing ready');
@@ -43,7 +43,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
       fadeOutLoading();
       ME?showApp():showLogin();
     }
-  },5000);
+  },2000);
   sb.auth.onAuthStateChange(async(event,session)=>{
     if(event==='INITIAL_SESSION'){
       try{
@@ -86,7 +86,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
       await fadeOutLoading();
       ME?showApp():showLogin();
     }
-  },3000);
+  },1500);
   if(window.location.hash.includes('access_token')||window.location.search.includes('code=')){
     setTimeout(()=>window.history.replaceState({},'',window.location.pathname),500);
   }
@@ -193,7 +193,7 @@ const _FONT_STEPS=[
   {size:17,label:'크게',  sub:'기본보다 큼'},
   {size:19,label:'매우 크게',sub:'최대 크기'},
 ];
-let _fontStepIdx=1;
+let _fontStepIdx=2;
 function applyFontScale(idx,save=true){
   idx=Math.max(0,Math.min(_FONT_STEPS.length-1,idx));
   _fontStepIdx=idx;
@@ -211,7 +211,7 @@ function applyFontScale(idx,save=true){
 function adjustFontScale(delta){ applyFontScale(_fontStepIdx+delta); }
 function initFontScale(){
   const saved=localStorage.getItem('font_scale_idx');
-  applyFontScale(saved!==null?parseInt(saved):1,false);
+  applyFontScale(saved!==null?parseInt(saved):2,false);
 }
 
 /* ── DARK MODE ── */
@@ -220,8 +220,13 @@ function toggleDarkMode(){
   const isLight=document.body.classList.toggle('light-mode');
   localStorage.setItem('theme', isLight?'light':'dark');
   _updateDmUI(isLight);
+  // PWA status bar 색상 동적 업데이트
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.remove());
+  const tc=document.createElement('meta');
+  tc.name='theme-color';
+  tc.content=isLight?'#ffffff':'#0D1117';
+  document.head.appendChild(tc);
   setTimeout(()=>document.body.style.transition='',350);
-  // 로고 필터 재적용
   if(window._logoApplyFn) setTimeout(window._logoApplyFn,10);
 }
 function _updateDmUI(isLight){
@@ -236,6 +241,12 @@ function initTheme(){
   const isLight=saved==='light';
   if(isLight) document.body.classList.add('light-mode');
   _updateDmUI(isLight);
+  // PWA status bar 색상 초기 설정
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.remove());
+  const tc=document.createElement('meta');
+  tc.name='theme-color';
+  tc.content=isLight?'#ffffff':'#0D1117';
+  document.head.appendChild(tc);
 }
 async function doLogout(){
   if(ME) addLog(`로그아웃: ${ME.name}`,ME.id);
@@ -275,12 +286,61 @@ function switchTab(t){
 }
 
 /* ── INIT ── */
+/* ── 날씨 (Open-Meteo fallback) ── */
+const _WX_LAT=36.3543, _WX_LON=127.3782; // 대전 서구 둔산동
+function _wxEmojiFromWmo(code,isDay){
+  const d=(typeof isDay==='number')?isDay===1:((new Date().getHours())>=6&&(new Date().getHours())<20);
+  const c=Number(code)||0;
+  if(c===0) return d?'☀️':'🌙';
+  if(c<=2)  return d?'🌤️':'☁️';
+  if(c===3) return '☁️';
+  if(c===45||c===48) return '🌫️';
+  if(c>=51&&c<=57) return '🌦️';
+  if(c>=61&&c<=67) return '🌧️';
+  if(c>=71&&c<=77) return '🌨️';
+  if(c>=80&&c<=82) return '🌧️';
+  if(c>=85&&c<=86) return '🌨️';
+  if(c>=95) return '⛈️';
+  return d?'☀️':'🌙';
+}
+async function _updateHeaderWeather(){
+  const el=document.getElementById('hdr-weather');
+  if(!el) return;
+  try{
+    const cached=JSON.parse(localStorage.getItem('wx_ambm_v1')||'null');
+    if(cached&&Date.now()-cached.ts<60000){
+      el.innerHTML=`<span>${cached.emoji}</span><span style="font-weight:600;">${cached.temp}°</span>`;
+      return;
+    }
+    const u=`https://api.open-meteo.com/v1/forecast?latitude=${_WX_LAT}&longitude=${_WX_LON}&current=temperature_2m,weathercode,is_day&timezone=Asia%2FSeoul`;
+    const res=await fetch(u);
+    const j=await res.json();
+    const cur=j?.current;
+    if(!cur) throw new Error('no data');
+    const emoji=_wxEmojiFromWmo(cur.weathercode,cur.is_day);
+    const temp=Math.round(cur.temperature_2m);
+    localStorage.setItem('wx_ambm_v1',JSON.stringify({emoji,temp,ts:Date.now()}));
+    el.innerHTML=`<span>${emoji}</span><span style="font-weight:600;">${temp}°</span>`;
+  }catch(e){ el.textContent=''; }
+}
+let _wxInterval=null;
+function _startWeatherInterval(){
+  if(_wxInterval) clearInterval(_wxInterval);
+  _wxInterval=setInterval(_updateHeaderWeather,60000);
+}
+
 function initApp(){
   refreshHeader();buildNav();
   document.getElementById('reg-date').value=todayStr();
-  // 커뮤니티 글쓰기 버튼: 관리자만
+  // 일괄등록: 관리자만
   const commWriteBtn=document.getElementById('btn-comm-write');
   if(commWriteBtn) commWriteBtn.style.display=(ME?.role==='admin'||ME?.role==='writer')?'':'none';
+  // 기록 등록버튼: 관리자만 표시
+  const feedRegBtn=document.getElementById('btn-feed-register');
+  if(feedRegBtn) feedRegBtn.style.display=ME?.role==='admin'?'':'none';
+  // 날씨 시작
+  _updateHeaderWeather();
+  _startWeatherInterval();
   goHome();
 }
 function refreshHeader(){if(!ME) return; document.getElementById('hdr-name').textContent=ME.name;}
@@ -598,7 +658,7 @@ async function renderDashboard(){
     // 더보기
     '<div style="border-top:1px solid var(--border);padding-top:10px;">'+
       '<div style="display:flex;justify-content:center;align-items:center;cursor:pointer;" onclick="toggleTypeStats()">'+
-        '<span id="type-stats-toggle-icon" style="font-size:.82rem;color:var(--text-muted);border:1px solid var(--border);border-radius:20px;padding:4px 18px;">▼ 더보기</span>'+
+        '<span id="type-stats-toggle-icon" style="font-size:.82rem;color:var(--text-muted);border:1px solid var(--border);border-radius:20px;padding:4px 18px;">더보기</span>'+
       '</div>'+
       '<div id="my-type-stats" style="display:none;margin-top:12px;"></div>'+
     '</div>';
@@ -640,7 +700,7 @@ function toggleTypeStats(){
   if(!el) return;
   const open=el.style.display==='none';
   el.style.display=open?'block':'none';
-  icon.textContent=open?'▲ 닫기':'▼ 더보기';
+  icon.textContent=open?'닫기':'더보기';
 }
 
 /* ─ 종목별 세부 통계 테이블 ─ */
@@ -1251,9 +1311,9 @@ function renderRankTable(allMatches){
     <td style="text-align:center;font-size:.85rem;">${ciVal}</td>
   </tr>`;}).join('');
   const moreRow=(!isExpanded&&allDisplay.length>LIMIT)
-    ?`<tr><td colspan="8" style="text-align:center;padding:10px;"><button onclick="document.getElementById('rank-table-wrap').dataset.expanded='true';renderRankTable(window._allMatchesCache)" style="background:var(--bg2);border:1px solid var(--border);color:var(--primary);border-radius:8px;padding:6px 18px;font-family:inherit;font-size:.82rem;cursor:pointer;">더보기 (${allDisplay.length-LIMIT}명 더) ▼</button></td></tr>`
+    ?`<tr><td colspan="8" style="text-align:center;padding:10px;"><button onclick="document.getElementById('rank-table-wrap').dataset.expanded='true';renderRankTable(window._allMatchesCache)" style="background:var(--bg2);border:1px solid var(--border);color:var(--primary);border-radius:8px;padding:6px 18px;font-family:inherit;font-size:.82rem;cursor:pointer;">더보기 (${allDisplay.length-LIMIT}명 더)</button></td></tr>`
     :(isExpanded&&allDisplay.length>LIMIT
-      ?`<tr><td colspan="8" style="text-align:center;padding:10px;"><button onclick="document.getElementById('rank-table-wrap').dataset.expanded='false';renderRankTable(window._allMatchesCache)" style="background:var(--bg2);border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:6px 18px;font-family:inherit;font-size:.82rem;cursor:pointer;">접기 ▲</button></td></tr>`
+      ?`<tr><td colspan="8" style="text-align:center;padding:10px;"><button onclick="document.getElementById('rank-table-wrap').dataset.expanded='false';renderRankTable(window._allMatchesCache)" style="background:var(--bg2);border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:6px 18px;font-family:inherit;font-size:.82rem;cursor:pointer;">접기</button></td></tr>`
       :'');
   const _arr=(col)=>sortBy===col?(sortDir===1?'▾':'▴'):'▾';
   wrap.innerHTML=`<table class="rank-table">
@@ -1608,10 +1668,19 @@ async function _renderFeedInner(forceNameQ){
   const clearBtn=document.getElementById('feed-search-clear');
   if(clearBtn) clearBtn.style.display=nameQ?'block':'none';
   const sortF=document.getElementById('feed-sort-filter')?.value||'desc';
-  let q=sb.from('matches').select('*').limit(500);
-  if(statF!=='') q=q.eq('status',statF||'approved');
+  let q=sb.from('matches').select('*').order('match_date',{ascending:false}).order('created_at',{ascending:false}).limit(1000);
+  // statF: 'approved'(기본), ''(전체-관리자), 'pending'
+  if(statF&&statF!=='') {
+    q=q.eq('status',statF);
+  } else if(!statF) {
+    // 기본값: approved만
+    q=q.eq('status','approved');
+  }
+  // statF==='' 이면 전체 (필터 없음 - 관리자용)
   if(dateF) q=q.eq('match_date',dateF);
-  let{data:matches}=await q;
+  let{data:matches,error:feedErr}=await q;
+  if(feedErr){ console.error('[Feed]',feedErr); matches=[]; }
+  matches=matches||[];
   // 날짜 필터 옵션 채우기 (최초 로드 또는 날짜 미선택 시)
   _populateFeedDateFilter(matches,dateF);
 
@@ -1638,7 +1707,7 @@ async function _renderFeedInner(forceNameQ){
   const slice=matches.slice(0,_feedPage*PAGE);
   const hasMore=matches.length>slice.length;
   el.innerHTML=renderMatchesWithDateHeaders(slice, _fullCountByDate) +
-    (hasMore?`<button onclick="loadMoreFeed()" style="width:100%;padding:12px;margin-top:4px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--primary);font-size:.88rem;font-weight:700;cursor:pointer;font-family:inherit;">더보기 (${matches.length-slice.length}개 더) ▼</button>`:'');
+    (hasMore?`<button onclick="loadMoreFeed()" style="width:100%;padding:12px;margin-top:4px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--primary);font-size:.88rem;font-weight:700;cursor:pointer;font-family:inherit;">더보기 (${matches.length-slice.length}개 더)</button>`:'');
   // 전체 캐시 저장 (더보기 시 재사용)
   window._feedAllMatches=matches;
 }
@@ -1651,7 +1720,7 @@ function loadMoreFeed(){
   const slice=window._feedAllMatches.slice(0,_feedPage*PAGE);
   const hasMore=window._feedAllMatches.length>slice.length;
   el.innerHTML=renderMatchesWithDateHeaders(slice, window._feedFullCountByDate) +
-    (hasMore?`<button onclick="loadMoreFeed()" style="width:100%;padding:12px;margin-top:4px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--primary);font-size:.88rem;font-weight:700;cursor:pointer;font-family:inherit;">더보기 (${window._feedAllMatches.length-slice.length}개 더) ▼</button>`:'');
+    (hasMore?`<button onclick="loadMoreFeed()" style="width:100%;padding:12px;margin-top:4px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--primary);font-size:.88rem;font-weight:700;cursor:pointer;font-family:inherit;">더보기 (${window._feedAllMatches.length-slice.length}개 더)</button>`:'');
 }
 function feedMyMatches(){
   const el=document.getElementById('feed-name-search');
