@@ -66,14 +66,14 @@ body.light-mode #loading-logo{filter:drop-shadow(0 2px 8px rgba(0,0,0,.12));}
 .header-chip{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:.82rem;color:var(--text);display:flex;align-items:center;gap:6px}
 .grade-badge{padding:2px 8px;border-radius:8px;font-size:.75rem;font-weight:700}
 .btn-icon{background:var(--bg3);border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:1rem}
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:200;background:var(--bg2);border-top:1px solid var(--border);display:flex;min-height:60px;padding-bottom:env(safe-area-inset-bottom,0px);align-items:center}
-.bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 4px;cursor:pointer;border:none;background:none;color:var(--text-muted);font-family:inherit;font-size:.72rem;font-weight:500;gap:3px;transition:all .2s;position:relative}
-.bottom-nav-item .nav-icon{font-size:1.35rem;line-height:1;opacity:.5;transition:opacity .2s}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:200;background:var(--bg2);border-top:1px solid var(--border);display:flex;min-height:60px;padding-bottom:max(env(safe-area-inset-bottom,0px),8px);align-items:center}
+.bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px 4px;cursor:pointer;border:none;background:none;color:var(--text-muted);font-family:inherit;font-size:.72rem;font-weight:500;gap:3px;transition:all .2s;position:relative}
+.bottom-nav-item .nav-icon{font-size:1.35rem;line-height:1;opacity:.5;transition:opacity .2s,transform .2s}
 .bottom-nav-item .nav-icon svg{width:24px;height:24px;display:block}
 .bottom-nav-item.active{color:var(--primary)}
-.bottom-nav-item.active .nav-icon{opacity:1}
+.bottom-nav-item.active .nav-icon{opacity:1;transform:translateY(-1px)}
 .bottom-nav-item.active::before{content:'';position:absolute;top:0;left:25%;right:25%;height:2px;background:linear-gradient(90deg,var(--primary),#82B1FF);border-radius:0 0 4px 4px}
-.app-body{flex:1;overflow-y:auto;padding:14px 14px calc(64px + env(safe-area-inset-bottom,0px))}
+.app-body{flex:1;overflow-y:auto;padding:14px 14px calc(76px + env(safe-area-inset-bottom,0px))}
 .page{display:none}.page.active{display:block;animation:fadeUp .2s ease}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .page-title{font-family:'Black Han Sans',sans-serif;font-size:1.3rem;color:var(--text);margin-bottom:4px;letter-spacing:.5px}
@@ -413,10 +413,6 @@ body.light-mode .toast.success{background:#E3F2FD;border-color:rgba(21,101,192,.
 
 /* ── PWA standalone safe-area ── */
 @media (display-mode: standalone) {
-  /*
-   * apple-mobile-web-app-status-bar-style: black-translucent 설정 시
-   * 콘텐츠가 status bar 아래까지 올라오므로 헤더에 padding-top 추가
-   */
   .app-header {
     position: sticky;
     top: 0;
@@ -426,11 +422,11 @@ body.light-mode .toast.success{background:#E3F2FD;border-color:rgba(21,101,192,.
     padding-bottom: 8px;
   }
   .bottom-nav {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-    min-height: 56px;
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 12px);
+    min-height: 64px;
   }
   .app-body {
-    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(80px + max(env(safe-area-inset-bottom, 0px), 12px));
   }
   #login-page {
     padding-top: max(env(safe-area-inset-top, 44px), 44px);
