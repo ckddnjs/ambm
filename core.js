@@ -80,22 +80,27 @@ window.addEventListener('DOMContentLoaded',async()=>{
       else if(ME.status==='pending'){showPendingScreen(ME.name);toast('승인 대기 중입니다','warning');}
       else{showLogin();toast('이용 불가 계정','error');await sb.auth.signOut();ME=null;}
     } else if(event==='SIGNED_OUT'){
-      // ⚠️ 네트워크 오류로 인한 토큰 갱신 실패 시 SIGNED_OUT이 오는 경우 방지
-      // 명시적 로그아웃(doLogout)이 아니면 세션 복구 시도
+      // ⚠️ 네트워크 오류 SIGNED_OUT → 최대 3회 자동 복구 시도
       if(!_explicitLogout){
-        // 1초 후 세션 재확인 — 네트워크 복귀 시 자동 복구
-        setTimeout(async()=>{
-          try{
-            const{data:{session:s}}=await sb.auth.getSession();
-            if(s?.user){
-              await loadProfile(s.user);
-              if(ME?.status==='approved') return; // 복구됨
-            }
-          }catch(e){}
-          ME=null;
-          document.body.classList.add('ready');
-          showLogin();
-        },1000);
+        let _recovered=false;
+        const _retryDelays=[1000,3000,6000];
+        const _tryRecover=async(attempt)=>{
+          if(_recovered||attempt>=_retryDelays.length){
+            if(!_recovered){ME=null;document.body.classList.add('ready');showLogin();}
+            return;
+          }
+          setTimeout(async()=>{
+            try{
+              const{data:{session:s}}=await sb.auth.getSession();
+              if(s?.user){
+                await loadProfile(s.user);
+                if(ME?.status==='approved'){_recovered=true;return;}
+              }
+            }catch(e){}
+            _tryRecover(attempt+1);
+          },_retryDelays[attempt]);
+        };
+        _tryRecover(0);
         return;
       }
       ME=null;_explicitLogout=false;
@@ -464,3 +469,5 @@ function ciToLabel(ci){
   if(ci>=960)  return 'C';
   return 'D';
 }
+
+

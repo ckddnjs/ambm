@@ -39,44 +39,46 @@ function _matchSearch(name,q){
   return false;
 }
 
+let _feedRenderToken=0; // 렌더 취소 토큰
+
 async function renderFeed(forceNameQ){
   _feedPage=1;
   const batchBtn=document.getElementById('btn-batch-register');
   if(batchBtn) batchBtn.style.display=ME?.role==='admin'?'':'none';
   _detachFeedScroll();
-  await _renderFeedInner(forceNameQ);
+  window._feedAllMatches=null;
+  const token=++_feedRenderToken;
+  await _renderFeedInner(forceNameQ, token);
 }
 
-async function _renderFeedInner(forceNameQ){
+async function _renderFeedInner(forceNameQ, token){
   const el=document.getElementById('feed-list');
+  if(!el) return;
   el.innerHTML=`<div class="skeleton sk-card"></div>`.repeat(4);
-  const dateF=document.getElementById('feed-date-filter')?.value||'';
-  const statF=document.getElementById('feed-status-filter')?.value;
+
   const rawName=forceNameQ!==undefined?forceNameQ:(document.getElementById('feed-name-search')?.value||'');
   const nameQ=rawName.trim();
   const clearBtn=document.getElementById('feed-search-clear');
   if(clearBtn) clearBtn.style.display=nameQ?'block':'none';
-  const sortF=document.getElementById('feed-sort-filter')?.value||'desc';
 
-  // 항상 approved만 (필터 UI 제거됐으므로 고정)
   let q=sb.from('matches').select('*')
-    .eq('status', statF&&statF!==''&&ME?.role==='admin' ? statF : 'approved')
+    .eq('status','approved')
     .order('match_date',{ascending:false})
     .order('created_at',{ascending:false})
     .limit(2000);
-  if(dateF) q=q.eq('match_date',dateF);
 
   let{data:matches,error:feedErr}=await q;
+
+  // 다른 탭 갔다가 돌아왔으면 이 렌더는 취소
+  if(token!==_feedRenderToken) return;
+
   if(feedErr){ console.error('[Feed]',feedErr); matches=[]; }
   matches=matches||[];
-  _populateFeedDateFilter(matches,dateF);
 
   matches.sort((a,b)=>{
     const dd=(b.match_date||'').localeCompare(a.match_date||'');
-    if(dd!==0) return sortF==='asc'?-dd:dd;
-    return sortF==='asc'
-      ?(a.created_at||'').localeCompare(b.created_at||'')
-      :(b.created_at||'').localeCompare(a.created_at||'');
+    if(dd!==0) return dd;
+    return (b.created_at||'').localeCompare(a.created_at||'');
   });
   const _fullCountByDate={};
   matches.forEach(m=>{ const d=m.match_date||''; _fullCountByDate[d]=(_fullCountByDate[d]||0)+1; });
@@ -86,6 +88,9 @@ async function _renderFeedInner(forceNameQ){
     matches=matches.filter(m=>[m.a1_name,m.a2_name,m.b1_name,m.b2_name]
       .some(n=>_matchSearch(n,nameQ)));
   }
+
+  if(token!==_feedRenderToken) return; // 한 번 더 체크
+
   if(!matches.length){
     el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><div>${nameQ?`'${rawName}' 검색 결과 없음`:'경기 내역 없음'}</div></div>`;
     return;
