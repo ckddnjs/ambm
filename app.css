@@ -138,7 +138,7 @@ body.light-mode #loading-logo{filter:drop-shadow(0 2px 8px rgba(0,0,0,.12));}
 .mc-score-num{font-family:'Black Han Sans',sans-serif;font-size:1.5rem;line-height:1;min-width:1.8rem;text-align:center}
 .mc-score-win{color:var(--primary)}.mc-score-lose{color:rgba(255,255,255,.75)}
 .mc-sep{color:var(--text-dim);font-size:1rem;font-weight:700;flex-shrink:0}
-.mc-me-slot{width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0}
+.mc-me-slot{width:14px;height:14px;display:flex;align-items:center;justify-content:center;font-size:.55rem;flex-shrink:0}
 /* 경기카드 점수행 */
 .mc-team{flex:1;min-width:0;display:flex;align-items:center;gap:4px;overflow:hidden}
 .mc-team.right{justify-content:flex-end}

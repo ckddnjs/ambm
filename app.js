@@ -461,17 +461,28 @@ async function renderDashboard(){
   // 주력 종목 계산
   const mainTypeLabel='복식';
 
-  // 베스트 파트너 계산 (전체 경기 기준)
+  // 베스트 파트너 계산 (회원 + 비회원 모두 포함)
   const _partnerMap={};
   myMatches.forEach(m=>{
     const onA=[m.a1_id,m.a2_id].includes(ME.id);
     const won=(m.score_a>m.score_b)===onA;
-    let pid=null,pname=null;
-    if(onA){if(m.a1_id===ME.id&&m.a2_id){pid=m.a2_id;pname=m.a2_name;}else if(m.a2_id===ME.id){pid=m.a1_id;pname=m.a1_name;}}
-    else{if(m.b1_id===ME.id&&m.b2_id){pid=m.b2_id;pname=m.b2_name;}else if(m.b2_id===ME.id){pid=m.b1_id;pname=m.b1_name;}}
-    if(!pid) return;
-    if(!_partnerMap[pid]) _partnerMap[pid]={name:pname,games:0,wins:0};
-    _partnerMap[pid].games++;if(won)_partnerMap[pid].wins++;
+    let pkey=null,pname=null;
+    if(onA){
+      if(m.a1_id===ME.id){
+        pkey=m.a2_id||('name:'+m.a2_name); pname=m.a2_name;
+      } else {
+        pkey=m.a1_id||('name:'+m.a1_name); pname=m.a1_name;
+      }
+    } else {
+      if(m.b1_id===ME.id){
+        pkey=m.b2_id||('name:'+m.b2_name); pname=m.b2_name;
+      } else {
+        pkey=m.b1_id||('name:'+m.b1_name); pname=m.b1_name;
+      }
+    }
+    if(!pkey||!pname) return;
+    if(!_partnerMap[pkey]) _partnerMap[pkey]={name:pname,games:0,wins:0};
+    _partnerMap[pkey].games++;if(won)_partnerMap[pkey].wins++;
   });
   const _partnerList=Object.values(_partnerMap).filter(p=>p.games>0).sort((a,b)=>(b.games>0?b.wins/b.games:0)-(a.games>0?a.wins/a.games:0)||b.wins-a.wins||b.games-a.games);
   const bestPartner=_partnerList[0]||null;
@@ -1322,9 +1333,15 @@ function renderPartner(allMatches){
     const aWin=m.score_a>m.score_b;
     const won=onA?aWin:!aWin;
     let partnerId=null, partnerName=null;
-    if(onA){if(m.a1_id===ME.id&&m.a2_id){partnerId=m.a2_id;partnerName=m.a2_name;}else if(m.a2_id===ME.id&&m.a1_id){partnerId=m.a1_id;partnerName=m.a1_name;}}
-    else{if(m.b1_id===ME.id&&m.b2_id){partnerId=m.b2_id;partnerName=m.b2_name;}else if(m.b2_id===ME.id&&m.b1_id){partnerId=m.b1_id;partnerName=m.b1_name;}}
-    if(!partnerId) return;
+    let partnerId=null, partnerName=null;
+    if(onA){
+      if(m.a1_id===ME.id){ partnerId=m.a2_id||('name:'+m.a2_name); partnerName=m.a2_name; }
+      else if(m.a2_id===ME.id){ partnerId=m.a1_id||('name:'+m.a1_name); partnerName=m.a1_name; }
+    } else {
+      if(m.b1_id===ME.id){ partnerId=m.b2_id||('name:'+m.b2_name); partnerName=m.b2_name; }
+      else if(m.b2_id===ME.id){ partnerId=m.b1_id||('name:'+m.b1_name); partnerName=m.b1_name; }
+    }
+    if(!partnerId||!partnerName) return;
     if(!partners[partnerId]) partners[partnerId]={id:partnerId,name:partnerName,games:0,wins:0};
     partners[partnerId].games++;if(won) partners[partnerId].wins++;
   });
