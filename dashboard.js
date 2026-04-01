@@ -219,10 +219,10 @@ async function renderDashboard(){
 
     // 더보기
     '<div style="border-top:1px solid var(--border);padding-top:10px;">'+
+      '<div id="my-type-stats" style="display:none;margin-bottom:12px;"></div>'+
       '<div style="display:flex;justify-content:center;align-items:center;cursor:pointer;" onclick="toggleTypeStats()">'+
         '<span id="type-stats-toggle-icon" style="font-size:.82rem;color:var(--text-muted);border:1px solid var(--border);border-radius:20px;padding:4px 18px;">더보기</span>'+
       '</div>'+
-      '<div id="my-type-stats" style="display:none;margin-top:12px;"></div>'+
     '</div>';
   renderMyTypeStats(stats, _allMatchesCache);
   _updateWrTabLabel();
@@ -272,7 +272,6 @@ function renderMyTypeStats(stats, allM){
   const wins=d.wins||0;
   const diff=d.diff||0;
 
-  // CI 계산 분해
   const wr=games>0?wins/games:0;
   const confidence=games>0?games/(games+10):0;
   const adjustedWR=wr*confidence;
@@ -287,60 +286,63 @@ function renderMyTypeStats(stats, allM){
 
   const bar=(val,max,color)=>{
     const pct=Math.min(100,Math.max(0,Math.round(val/max*100)));
-    return `<div style="height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;margin-top:4px;">
-      <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width .6s;"></div>
+    return `<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:6px;">
+      <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width .6s;"></div>
     </div>`;
   };
 
   const row=(label,value,sub,barHtml,valueColor='var(--text)')=>`
-    <div style="padding:10px 0;border-bottom:1px solid var(--border);">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;">
-        <span style="font-size:.82rem;color:var(--text-muted);">${label}</span>
-        <span style="font-size:1rem;font-weight:700;color:${valueColor};">${value}</span>
+    <div style="padding:11px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <span style="font-size:.86rem;color:var(--text);font-weight:500;">${label}</span>
+        <span style="font-size:1.05rem;font-weight:700;color:${valueColor};flex-shrink:0;">${value}</span>
       </div>
-      ${sub?`<div style="font-size:.72rem;color:var(--text-dim);margin-top:2px;">${sub}</div>`:''}
+      ${sub?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:3px;line-height:1.5;">${sub}</div>`:''}
       ${barHtml||''}
     </div>`;
 
-  const signColor=(v)=>v>0?'var(--primary)':v<0?'var(--danger)':'var(--text-muted)';
+  const signColor=(v)=>v>0?'#5BA4F5':v<0?'var(--danger)':'var(--text-muted)';
+  const diffScoreStr=`${diffScore>=0?'+':''}${Math.round(diffScore)}점`;
+  const totalDiffStr=`누적 득실 ${diff>0?'+':''}${diff}점 ÷ ${games}경기 = ${avgDiff>=0?'+':''}${avgDiff.toFixed(1)} / 경기`;
 
   document.getElementById('my-type-stats').innerHTML=`
-    <!-- 종합점수 분해 -->
-    <div style="background:var(--bg3);border-radius:12px;padding:14px 16px;margin-bottom:4px;">
-      <div style="font-size:.75rem;color:var(--text-muted);font-weight:600;letter-spacing:.4px;margin-bottom:10px;">📐 종합점수 산정 내역</div>
+    <div style="border-radius:12px;padding:4px 0;margin-bottom:4px;">
+      <div style="font-size:.8rem;color:var(--text-muted);font-weight:600;letter-spacing:.3px;margin-bottom:4px;">📐 종합점수 산정 내역</div>
 
-      ${row('① 기본점수','1,000','모든 선수의 시작점','')}
+      ${row('① 기본점수','1,000점','모든 선수의 공통 시작값','')}
 
       ${row('② 승률',`${wrPct}%`,
-        `${wins}승 ${d.losses}패 / ${games}경기`,
+        `${wins}승 ${d.losses}패 · ${games}경기`,
         bar(wrPct,100,'#5BA4F5'),'#5BA4F5'
       )}
 
-      ${row('③ 신뢰도 보정',`${confPct}%`,
-        `경기수 보정계수 = ${games} ÷ (${games}+10) ≈ ${confidence.toFixed(2)}<br>경기가 적을수록 승률을 낮게 반영`,
+      ${row('③ 신뢰도 보정',`×${confidence.toFixed(2)}`,
+        `${games} ÷ (${games}+10) = ${confidence.toFixed(2)} — 경기가 적을수록 승률을 보수적으로 반영`,
         bar(confPct,100,'#9C6FE4'),'#9C6FE4'
       )}
 
-      ${row('④ 보정 승률',`${adjustedPct}%`,
-        `${wrPct}% × ${confPct}% = ${adjustedPct}% → +${Math.round(wrScore)}점`,
+      ${row('④ 보정 승률',`+${Math.round(wrScore)}점`,
+        `${wrPct}% × ${confidence.toFixed(2)} = ${adjustedPct}% → ×200`,
         bar(adjustedPct,100,'var(--primary)'),'var(--primary)'
       )}
 
-      ${row('⑤ 평균 득실차',`${avgDiff>=0?'+':''}${avgDiff.toFixed(1)}`,
-        `경기당 평균 (득점 - 실점) → ${diffScore>=0?'+':''}${Math.round(diffScore)}점`,
+      ${row('⑤ 평균 득실차',`${diffScoreStr}`,
+        `${totalDiffStr}<br>평균득실 × 5점 (5경기 기준 환산)`,
         '',signColor(avgDiff)
       )}
 
-      <div style="border-top:2px solid var(--border);margin-top:8px;padding-top:10px;display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-size:.85rem;font-weight:700;">= 종합점수</span>
-        <span style="font-family:'Black Han Sans',sans-serif;font-size:1.6rem;color:#5BA4F5;">${ci}</span>
-      </div>
-      <div style="font-size:.72rem;color:var(--text-dim);margin-top:4px;text-align:right;">
-        1000 + ${Math.round(wrScore)} + ${Math.round(diffScore)} = ${ci}
+      <div style="margin-top:10px;padding:12px 14px;background:rgba(91,164,245,.1);border:1px solid rgba(91,164,245,.25);border-radius:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:.9rem;font-weight:700;color:var(--text);">종합점수</span>
+          <span style="font-family:'Black Han Sans',sans-serif;font-size:1.8rem;color:#5BA4F5;">${ci}</span>
+        </div>
+        <div style="font-size:.76rem;color:var(--text-muted);margin-top:4px;">
+          1000 + ${Math.round(wrScore)} + ${Math.round(diffScore)} = <strong style="color:#5BA4F5;">${ci}</strong>
+        </div>
       </div>
     </div>
 
-    ${games<5?`<div style="font-size:.75rem;color:var(--text-muted);text-align:center;padding:8px 0;">⚠️ 5경기 이상부터 랭킹에 반영됩니다 (현재 ${games}/5경기)</div>`:''}
+    ${games<5?`<div style="font-size:.78rem;color:var(--text-muted);text-align:center;padding:8px 0;">⚠️ 5경기 이상부터 랭킹에 반영 (현재 ${games}/5경기)</div>`:''}
     <div style="margin-top:12px;" id="radar-wrap"></div>
   `;
 
@@ -1181,3 +1183,4 @@ function renderScatter(){
     setTimeout(()=>tip.remove(),3000);
   };
 }
+
