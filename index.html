@@ -8,6 +8,7 @@
 <!-- PWA -->
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" id="meta-theme-color" content="#0D1117">
+<meta name="color-scheme" id="meta-color-scheme" content="dark">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -18,6 +19,9 @@
 (function(){
   const isLight=localStorage.getItem('theme')==='light';
   document.getElementById('meta-theme-color').content=isLight?'#ffffff':'#0D1117';
+  const cs=document.getElementById('meta-color-scheme');
+  if(cs) cs.content=isLight?'light':'dark';
+  document.documentElement.style.colorScheme=isLight?'light':'dark';
   if(isLight) document.documentElement.classList.add('pre-light');
 })();
 </script>
