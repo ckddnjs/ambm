@@ -295,7 +295,10 @@ function matchCardHTML(m,isAdmin=false){
   return `<div class="match-card" id="mc-${m.id}" onclick="openMatchDetail('${m.id}',${isAdmin})">
     <div class="mc-body">
       <div class="mc-team-col">
-        ${emojiSlotL}<div class="mc-wl-badge ${aWin?'win':'lose'}">${aWin?'승':'패'}</div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">
+          ${emojiSlotL}
+          <div class="mc-wl-badge ${aWin?'win':'lose'}">${aWin?'승':'패'}</div>
+        </div>
         <div class="mc-pnames-v">${aNamesHtml}</div>
       </div>
       <div class="mc-score-center">
@@ -309,7 +312,10 @@ function matchCardHTML(m,isAdmin=false){
       </div>
       <div class="mc-team-col right">
         <div class="mc-pnames-v right">${bNamesHtml}</div>
-        <div class="mc-wl-badge ${!aWin?'win':'lose'}">${!aWin?'승':'패'}</div>${emojiSlotR}
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">
+          ${emojiSlotR}
+          <div class="mc-wl-badge ${!aWin?'win':'lose'}">${!aWin?'승':'패'}</div>
+        </div>
       </div>
     </div>
     ${m.note?`<div style="font-size:.74rem;color:var(--text-muted);padding:4px 10px 6px;text-align:center;border-top:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.04);">${m.note}</div>`:''}
