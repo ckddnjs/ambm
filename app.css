@@ -80,7 +80,6 @@ body.light-mode #loading-logo{filter:drop-shadow(0 2px 8px rgba(0,0,0,.12));}
 .bottom-nav-item .nav-icon svg{width:24px;height:24px;display:block}
 .bottom-nav-item.active{color:var(--primary)}
 .bottom-nav-item.active .nav-icon{opacity:1;transform:translateY(-1px)}
-.bottom-nav-item.active::before{content:'';position:absolute;top:0;left:25%;right:25%;height:2px;background:linear-gradient(90deg,var(--primary),#82B1FF);border-radius:0 0 4px 4px}
 /* FAB 등록 버튼 */
 .bottom-nav-item.nav-fab{position:relative;top:-8px}
 .nav-fab-circle{width:54px;height:54px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(41,121,255,.5);transition:transform .2s,box-shadow .2s}

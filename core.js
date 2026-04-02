@@ -10,7 +10,16 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const APP_URL = 'https://ambm.vercel.app';
 
 const {createClient}=supabase;
-const sb=createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{redirectTo:APP_URL,autoRefreshToken:true,persistSession:true,detectSessionInUrl:true}});
+const sb=createClient(SUPABASE_URL,SUPABASE_ANON,{
+  auth:{
+    redirectTo:APP_URL,
+    autoRefreshToken:true,
+    persistSession:true,
+    detectSessionInUrl:true,
+    storageKey:'ambm-auth-token',
+    storage:window.localStorage,
+  }
+});
 
 /* ── STATE ── */
 let ME=null, currentPage='', rankTab='all', sortBy='ci', sortDir=1; // sortDir: 1=내림차순, -1=오름차순
@@ -83,7 +92,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
       // ⚠️ 네트워크 오류 SIGNED_OUT → 최대 3회 자동 복구 시도
       if(!_explicitLogout){
         let _recovered=false;
-        const _retryDelays=[1000,3000,6000];
+        const _retryDelays=[500,2000,5000,10000];
         const _tryRecover=async(attempt)=>{
           if(_recovered||attempt>=_retryDelays.length){
             if(!_recovered){ME=null;document.body.classList.add('ready');showLogin();}
@@ -130,13 +139,56 @@ async function fadeOutLoading(){
   return new Promise(r=>{const ls=document.getElementById('loading-screen');ls.classList.add('hidden');setTimeout(()=>{ls.style.display='none';r();},450);});
 }
 
+/* ── 카카오 신규 가입: 이름 입력 ── */
+async function _promptKakaoName(authUser){
+  return new Promise(resolve=>{
+    // 카카오 메타데이터에서 닉네임 먼저 시도
+    const kakaoNick=authUser.user_metadata?.name||authUser.user_metadata?.full_name||authUser.user_metadata?.nickname||'';
+    const overlay=document.createElement('div');
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML=`
+      <div style="background:var(--surface);border-radius:20px;padding:28px 22px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.4);">
+        <div style="font-family:'Black Han Sans',sans-serif;font-size:1.2rem;margin-bottom:6px;">🏸 새벽민턴</div>
+        <div style="font-size:.88rem;color:var(--text-muted);margin-bottom:18px;">사용할 이름을 입력해 주세요</div>
+        <input id="_kakao_name_input" class="form-input" placeholder="이름 (예: 홍길동)" value="${kakaoNick}" style="margin-bottom:14px;">
+        <button id="_kakao_name_btn" class="btn btn-primary" style="width:100%;padding:12px;font-size:.95rem;">확인</button>
+        <div style="font-size:.72rem;color:var(--text-muted);margin-top:10px;text-align:center;">이름은 이후 설정에서 변경할 수 없습니다</div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const input=overlay.querySelector('#_kakao_name_input');
+    const btn=overlay.querySelector('#_kakao_name_btn');
+    input.focus();
+    const confirm=()=>{
+      const name=input.value.trim();
+      if(!name){input.style.borderColor='var(--danger)';input.focus();return;}
+      overlay.remove();
+      resolve(name);
+    };
+    btn.onclick=confirm;
+    input.onkeydown=e=>{if(e.key==='Enter')confirm();};
+  });
+}
+
+
 async function loadProfile(authUser){
-  const{data,error}=await sb.from('profiles').select('*').eq('id',authUser.id).single();
+  // 네트워크 불안정 대비 최대 3회 재시도
+  let data,error;
+  for(let _attempt=0;_attempt<3;_attempt++){
+    const res=await sb.from('profiles').select('*').eq('id',authUser.id).single();
+    data=res.data; error=res.error;
+    if(!error||error.code==='PGRST116') break;
+    await new Promise(r=>setTimeout(r,800*(_attempt+1)));
+  }
   const pn=localStorage.getItem('kakao_pending_name');
   if(pn) localStorage.removeItem('kakao_pending_name');
   if(error?.code==='PGRST116'){
-    // 신규 가입: localStorage의 이름·성별 사용
-    const name=pn||authUser.user_metadata?.full_name||authUser.user_metadata?.name||authUser.user_metadata?.nickname||authUser.email?.split('@')[0]||'신규회원';
+    // 카카오 신규 가입: 이름 입력 팝업
+    const isKakao=(authUser.app_metadata?.provider==='kakao');
+    let name=pn||'';
+    if(isKakao&&!name){
+      name=await _promptKakaoName(authUser);
+    }
+    if(!name) name=authUser.user_metadata?.full_name||authUser.user_metadata?.name||authUser.user_metadata?.nickname||authUser.email?.split('@')[0]||'신규회원';
     const gender='';
     const{data:np,error:insErr}=await sb.from('profiles').upsert({
       id:authUser.id,email:authUser.email||'',name,role:'user',status:'pending',
@@ -193,7 +245,12 @@ async function doEmailLogin(){
   const{data,error}=await sb.auth.signInWithPassword({email,password:pw});
   if(error){toast(error.message.includes('Invalid')?'이메일 또는 비밀번호 오류':error.message,'error');return;}
   await loadProfile(data.user);
-  if(!ME){toast('프로필 로드 실패','error');return;}
+  if(!ME){
+    // 프로필 로드 실패 시 1회 재시도
+    await new Promise(r=>setTimeout(r,800));
+    await loadProfile(data.user);
+  }
+  if(!ME){toast('프로필 로드 실패, 다시 시도해 주세요','error');return;}
   if(ME.status==='pending'){showPendingScreen(ME.name);return;}
   if(ME.status==='rejected'){toast('이용 불가 계정','error');await sb.auth.signOut();ME=null;return;}
   addLog(`로그인: ${ME.name}`,ME.id);
@@ -365,15 +422,14 @@ function _startWeatherInterval(){
 function initApp(){
   refreshHeader();buildNav();
   document.getElementById('reg-date').value=todayStr();
-  // 일괄등록: 관리자만
   const commWriteBtn=document.getElementById('btn-comm-write');
   if(commWriteBtn) commWriteBtn.style.display=(ME?.role==='admin'||ME?.role==='writer')?'':'none';
-  // 기록 등록버튼: 관리자만 표시
   const feedRegBtn=document.getElementById('btn-feed-register');
   if(feedRegBtn) feedRegBtn.style.display=ME?.role==='admin'?'':'none';
-  // 날씨 시작
   _updateHeaderWeather();
   _startWeatherInterval();
+  // 초기 히스토리 스택 설정 (뒤로가기 방지)
+  window.history.replaceState({page:'dashboard'},'','#dashboard');
   goHome();
 }
 function refreshHeader(){if(!ME) return; const el=document.getElementById('hdr-name'); if(el) el.textContent=ME.name;}
@@ -424,18 +480,22 @@ function navigateTo(page){
   document.getElementById('page-'+page)?.classList.add('active');
   document.getElementById('nav-'+page)?.classList.add('active');
   document.querySelector('.app-body').scrollTop=0;
-  // feed 탭 이탈 시 스크롤 이벤트 정리
   if(page!=='feed' && typeof _detachFeedScroll==='function') _detachFeedScroll();
+  // 해시로 현재 페이지 기록 (뒤로가기 방지)
+  if(window.history){
+    if(page==='install-guide'){
+      window.history.pushState({page:'install-guide',from:currentPage},'','#install-guide');
+    } else {
+      window.history.pushState({page},'','#'+page);
+    }
+  }
   switch(page){
     case 'dashboard':renderDashboard();break;
     case 'feed':
-      // 이전 렌더 결과 초기화 후 새로 시작
       window._feedAllMatches=null;
       renderFeed();
       break;
-    case 'register':
-      renderRegisterPage();
-      break;
+    case 'register':renderRegisterPage();break;
     case 'admin':renderAdminPage();break;
     case 'tournament':renderTournamentPage();break;
     case 'bracket':navigateTo('tournament');break;
@@ -443,9 +503,44 @@ function navigateTo(page){
     case 'compare':renderComparePage();break;
     case 'balance':renderBalancePage();break;
     case 'settings':renderSettingsPage();break;
-    case 'install-guide':document.getElementById('page-install-guide').style.display='block';break;
+    case 'install-guide':
+      const ig=document.getElementById('page-install-guide');
+      if(ig){ig.style.display='block';ig.scrollTop=0;}
+      break;
   }
 }
+
+// 뒤로가기 → 앱 내 페이지 유지 (홈 화면으로 나가지 않음)
+window.addEventListener('popstate',e=>{
+  // install-guide 오버레이가 열려있으면 닫고 이전 탭으로
+  const ig=document.getElementById('page-install-guide');
+  if(ig&&ig.style.display==='block'){
+    ig.style.display='none';
+    const fromPage=(e.state&&e.state.from)||'settings';
+    navigateTo(fromPage);
+    return;
+  }
+  const page=(e.state&&e.state.page)||'dashboard';
+  // navigateTo를 직접 호출하되 history push 없이
+  currentPage=page;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page)?.classList.add('active');
+  document.getElementById('nav-'+page)?.classList.add('active');
+  document.querySelector('.app-body').scrollTop=0;
+  if(page!=='feed'&&typeof _detachFeedScroll==='function') _detachFeedScroll();
+  switch(page){
+    case 'dashboard':renderDashboard();break;
+    case 'feed':window._feedAllMatches=null;renderFeed();break;
+    case 'register':renderRegisterPage();break;
+    case 'admin':renderAdminPage();break;
+    case 'community':renderCommunityPage();break;
+    case 'settings':renderSettingsPage();break;
+    default:renderDashboard();break;
+  }
+  // 스택 유지: 항상 현재 페이지를 하나 더 쌓아둠
+  window.history.pushState({page},'','#'+page);
+});
 
 /* ── GRADE ── */
 // ── profiles 캐시 헬퍼 ──
