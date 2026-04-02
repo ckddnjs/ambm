@@ -33,7 +33,6 @@ function commPostHTML(p){
   const canEdit=isAdmin||isMyPost;
   const dateStr=fmtDate(p.created_at);
   const label=_catLabel[p.category]||p.category;
-  // 라이트모드에서 rules(노란색) → 인디고로 오버라이드
   const isLight=document.body.classList.contains('light-mode');
   const rawColor=_catColor[p.category]||'var(--text-muted)';
   const color=(isLight&&p.category==='rules')?'#5C6BC0':rawColor;
@@ -44,13 +43,12 @@ function commPostHTML(p){
         <span class="comm-post-title">${escHtml(p.title)}</span>
       </div>
       <div class="comm-post-meta">
-        <span class="comm-post-author">✍ ${escHtml(p.author_name||'익명')}</span>
-        <span style="font-size:.7rem;color:var(--text-dim);margin-left:6px;">📅 ${dateStr}</span>
+        <span style="font-size:.7rem;color:var(--text-dim);">📅 ${dateStr}</span>
         ${canEdit?`<button onclick="event.stopPropagation();editPost('${p.id}')" style="background:none;border:none;color:var(--text-muted);font-size:.78rem;cursor:pointer;padding:0 4px;">✏️</button>
         <button onclick="event.stopPropagation();deletePost('${p.id}')" style="background:none;border:none;color:var(--danger);font-size:.78rem;cursor:pointer;padding:0 4px;">🗑</button>`:''}
       </div>
     </div>
-    <div class="comm-post-body">${escHtml(p.body)}
+    <div class="comm-post-body"><div style="font-size:.75rem;color:var(--text-muted);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);">✍ ${escHtml(p.author_name||'익명')}</div>${escHtml(p.body)}
     </div>
   </div>`;
 }
