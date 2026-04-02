@@ -443,6 +443,7 @@ function navigateTo(page){
     case 'compare':renderComparePage();break;
     case 'balance':renderBalancePage();break;
     case 'settings':renderSettingsPage();break;
+    case 'install-guide':document.getElementById('page-install-guide').style.display='block';break;
   }
 }
 
@@ -486,3 +487,5 @@ function ciToLabel(ci){
   if(ci>=960)  return 'C';
   return 'D';
 }
+
+

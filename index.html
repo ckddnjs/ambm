@@ -184,7 +184,6 @@
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
           <button id="btn-batch-register" class="btn btn-ghost btn-sm" onclick="toggleBatchPanel()" style="display:none;border:1px solid var(--border);color:var(--text-muted);font-size:.78rem;">📋 일괄등록</button>
-          <button id="btn-feed-register" class="btn btn-primary btn-sm" onclick="openRegisterModal()" style="font-size:.82rem;display:none;">✍️ 등록</button>
         </div>
       </div>
       <div id="feed-filters-wrap">
@@ -221,10 +220,6 @@
       </div>
       <div class="card" style="padding:18px 16px;">
         <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:14px;">관리자 승인 후 통계에 반영됩니다</div>
-        <div class="form-group">
-          <label class="form-label">경기 종목 <span class="req">*</span></label>
-          <div class="sub-tabs" style="background:var(--bg2)"><button class="sub-tab active" id="rt-doubles" onclick="setMatchType('doubles')">🏸 복식</button></div>
-        </div>
         <div class="form-group">
           <label class="form-label">경기 일자 <span class="req">*</span></label>
           <input class="form-input" type="date" id="reg-date">
@@ -538,10 +533,6 @@
     <div class="modal-handle"></div>
     <div class="modal-title">✍️ 경기 등록 요청</div>
     <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:14px;">관리자 승인 후 통계에 반영됩니다</div>
-    <div class="form-group">
-      <label class="form-label">경기 종목 <span class="req">*</span></label>
-      <div class="sub-tabs" style="background:var(--bg2)"><button class="sub-tab active" id="rt-doubles" onclick="setMatchType('doubles')">🏸 복식</button></div>
-    </div>
     <div class="form-group">
       <label class="form-label">경기 일자 <span class="req">*</span></label>
       <input class="form-input" type="date" id="reg-date">

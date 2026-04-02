@@ -351,17 +351,16 @@ function batchParsePreview(){
   let html='';
   if(results.length){
     html+=`<div style="font-size:.82rem;font-weight:700;margin-bottom:8px;color:var(--primary);">✅ 파싱 성공 ${results.length}건</div>`;
-    html+=`<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">`;
+    html+=`<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px;">`;
     results.forEach((r,i)=>{
-      html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:.8rem;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="color:var(--text-muted);">${r.match_date}</span>
-          <span style="font-weight:700;color:var(--primary);">${r.score_a} : ${r.score_b}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-top:4px;">
-          <span style="color:${r.score_a>r.score_b?'var(--text)':'var(--text-muted)'};">${[r.a1_name,r.a2_name].filter(Boolean).join(' / ')}</span>
-          <span style="color:${r.score_b>r.score_a?'var(--text)':'var(--text-muted)'};">${[r.b1_name,r.b2_name].filter(Boolean).join(' / ')}</span>
-        </div>
+      const aTeam=[r.a1_name,r.a2_name].filter(Boolean).join(' / ');
+      const bTeam=[r.b1_name,r.b2_name].filter(Boolean).join(' / ');
+      const aWin=r.score_a>r.score_b;
+      html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:.8rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="color:var(--text-muted);font-size:.72rem;flex-shrink:0;">${r.match_date}</span>
+        <span style="color:${aWin?'var(--text)':'var(--text-muted)'};">${aTeam}</span>
+        <span style="font-weight:700;color:var(--primary);flex-shrink:0;">${r.score_a} : ${r.score_b}</span>
+        <span style="color:${!aWin?'var(--text)':'var(--text-muted)'};">${bTeam}</span>
       </div>`;
     });
     html+=`</div>`;
