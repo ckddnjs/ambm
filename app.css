@@ -144,11 +144,11 @@ body.light-mode .match-card{border-left:3px solid var(--primary)}
 .mc-wl-badge{font-size:.62rem;font-weight:900;letter-spacing:.5px;padding:3px 7px;border-radius:5px;flex-shrink:0}
 .mc-wl-badge.win{background:rgba(41,121,255,.2);color:var(--primary);border:1px solid rgba(41,121,255,.4)}
 .mc-wl-badge.lose{background:rgba(255,255,255,.06);color:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.1)}
-.mc-team-col{flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:10px;padding-right:10px}
-.mc-team-col.right{justify-content:flex-start;padding-right:0;padding-left:10px}
-.mc-pnames-v{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mc-team-col{width:38%;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:6px;padding-right:6px}
+.mc-team-col.right{justify-content:flex-start;padding-right:0;padding-left:6px}
+.mc-pnames-v{display:flex;flex-direction:column;gap:2px;min-width:0;max-width:100%;overflow:hidden}
 .mc-pnames-v.right{align-items:flex-end}
-.mc-pname{font-size:.82rem;font-weight:800;white-space:nowrap;line-height:1.35}
+.mc-pname{font-size:.82rem;font-weight:800;white-space:nowrap;line-height:1.35;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .mc-pname.win{color:var(--primary)}
 .mc-pname.lose{color:rgba(255,255,255,.75);font-weight:600}
 .mc-score-center{display:flex;flex-direction:column;align-items:center;gap:0;flex-shrink:0;padding:0 6px;margin-top:-6px;min-width:80px}
@@ -462,6 +462,6 @@ body.light-mode .toast.success{background:#E3F2FD;border-color:rgba(21,101,192,.
   }
 }
 
-/* 랭킹 CI 색상: 다크=밝은파랑, 라이트=찐한파랑 */
-.rank-table td:last-child span { color: #5BA4F5; }
-body.light-mode .rank-table td:last-child span { color: #1565C0; font-weight:800; }
+/* 랭킹 CI 색상: var(--primary) 사용 (득실과 동일) */
+.rank-table td:last-child span { color: var(--primary); }
+body.light-mode .rank-table td:last-child span { color: var(--primary); font-weight:800; }

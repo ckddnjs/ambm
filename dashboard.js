@@ -692,7 +692,7 @@ function renderRankTable(allMatches){
       :`<span class="rank-no" style="color:var(--text-dim);font-size:.8rem;">-</span>`;
     const wr=u.games>0?Math.round(u.wins/u.games*100)+'%':'0%';
     const diff=`<span style="${diffColor(u.diff)}">${u.diff>0?'+':''}${u.diff}</span>`;
-    const ciVal=`<span style="font-weight:700;color:#5BA4F5;">${Math.round(u.ci)}</span>`;
+    const ciVal=`<span style="font-weight:700;color:var(--primary);">${Math.round(u.ci)}</span>`;
     const guestBadge='';
     return `<tr class="${u.id===ME.id?'me':''}" ${!isRanked?'style="opacity:0.55;"':''}>
     <td>${rankCell}</td>
