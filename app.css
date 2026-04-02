@@ -144,13 +144,11 @@ body.light-mode .match-card{border-left:3px solid var(--primary)}
 .mc-wl-badge{font-size:.62rem;font-weight:900;letter-spacing:.5px;padding:3px 7px;border-radius:5px;flex-shrink:0}
 .mc-wl-badge.win{background:rgba(41,121,255,.2);color:var(--primary);border:1px solid rgba(41,121,255,.4)}
 .mc-wl-badge.lose{background:rgba(255,255,255,.06);color:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.1)}
-/* 경기카드 팀 컬럼: 배지 고정폭 + 이름 영역 */
-.mc-team-col{width:38%;min-width:0;display:grid;grid-template-columns:28px 1fr;align-items:center;gap:4px;padding-right:6px}
-.mc-team-col.right{grid-template-columns:1fr 28px;padding-right:0;padding-left:6px}
-.mc-pnames-v{display:flex;flex-direction:column;gap:2px;min-width:0;overflow:hidden}
-.mc-pnames-v.right{align-items:flex-end;order:-1}
-.mc-team-col.right .mc-wl-badge{order:1}
-.mc-pname{font-size:.82rem;font-weight:800;white-space:nowrap;line-height:1.35;overflow:hidden;text-overflow:ellipsis}
+.mc-team-col{flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:6px;padding-right:6px}
+.mc-team-col.right{justify-content:flex-start;padding-right:0;padding-left:6px}
+.mc-pnames-v{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mc-pnames-v.right{align-items:flex-end}
+.mc-pname{font-size:.82rem;font-weight:800;white-space:nowrap;line-height:1.35}
 .mc-pname.win{color:var(--primary)}
 .mc-pname.lose{color:rgba(255,255,255,.75);font-weight:600}
 .mc-score-center{display:flex;flex-direction:column;align-items:center;gap:0;flex-shrink:0;padding:0 6px;margin-top:-6px;min-width:80px}

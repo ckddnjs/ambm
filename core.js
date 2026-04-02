@@ -18,7 +18,6 @@ const sb=createClient(SUPABASE_URL,SUPABASE_ANON,{
     detectSessionInUrl:true,
     storageKey:'ambm-auth-token',
     storage:window.localStorage,
-    flowType:'pkce',
   }
 });
 
