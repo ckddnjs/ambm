@@ -222,12 +222,12 @@ async function doEmailSignup(){
 
 /* ── 글자 크기 ── */
 const _FONT_STEPS=[
-  {size:14,label:'작게',  sub:'기본보다 작음'},
-  {size:15,label:'보통',  sub:'기본 크기'},
-  {size:17,label:'크게',  sub:'기본보다 큼'},
+  {size:13,label:'작게',    sub:'기본보다 작음'},
+  {size:15,label:'보통',    sub:'기본 크기'},
+  {size:17,label:'크게',    sub:'기본보다 큼'},
   {size:19,label:'매우 크게',sub:'최대 크기'},
 ];
-let _fontStepIdx=2;
+let _fontStepIdx=1;
 function applyFontScale(idx,save=true){
   idx=Math.max(0,Math.min(_FONT_STEPS.length-1,idx));
   _fontStepIdx=idx;
@@ -238,14 +238,13 @@ function applyFontScale(idx,save=true){
   const sub=document.getElementById('font-scale-sub');
   if(label) label.textContent=step.label;
   if(sub)   sub.textContent=step.sub;
-  // 슬라이더 바 진행도 업데이트
   const bar=document.getElementById('font-scale-bar');
   if(bar) bar.style.width=(idx/(_FONT_STEPS.length-1)*100)+'%';
 }
 function adjustFontScale(delta){ applyFontScale(_fontStepIdx+delta); }
 function initFontScale(){
   const saved=localStorage.getItem('font_scale_idx');
-  applyFontScale(saved!==null?parseInt(saved):2,false);
+  applyFontScale(saved!==null?parseInt(saved):1,false);
 }
 
 /* ── DARK MODE ── */
@@ -256,7 +255,7 @@ function toggleDarkMode(){
   _updateDmUI(isLight);
   // PWA status bar 색상 동적 업데이트
   const tc=document.getElementById('meta-theme-color');
-  if(tc) tc.content=isLight?'#ffffff':'#0D1117';
+  if(tc) tc.content=isLight?'#F8FAFC':'#0A0E1A';
   const cs=document.getElementById('meta-color-scheme');
   if(cs) cs.content=isLight?'light':'dark';
   document.documentElement.style.colorScheme=isLight?'light':'dark';
@@ -276,7 +275,7 @@ function initTheme(){
   if(isLight) document.body.classList.add('light-mode');
   _updateDmUI(isLight);
   const tc=document.getElementById('meta-theme-color');
-  if(tc) tc.content=isLight?'#ffffff':'#0D1117';
+  if(tc) tc.content=isLight?'#F8FAFC':'#0A0E1A';
   const cs=document.getElementById('meta-color-scheme');
   if(cs) cs.content=isLight?'light':'dark';
   document.documentElement.style.colorScheme=isLight?'light':'dark';

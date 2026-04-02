@@ -57,7 +57,10 @@ async function renderDashboard(){
   const grade=ciToLabel(ci);
 
   const _greetings=['오늘도 스매시 한 방 날려봐요! 🏸','셔틀콕은 배신하지 않아요 💪','오늘 경기 준비됐나요? 🔥','네트 앞에서 빛나세요 ✨','백핸드 클리어, 완벽하게! 🎯','코트 위의 주인공 🏆','땀 흘린 만큼 빛납니다 💦','오늘도 풀스윙 가봅시다 🚀','배드민턴이 최고의 운동! 🥇','스매시로 하루를 시작해요 💥','오늘은 꼭 이겨봐요! 😤','가볍게 몸 풀고 시작해요 🤸'];
-  document.getElementById('dash-hello').textContent=`${ME.name}님, ${_greetings[Math.floor(Math.random()*_greetings.length)]}`;
+  const _greeting=_greetings[Math.floor(Math.random()*_greetings.length)];
+  document.getElementById('dash-hello').innerHTML=
+    `<span style="font-family:'Black Han Sans',sans-serif;font-weight:700;color:var(--text);">${ME.name}님,</span>`+
+    `<span style="font-weight:400;color:var(--text-muted);"> ${_greeting}</span>`;
   // 최근 10경기 스트릭
   const recentMatches=[...myMatches].sort((a,b)=>{
     const dd=new Date(b.match_date)-new Date(a.match_date);
