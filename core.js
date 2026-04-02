@@ -376,7 +376,7 @@ function initApp(){
   _startWeatherInterval();
   goHome();
 }
-function refreshHeader(){if(!ME) return; document.getElementById('hdr-name').textContent=ME.name;}
+function refreshHeader(){if(!ME) return; const el=document.getElementById('hdr-name'); if(el) el.textContent=ME.name;}
 
 const NAV_ICONS={
   dashboard:`<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>`,
@@ -486,5 +486,3 @@ function ciToLabel(ci){
   if(ci>=960)  return 'C';
   return 'D';
 }
-
-
