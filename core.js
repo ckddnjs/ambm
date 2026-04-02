@@ -401,6 +401,7 @@ const ADMIN_NAVS=[
   {id:'feed',label:'기록'},
   {id:'register',label:'등록',fab:true},
   {id:'community',label:'소식'},
+  {id:'settings',label:'설정'},
   {id:'admin',label:'관리'},
 ];
 function buildNav(){
@@ -483,5 +484,3 @@ function ciToLabel(ci){
   if(ci>=960)  return 'C';
   return 'D';
 }
-
-
