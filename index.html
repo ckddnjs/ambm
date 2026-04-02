@@ -433,6 +433,21 @@
         </div>
       </div>
 
+      <!-- 앱 설치 가이드 -->
+      <div class="card" style="padding:16px;">
+        <div style="font-size:.8rem;font-weight:700;color:var(--text-muted);margin-bottom:12px;letter-spacing:.5px;">앱 설치</div>
+        <button onclick="navigateTo('install-guide')" style="width:100%;background:transparent;border:none;padding:0;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:1.3rem;">📲</span>
+            <div style="text-align:left;">
+              <div style="font-size:.9rem;font-weight:600;color:var(--text);">홈 화면에 추가</div>
+              <div style="font-size:.75rem;color:var(--text-muted);margin-top:2px;">전체화면으로 앱처럼 사용하기</div>
+            </div>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="color:var(--text-muted);flex-shrink:0;"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+        </button>
+      </div>
+
       <!-- 계정 -->
       <div class="card" style="padding:16px;">
         <div style="font-size:.8rem;font-weight:700;color:var(--text-muted);margin-bottom:12px;letter-spacing:.5px;">계정</div>
@@ -451,6 +466,67 @@
       <div id="dsp-title" style="font-size:1rem;font-weight:700;"></div>
     </div>
     <div id="dsp-content" style="padding:14px;padding-bottom:40px;"></div>
+  </div>
+
+  <!-- 앱 설치 가이드 페이지 -->
+  <div id="page-install-guide" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:300;overflow-y:scroll;-webkit-overflow-scrolling:touch;height:100dvh;">
+    <div style="display:flex;align-items:center;gap:10px;padding:14px 14px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10;">
+      <button onclick="document.getElementById('page-install-guide').style.display='none'" style="background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;padding:2px 6px 2px 0;line-height:1;">‹</button>
+      <div style="font-size:1rem;font-weight:700;">📲 앱으로 설치하기</div>
+    </div>
+    <div style="padding:14px;padding-bottom:40px;">
+
+      <div class="card" style="background:rgba(41,121,255,.06);border-color:rgba(41,121,255,.2);margin-bottom:12px;">
+        <div style="font-size:.84rem;color:var(--text-muted);line-height:1.7;">홈 화면에 추가하면 <strong style="color:var(--primary);">전체화면 실행</strong>과 <strong style="color:var(--primary);">앱처럼 빠른 접속</strong>이 가능합니다!</div>
+      </div>
+
+      <!-- iOS -->
+      <div class="card" style="margin-bottom:12px;">
+        <div style="font-size:.88rem;font-weight:700;margin-bottom:14px;">🍎 아이폰 (Safari)</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;align-items:center;gap:10px;font-size:.84rem;color:var(--text-muted);">
+            <span style="width:26px;height:26px;background:var(--bg2);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;flex-shrink:0;color:var(--text);">1</span>
+            <span>Safari 브라우저로 접속</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:.84rem;color:var(--text-muted);">
+            <span style="width:26px;height:26px;background:var(--bg2);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;flex-shrink:0;color:var(--text);">2</span>
+            <span>하단 <strong style="color:var(--text);">공유 버튼</strong> (□↑) 탭</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:.84rem;color:var(--text-muted);">
+            <span style="width:26px;height:26px;background:var(--bg2);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;flex-shrink:0;color:var(--text);">3</span>
+            <span>아래로 스크롤 후 <strong style="color:var(--text);">홈 화면에 추가</strong> 탭</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:.84rem;color:var(--text-muted);">
+            <span style="width:26px;height:26px;background:var(--bg2);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;flex-shrink:0;color:var(--text);">4</span>
+            <span>오른쪽 위 <strong style="color:var(--text);">추가</strong> 탭 → 완료!</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Android -->
+      <div class="card">
+        <div style="font-size:.88rem;font-weight:700;margin-bottom:14px;">🤖 안드로이드 (Chrome)</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;align-items:center;gap:10px;font-size:.84rem;color:var(--text-muted);">
+            <span style="width:26px;height:26px;background:var(--bg2);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;flex-shrink:0;color:var(--text);">1</span>
+            <span>Chrome 브라우저로 접속</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:.84rem;color:var(--text-muted);">
+            <span style="width:26px;height:26px;background:var(--bg2);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;flex-shrink:0;color:var(--text);">2</span>
+            <span>주소창 오른쪽 <strong style="color:var(--text);">⋮</strong> 메뉴 탭</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:.84rem;color:var(--text-muted);">
+            <span style="width:26px;height:26px;background:var(--bg2);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;flex-shrink:0;color:var(--text);">3</span>
+            <span><strong style="color:var(--text);">홈 화면에 추가</strong> 또는 <strong style="color:var(--text);">앱 설치</strong> 선택</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:.84rem;color:var(--text-muted);">
+            <span style="width:26px;height:26px;background:var(--bg2);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;flex-shrink:0;color:var(--text);">4</span>
+            <span><strong style="color:var(--text);">설치</strong> 탭 → 홈 화면 아이콘 생성!</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
   </div>
 
   <nav class="bottom-nav" id="bottom-nav"></nav>
