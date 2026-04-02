@@ -408,7 +408,7 @@ function buildNav(){
   const navs=ME.role==='admin'?ADMIN_NAVS:USER_NAVS;
   document.getElementById('bottom-nav').innerHTML=navs.map(n=>{
     if(n.fab){
-      return `<button class="bottom-nav-item nav-fab" id="nav-${n.id}" onclick="openRegisterModal()">
+      return `<button class="bottom-nav-item nav-fab" id="nav-${n.id}" onclick="navigateTo('register')">
         <div class="nav-fab-circle">${NAV_ICONS[n.id]||''}</div>
         <span>${n.label}</span>
       </button>`;
@@ -433,7 +433,9 @@ function navigateTo(page){
       window._feedAllMatches=null;
       renderFeed();
       break;
-    case 'register':break;
+    case 'register':
+      renderRegisterPage();
+      break;
     case 'admin':renderAdminPage();break;
     case 'tournament':renderTournamentPage();break;
     case 'bracket':navigateTo('tournament');break;
@@ -484,3 +486,5 @@ function ciToLabel(ci){
   if(ci>=960)  return 'C';
   return 'D';
 }
+
+

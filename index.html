@@ -127,9 +127,6 @@
         style="background:var(--bg3);border:1px solid var(--border);color:var(--text-muted);border-radius:16px;padding:4px 10px;font-size:.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;font-family:inherit;">
         <span id="dm-icon-app">🌙</span>
       </button>
-      <div class="header-chip">
-        <span id="hdr-name">-</span>
-      </div>
     </div>
   </header>
   <div class="app-body">
@@ -214,8 +211,42 @@
       <div id="feed-list"></div>
     </div>
 
-    <!-- 경기등록 (더미 페이지 - 모달로 대체됨) -->
-    <div class="page" id="page-register" style="display:none !important;"></div>
+    <!-- 경기 등록 페이지 -->
+    <div class="page" id="page-register">
+      <div class="flex-between mb-2">
+        <div style="display:flex;align-items:baseline;gap:8px;">
+          <div class="page-title" style="margin-bottom:0;">✍️ 등록</div>
+          <div class="page-sub" style="margin-bottom:0;">경기 기록 요청</div>
+        </div>
+      </div>
+      <div class="card" style="padding:18px 16px;">
+        <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:14px;">관리자 승인 후 통계에 반영됩니다</div>
+        <div class="form-group">
+          <label class="form-label">경기 종목 <span class="req">*</span></label>
+          <div class="sub-tabs" style="background:var(--bg2)"><button class="sub-tab active" id="rt-doubles" onclick="setMatchType('doubles')">🏸 복식</button></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">경기 일자 <span class="req">*</span></label>
+          <input class="form-input" type="date" id="reg-date">
+        </div>
+        <hr class="section-divider">
+        <div style="font-size:.82rem;font-weight:700;color:#c0392b;margin-bottom:8px;">🔴 A팀</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 72px;gap:6px;align-items:end;margin-bottom:12px;">
+          <div class="form-group" style="margin:0;"><label class="form-label" id="lbl-a1" style="font-size:.72rem;">선수1 <span class="req">*</span></label><select class="form-select" id="reg-a1" onchange="onSelectChange()"></select><input class="form-input" id="reg-a1-guest" placeholder="비회원 이름 입력" style="display:none;margin-top:4px;font-size:.82rem;" oninput="onGuestInput('reg-a1-guest')"></div>
+          <div class="form-group" style="margin:0;"><label class="form-label" id="lbl-a2" style="font-size:.72rem;">선수2</label><select class="form-select" id="reg-a2" onchange="onSelectChange()"></select><input class="form-input" id="reg-a2-guest" placeholder="비회원 이름 입력" style="display:none;margin-top:4px;font-size:.82rem;" oninput="onGuestInput('reg-a2-guest')"></div>
+          <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.72rem;color:#c0392b;">점수 <span class="req">*</span></label><input class="form-input" type="number" id="reg-sa" placeholder="0" min="0" max="30" inputmode="numeric" style="text-align:center;font-weight:700;"></div>
+        </div>
+        <hr class="section-divider">
+        <div style="font-size:.82rem;font-weight:700;color:#27ae60;margin-bottom:8px;">🟢 B팀</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 72px;gap:6px;align-items:end;margin-bottom:12px;">
+          <div class="form-group" style="margin:0;"><label class="form-label" id="lbl-b1" style="font-size:.72rem;">선수1 <span class="req">*</span></label><select class="form-select" id="reg-b1" onchange="onSelectChange()"></select><input class="form-input" id="reg-b1-guest" placeholder="비회원 이름 입력" style="display:none;margin-top:4px;font-size:.82rem;" oninput="onGuestInput('reg-b1-guest')"></div>
+          <div class="form-group" style="margin:0;"><label class="form-label" id="lbl-b2" style="font-size:.72rem;">선수2</label><select class="form-select" id="reg-b2" onchange="onSelectChange()"></select><input class="form-input" id="reg-b2-guest" placeholder="비회원 이름 입력" style="display:none;margin-top:4px;font-size:.82rem;" oninput="onGuestInput('reg-b2-guest')"></div>
+          <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.72rem;color:#27ae60;">점수 <span class="req">*</span></label><input class="form-input" type="number" id="reg-sb" placeholder="0" min="0" max="30" inputmode="numeric" style="text-align:center;font-weight:700;"></div>
+        </div>
+        <div class="form-group mt-3"><label class="form-label">메모 (선택)</label><input class="form-input" type="text" id="reg-note" placeholder="특이사항 등"></div>
+        <button class="btn btn-primary" style="width:100%;margin-top:8px;padding:14px;font-size:.95rem;" onclick="submitMatch()">📨 등록 요청</button>
+      </div>
+    </div>
 
     <!-- 관리자 -->
     <div class="page" id="page-compare"></div>

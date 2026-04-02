@@ -137,7 +137,6 @@ async function _doSubmitMatch(){
   ['guest-a1','guest-a2','guest-b1','guest-b2'].forEach(id=>{
     const el=document.getElementById(id); if(el){el.value='';el.style.display='none';}
   });
-  closeModal('modal-register');
   navigateTo('feed');
 }
 
