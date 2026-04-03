@@ -28,7 +28,8 @@ function getSelectedIds(excludeId){
 function updateRegisterSelects(){
   const t=regMatchType;
   updateRegisterLabels();
-  const allPool=_usersCache;
+  // 가나다순 정렬
+  const allPool=[..._usersCache].sort((a,b)=>a.name.localeCompare(b.name,'ko'));
   let poolA1=allPool, poolA2=allPool, poolB1=allPool, poolB2=allPool;
 
 

@@ -119,7 +119,7 @@ async function renderDashboard(){
       }
     }
     if(!pkey||!pname) return;
-    if(!_partnerMap[pkey]) _partnerMap[pkey]={name:pname,games:0,wins:0};
+    if(!_partnerMap[pkey]) _partnerMap[pkey]={id:pkey,name:pname,games:0,wins:0};
     _partnerMap[pkey].games++;if(won)_partnerMap[pkey].wins++;
   });
   const _partnerList=Object.values(_partnerMap).filter(p=>p.games>0).sort((a,b)=>(b.games>0?b.wins/b.games:0)-(a.games>0?a.wins/a.games:0)||b.wins-a.wins||b.games-a.games);
@@ -189,7 +189,12 @@ async function renderDashboard(){
         '<div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:6px;">베스트 파트너</div>'+
         (bestPartner?
           '<div style="padding-bottom:7px;border-bottom:1px solid var(--border);width:100%;text-align:center;margin-bottom:7px;">'+
-            '<div style="font-size:.95rem;font-weight:700;color:var(--primary);">'+bestPartner.name+'</div>'+
+            '<div style="font-size:.95rem;font-weight:700;color:var(--primary);cursor:pointer;" onclick="'+
+              (bestPartner.id&&!bestPartner.id.startsWith('name:')?
+                `showPlayerCard('${bestPartner.id}','${bestPartner.name.replace(/'/g,"\\'")}')`:
+                `goToFeedByName('${bestPartner.name.replace(/'/g,"\\'")}')`)+'">'+
+              bestPartner.name+
+            '</div>'+
           '</div>'+
           '<div style="font-size:.76rem;color:var(--text-muted);font-weight:500;line-height:1.9;">'+
             bestPartner.wins+'승 '+(bestPartner.games-bestPartner.wins)+'패<br>'+
@@ -638,6 +643,77 @@ function renderMvpPodium(allMatches, users) {
   wrap.innerHTML='<div style="display:flex;align-items:flex-end;gap:5px;padding:0 2px;">'+cols.join('')+'</div>';
 }
 
+/* ── 선수 프로필 카드 ── */
+function showPlayerCard(userId, userName){
+  const profile=window._profilesCache?.find(u=>u.id===userId)||null;
+  const allM=window._allMatchesCache||[];
+  // 해당 유저 통계 계산
+  let g=0,w=0,scored=0,conceded=0;
+  allM.forEach(m=>{
+    const aWin=m.score_a>m.score_b;
+    [{id:m.a1_id,win:aWin,s:m.score_a,c:m.score_b},{id:m.a2_id,win:aWin,s:m.score_a,c:m.score_b},
+     {id:m.b1_id,win:!aWin,s:m.score_b,c:m.score_a},{id:m.b2_id,win:!aWin,s:m.score_b,c:m.score_a}]
+    .filter(p=>p.id===userId).forEach(p=>{g++;if(p.win)w++;scored+=p.s;conceded+=p.c;});
+  });
+  const l=g-w;
+  const wr=g>0?Math.round(w/g*100):0;
+  const diff=scored-conceded;
+  const ci=Math.round(calcCI(w,g,diff));
+  const avgDiff=g>0?((diff/g)>=0?'+':'')+((diff/g).toFixed(1)):'-';
+  const avatarUrl=profile?.avatar_url||'';
+  const initials=(userName||'?')[0];
+  const avatarHTML=avatarUrl
+    ?`<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;cursor:pointer;" onclick="event.stopPropagation();showAvatarFull('${avatarUrl}')">`
+    :`<span style="font-size:2rem;font-weight:700;color:var(--primary);">${initials}</span>`;
+  const isLight=document.body.classList.contains('light-mode');
+  const overlay=document.createElement('div');
+  overlay.id='player-card-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;display:flex;align-items:flex-end;justify-content:center;padding:0;';
+  overlay.onclick=()=>overlay.remove();
+  overlay.innerHTML=`
+    <div onclick="event.stopPropagation()" style="background:var(--surface);border-radius:24px 24px 0 0;width:100%;max-width:480px;padding:24px 20px 36px;box-shadow:0 -4px 32px rgba(0,0,0,.3);animation:slideUp .28s cubic-bezier(.4,0,.2,1);">
+      <div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;"></div>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+        <div style="width:72px;height:72px;border-radius:50%;background:var(--bg3);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">
+          ${avatarHTML}
+        </div>
+        <div>
+          <div style="font-family:'Black Han Sans',sans-serif;font-size:1.4rem;color:var(--text);">${userName}</div>
+          ${profile?.email?`<div style="font-size:.76rem;color:var(--text-muted);margin-top:2px;">${profile.email}</div>`:''}
+          ${g>=5?`<div style="font-size:.78rem;color:var(--primary);font-weight:700;margin-top:4px;">종합 ${ci}점</div>`:'<div style="font-size:.76rem;color:var(--text-muted);margin-top:4px;">5경기 미만 (랭킹 미반영)</div>'}
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;">
+        ${[['경기',g],['승',w],['패',l],['승률',wr+'%']].map(([lb,vl])=>`
+          <div style="background:var(--bg2);border-radius:10px;padding:10px 6px;text-align:center;">
+            <div style="font-size:.7rem;color:var(--text-muted);margin-bottom:4px;">${lb}</div>
+            <div style="font-size:1rem;font-weight:700;color:var(--text);">${vl}</div>
+          </div>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        ${[['득실차',diff>0?'+'+diff:diff],['평균득실',avgDiff]].map(([lb,vl])=>`
+          <div style="background:var(--bg2);border-radius:10px;padding:10px 6px;text-align:center;">
+            <div style="font-size:.7rem;color:var(--text-muted);margin-bottom:4px;">${lb}</div>
+            <div style="font-size:1rem;font-weight:700;color:${String(vl).startsWith('-')?'var(--danger)':'var(--primary)'};">${vl}</div>
+          </div>`).join('')}
+      </div>
+      <button onclick="goToFeedByName('${userName.replace(/'/g,"\\'")}');document.getElementById('player-card-overlay')?.remove();"
+        style="width:100%;margin-top:16px;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-family:inherit;font-size:.88rem;cursor:pointer;">
+        📋 ${userName} 경기 기록 보기
+      </button>
+    </div>`;
+  document.getElementById('player-card-overlay')?.remove();
+  document.body.appendChild(overlay);
+}
+
+function showAvatarFull(url){
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:600;display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+  ov.onclick=()=>ov.remove();
+  ov.innerHTML=`<img src="${url}" style="max-width:90vw;max-height:85vh;border-radius:16px;object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,.5);">`;
+  document.body.appendChild(ov);
+}
+
 function renderRankTable(allMatches){
   // profiles는 대시보드 로딩 시 캐시된 것 사용 (매번 DB 재조회 X)
   const users=window._profilesCache||[];
@@ -706,9 +782,12 @@ function renderRankTable(allMatches){
     const diff=`<span style="${diffColor(u.diff)}">${u.diff>0?'+':''}${u.diff}</span>`;
     const ciVal=`<span style="font-weight:700;color:var(--primary);">${Math.round(u.ci)}</span>`;
     const guestBadge='';
+    const nameOnclick=u.isGuest
+      ?`goToFeedByName('${u.name.replace(/'/g,"\\'")}')`
+      :`showPlayerCard('${u.id}','${u.name.replace(/'/g,"\\'")}')`;
     return `<tr class="${u.id===ME.id?'me':''}" ${!isRanked?'style="opacity:0.55;"':''}>
     <td>${rankCell}</td>
-    <td><span class="rank-name" onclick="goToFeedByName('${u.name.replace(/'/g,"\\'")}')">${u.name}</span>${guestBadge}</td>
+    <td><span class="rank-name" onclick="${nameOnclick}">${u.name}</span>${guestBadge}</td>
     <td style="text-align:center;">${u.games}</td>
     <td style="text-align:center;">${u.wins}</td>
     <td style="text-align:center;">${u.losses}</td>
