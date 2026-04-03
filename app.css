@@ -144,7 +144,7 @@ body.light-mode .match-card{border-left:3px solid var(--primary)}
 .mc-wl-badge{font-size:.62rem;font-weight:900;letter-spacing:.5px;padding:3px 7px;border-radius:5px;flex-shrink:0}
 .mc-wl-badge.win{background:rgba(41,121,255,.2);color:var(--primary);border:1px solid rgba(41,121,255,.4)}
 .mc-wl-badge.lose{background:rgba(255,255,255,.06);color:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.1)}
-.mc-team-col{flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:6px;padding-right:6px}
+.mc-team-col{flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:10px;padding-right:6px}
 .mc-team-col.right{justify-content:flex-start;padding-right:0;padding-left:6px}
 .mc-pnames-v{display:flex;flex-direction:column;gap:2px;min-width:0}
 .mc-pnames-v.right{align-items:flex-end}
