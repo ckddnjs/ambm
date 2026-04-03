@@ -1,9 +1,7 @@
 /* ── 설정 페이지 렌더 ── */
 async function renderSettingsPage(){
-  // 글자 크기 UI 동기화
   applyFontScale(_fontStepIdx, false);
 
-  // 아바타
   const avatarEl=document.getElementById('settings-avatar');
   if(avatarEl){
     if(ME.avatar_url){
@@ -12,19 +10,41 @@ async function renderSettingsPage(){
       avatarEl.textContent=ME.name?.[0]||'?';
     }
   }
-  // 이름/이메일
   const nameEl=document.getElementById('settings-name');
   const emailEl=document.getElementById('settings-email');
   if(nameEl) nameEl.textContent=ME.name||'';
   const genderLabel=ME.gender==='female'?'여성':ME.gender==='male'?'남성':'';
   if(emailEl) emailEl.textContent=[ME.email,genderLabel].filter(Boolean).join(' · ');
 
-  // 다크모드 버튼
+  // 이름 변경 input 현재 이름으로 초기화
+  const nameInput=document.getElementById('settings-name-input');
+  if(nameInput) nameInput.value=ME.name||'';
+
   const dmBtn=document.getElementById('darkmode-settings-btn');
   if(dmBtn){
     const isLight=document.body.classList.contains('light-mode');
     dmBtn.textContent=isLight?'🌙 다크로 변경':'☀️ 라이트로 변경';
   }
+}
+
+async function saveSettingsName(){
+  const input=document.getElementById('settings-name-input');
+  const newName=(input?.value||'').trim();
+  if(!newName){toast('이름을 입력해 주세요','error');return;}
+  if(newName===ME.name){toast('현재 이름과 동일합니다','info');return;}
+  if(newName.length<2||newName.length>10){toast('이름은 2~10자로 입력해 주세요','error');return;}
+  const{error}=await sb.from('profiles').update({name:newName}).eq('id',ME.id);
+  if(error){toast('이름 변경 실패: '+error.message,'error');return;}
+  ME.name=newName;
+  if(window._profilesCache){
+    const idx=window._profilesCache.findIndex(u=>u.id===ME.id);
+    if(idx>=0) window._profilesCache[idx].name=newName;
+  }
+  const nameEl=document.getElementById('settings-name');
+  if(nameEl) nameEl.textContent=newName;
+  // 헤더 이름 갱신
+  if(typeof refreshHeader==='function') refreshHeader();
+  toast('✅ 이름이 변경됐어요!','success');
 }
 
 /* ── 아바타 업로드 ── */

@@ -13,28 +13,40 @@ async function renderDashboard(){
   const myMatches=_allMatchesCache.filter(m=>[m.a1_id,m.a2_id,m.b1_id,m.b2_id].includes(ME.id));
   const stats=computeStats(myMatches,ME.id);
 
-  // 전체 유저 통계로 순위 계산 (exclude_stats 제외, 5경기 이상만 랭킹 산정)
-  // profiles 전체 캐시 저장 (renderRankTable 재사용)
+  // 전체 유저 통계로 순위 계산 (renderRankTable과 동일한 기준: 회원+비회원)
   if(!window._profilesCache||window._profilesCache.length===0){
     const{data:pCache}=await sb.from('profiles').select('*').eq('status','approved');
     window._profilesCache=pCache||[];
     window._guestModeNamesCache=await _loadGuestModeNames();
   }
   const allUsers=window._profilesCache;
+  const guestModeNames=window._guestModeNamesCache||new Set();
+  const excludedIds=new Set((allUsers||[]).filter(u=>u.exclude_stats).map(u=>u.id));
   const uStats={};
-  (allUsers||[]).filter(u=>!u.exclude_stats).forEach(u=>uStats[u.id]={games:0,wins:0,diff:0,scored:0,conceded:0});
+  // 회원 초기화
+  (allUsers||[]).filter(u=>!u.exclude_stats).forEach(u=>uStats[u.id]={id:u.id,games:0,wins:0,diff:0,scored:0,conceded:0});
   _allMatchesCache.forEach(m=>{
     const aWin=m.score_a>m.score_b;
+    // 회원 (id 기반)
     [{id:m.a1_id,win:aWin,s:m.score_a,c:m.score_b},{id:m.a2_id,win:aWin,s:m.score_a,c:m.score_b},
      {id:m.b1_id,win:!aWin,s:m.score_b,c:m.score_a},{id:m.b2_id,win:!aWin,s:m.score_b,c:m.score_a}]
-    .filter(p=>p.id&&uStats[p.id]).forEach(p=>{
-      uStats[p.id].games++;
-      if(p.win)uStats[p.id].wins++;
+    .filter(p=>p.id&&!excludedIds.has(p.id)).forEach(p=>{
+      if(!uStats[p.id])return;
+      uStats[p.id].games++;if(p.win)uStats[p.id].wins++;
       uStats[p.id].scored+=p.s;uStats[p.id].conceded+=p.c;
     });
+    // 비회원 (name 기반)
+    [{id:m.a1_id,name:m.a1_name,win:aWin,s:m.score_a,c:m.score_b},
+     {id:m.a2_id,name:m.a2_name,win:aWin,s:m.score_a,c:m.score_b},
+     {id:m.b1_id,name:m.b1_name,win:!aWin,s:m.score_b,c:m.score_a},
+     {id:m.b2_id,name:m.b2_name,win:!aWin,s:m.score_b,c:m.score_a}]
+    .filter(p=>!p.id&&p.name&&!guestModeNames.has(p.name)).forEach(p=>{
+      const key='name:'+p.name;
+      if(!uStats[key]) uStats[key]={id:key,games:0,wins:0,diff:0,scored:0,conceded:0};
+      uStats[key].games++;if(p.win)uStats[key].wins++;
+      uStats[key].scored+=p.s;uStats[key].conceded+=p.c;
+    });
   });
-  // diff, ci 계산 (5경기 이상인 사람만 랭킹 대상)
-  // exclude_stats 유저 ID를 전역 저장 (세부통계 getRank에서 재사용)
   window._rankExcludedIds=(allUsers||[]).filter(u=>u.exclude_stats).map(u=>u.id);
   Object.values(uStats).forEach(u=>{
     u.diff=u.scored-u.conceded;
@@ -46,12 +58,12 @@ async function renderDashboard(){
   const wrRanked=[...rankedAll].sort((a,b)=>wrOf(b)-wrOf(a)||b.wins-a.wins);
   const diffRanked=[...rankedAll].sort((a,b)=>b.diff-a.diff||wrOf(b)-wrOf(a));
   const gamesRanked=[...rankedAll].sort((a,b)=>b.games-a.games);
-  const myWrRank=stats.total.games>=MIN_G?wrRanked.findIndex(u=>u===uStats[ME.id])+1:0;
-  const myDiffRank=stats.total.games>=MIN_G?diffRanked.findIndex(u=>u===uStats[ME.id])+1:0;
-  const myGamesRank=stats.total.games>=MIN_G?gamesRanked.findIndex(u=>u===uStats[ME.id])+1:0;
+  const myWrRank=stats.total.games>=MIN_G?wrRanked.findIndex(u=>u.id===ME.id)+1:0;
+  const myDiffRank=stats.total.games>=MIN_G?diffRanked.findIndex(u=>u.id===ME.id)+1:0;
+  const myGamesRank=stats.total.games>=MIN_G?gamesRanked.findIndex(u=>u.id===ME.id)+1:0;
   const total=rankedAll.length;
   const ciRanked=[...rankedAll].sort((a,b)=>b.ci-a.ci);
-  const myCIRank=stats.total.games>=MIN_G?ciRanked.findIndex(u=>u===uStats[ME.id])+1:0;
+  const myCIRank=stats.total.games>=MIN_G?ciRanked.findIndex(u=>u.id===ME.id)+1:0;
 
   const ci=calcCI(stats.total.wins,stats.total.games,stats.total.diff||0);
   const grade=ciToLabel(ci);
@@ -142,7 +154,6 @@ async function renderDashboard(){
   document.getElementById('my-overview-card').innerHTML=
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">'+
       '<div style="font-size:1rem;font-weight:700;color:var(--text);">📊 나의 현황</div>'+
-      '<button onclick="event.stopPropagation();showCIInfo()" style="background:var(--bg3);border:1px solid var(--border);border-radius:50%;width:24px;height:24px;font-size:.75rem;color:var(--text-muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-family:inherit;">?</button>'+
     '</div>'+
     // CI 게이지 섹션
     '<div style="background:var(--bg3);border-radius:12px;padding:14px 16px;margin-bottom:12px;">'+

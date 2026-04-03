@@ -1,4 +1,4 @@
-const CACHE = 'ambm-v3';
+const CACHE = 'ambm-v4';
 const STATIC = [
   '/',
   '/index.html',
@@ -23,7 +23,7 @@ const API_CACHE = 'ambm-api-v1';
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
-      .then(c => c.addAll(STATIC.map(u => new Request(u, {cache: 'reload'}))))
+      .then(c => c.addAll(STATIC.map(u => new Request(u, {cache:'reload'}))))
       .then(() => self.skipWaiting())
   );
 });
@@ -44,6 +44,13 @@ self.addEventListener('fetch', e => {
   const isSupabase = url.hostname.includes('supabase.co');
   const isNavigation = e.request.mode === 'navigate';
 
+  // ⚠️ Supabase auth 요청은 절대 캐시하지 않음 (로그아웃 방지)
+  if (isSupabase && (url.pathname.includes('/auth/') || url.pathname.includes('/token'))) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
+  // 앱 셸
   if (isNavigation || (isLocal && (url.pathname === '/' || url.pathname.endsWith('.html')))) {
     e.respondWith(
       fetch(e.request)
@@ -53,6 +60,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
+  // JS/CSS
   if (isLocal && (url.pathname.endsWith('.js') || url.pathname.endsWith('.css'))) {
     e.respondWith(
       fetch(e.request)
@@ -62,8 +70,9 @@ self.addEventListener('fetch', e => {
     return;
   }
 
+  // 이미지
   const isImg = isLocal && /\.(png|webp|jpg|jpeg|gif|svg)$/.test(url.pathname);
-  const isExternalImg = url.hostname.includes('supabase.co') && url.pathname.includes('/storage/');
+  const isExternalImg = isSupabase && url.pathname.includes('/storage/');
   if (isImg || isExternalImg) {
     e.respondWith(
       caches.match(e.request).then(cached => {
@@ -77,6 +86,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
+  // Supabase API (auth 제외한 GET만 캐시)
   if (isSupabase && e.request.method === 'GET') {
     e.respondWith(
       fetch(e.request)

@@ -396,6 +396,15 @@
         </label>
       </div>
 
+      <!-- 이름 변경 (일반 회원) -->
+      <div class="card" style="padding:16px;" id="settings-name-card">
+        <div style="font-size:.8rem;font-weight:700;color:var(--text-muted);margin-bottom:12px;letter-spacing:.5px;">이름 변경</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input class="form-input" id="settings-name-input" placeholder="새 이름 입력" style="flex:1;">
+          <button onclick="saveSettingsName()" style="padding:10px 16px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">저장</button>
+        </div>
+      </div>
+
       <!-- 화면 설정 -->
       <div class="card" style="padding:16px;">
         <div style="font-size:.8rem;font-weight:700;color:var(--text-muted);margin-bottom:12px;letter-spacing:.5px;">화면 설정</div>

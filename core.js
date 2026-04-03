@@ -245,12 +245,12 @@ async function doEmailLogin(){
   const{data,error}=await sb.auth.signInWithPassword({email,password:pw});
   if(error){toast(error.message.includes('Invalid')?'이메일 또는 비밀번호 오류':error.message,'error');return;}
   await loadProfile(data.user);
-  if(!ME){
-    // 프로필 로드 실패 시 1회 재시도
-    await new Promise(r=>setTimeout(r,800));
+  // 프로필 로드 실패 시 최대 3회 재시도 (네트워크 지연 대비)
+  for(let i=0;i<3&&!ME;i++){
+    await new Promise(r=>setTimeout(r,1000*(i+1)));
     await loadProfile(data.user);
   }
-  if(!ME){toast('프로필 로드 실패, 다시 시도해 주세요','error');return;}
+  if(!ME){toast('프로필 로드 실패, 잠시 후 다시 시도해 주세요','error');return;}
   if(ME.status==='pending'){showPendingScreen(ME.name);return;}
   if(ME.status==='rejected'){toast('이용 불가 계정','error');await sb.auth.signOut();ME=null;return;}
   addLog(`로그인: ${ME.name}`,ME.id);
