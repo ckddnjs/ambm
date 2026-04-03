@@ -74,8 +74,8 @@ window.addEventListener('DOMContentLoaded',async()=>{
     } else if(event==='SIGNED_IN'){
       // INITIAL_SESSION 이후 중복 실행 방지
       if(handled&&ME) return;
-      // 이메일 로그인은 직접 처리
-      if(session?.user?.app_metadata?.provider==='email'&&handled) return;
+      // 이메일 로그인은 doEmailLogin()이 직접 처리
+      if(session?.user?.app_metadata?.provider==='email') return;
       try{
         if(session?.user) await loadProfile(session.user);
       } catch(e){
@@ -242,19 +242,26 @@ async function doEmailLogin(){
   const email=document.getElementById('login-email').value.trim();
   const pw=document.getElementById('login-pw').value;
   if(!email||!pw){toast('이메일/비밀번호 입력','error');return;}
-  const{data,error}=await sb.auth.signInWithPassword({email,password:pw});
-  if(error){toast(error.message.includes('Invalid')?'이메일 또는 비밀번호 오류':error.message,'error');return;}
-  await loadProfile(data.user);
-  // 프로필 로드 실패 시 최대 3회 재시도 (네트워크 지연 대비)
-  for(let i=0;i<3&&!ME;i++){
-    await new Promise(r=>setTimeout(r,1000*(i+1)));
+  // 버튼 로딩 상태
+  const btn=document.querySelector('#login-page .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='로그인 중...';}
+  try{
+    const{data,error}=await sb.auth.signInWithPassword({email,password:pw});
+    if(error){toast(error.message.includes('Invalid')?'이메일 또는 비밀번호 오류':error.message,'error');return;}
     await loadProfile(data.user);
+    // 프로필 로드 실패 시 최대 2회 재시도
+    for(let i=0;i<2&&!ME;i++){
+      await new Promise(r=>setTimeout(r,800));
+      await loadProfile(data.user);
+    }
+    if(!ME){toast('프로필 로드 실패, 다시 시도해 주세요','error');return;}
+    if(ME.status==='pending'){showPendingScreen(ME.name);return;}
+    if(ME.status==='rejected'){toast('이용 불가 계정','error');await sb.auth.signOut();ME=null;return;}
+    addLog(`로그인: ${ME.name}`,ME.id);
+    showApp();toast(`어서오세요, ${ME.name}님! 🏸`,'success');
+  } finally {
+    if(btn){btn.disabled=false;btn.textContent='로그인';}
   }
-  if(!ME){toast('프로필 로드 실패, 잠시 후 다시 시도해 주세요','error');return;}
-  if(ME.status==='pending'){showPendingScreen(ME.name);return;}
-  if(ME.status==='rejected'){toast('이용 불가 계정','error');await sb.auth.signOut();ME=null;return;}
-  addLog(`로그인: ${ME.name}`,ME.id);
-  showApp();toast(`어서오세요, ${ME.name}님! 🏸`,'success');
 }
 async function doEmailSignup(){
   if(!document.getElementById('privacy-agree')?.checked){toast('개인정보 수집·이용 동의가 필요합니다','error');return;}
@@ -474,6 +481,7 @@ function buildNav(){
 }
 function goHome(){navigateTo('dashboard');}
 function navigateTo(page){
+  const prevPage=currentPage;
   currentPage=page;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.bottom-nav-item').forEach(n=>n.classList.remove('active'));
@@ -481,10 +489,9 @@ function navigateTo(page){
   document.getElementById('nav-'+page)?.classList.add('active');
   document.querySelector('.app-body').scrollTop=0;
   if(page!=='feed' && typeof _detachFeedScroll==='function') _detachFeedScroll();
-  // 해시로 현재 페이지 기록 (뒤로가기 방지)
   if(window.history){
     if(page==='install-guide'){
-      window.history.pushState({page:'install-guide',from:currentPage},'','#install-guide');
+      window.history.pushState({page:'install-guide',from:prevPage||'settings'},'','#install-guide');
     } else if(window.location.hash!=='#'+page){
       window.history.pushState({page},'','#'+page);
     } else {

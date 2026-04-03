@@ -34,7 +34,7 @@ function fmtTourneyDate(start,end){
   if(s.yy===e.yy) return `${s.yy}년 ${s.m}월 ${s.d}일 ~ ${e.m}월 ${e.d}일`;
   return `${s.yy}년 ${s.m}월 ${s.d}일 ~ ${e.yy}년 ${e.m}월 ${e.d}일`;
 }
-async function addLog(message,userId){await sb.from('logs').insert({message,user_id:userId||null});}
+async function addLog(message,userId){try{await sb.from('logs').insert({message,user_id:userId||null});}catch(e){console.warn('addLog fail',e);}}
 
 
 /* ══════════════════════════════════════
