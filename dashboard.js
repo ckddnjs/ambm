@@ -647,25 +647,62 @@ function renderMvpPodium(allMatches, users) {
 function showPlayerCard(userId, userName){
   const profile=window._profilesCache?.find(u=>u.id===userId)||null;
   const allM=window._allMatchesCache||[];
-  // 해당 유저 통계 계산
-  let g=0,w=0,scored=0,conceded=0;
-  allM.forEach(m=>{
-    const aWin=m.score_a>m.score_b;
-    [{id:m.a1_id,win:aWin,s:m.score_a,c:m.score_b},{id:m.a2_id,win:aWin,s:m.score_a,c:m.score_b},
-     {id:m.b1_id,win:!aWin,s:m.score_b,c:m.score_a},{id:m.b2_id,win:!aWin,s:m.score_b,c:m.score_a}]
-    .filter(p=>p.id===userId).forEach(p=>{g++;if(p.win)w++;scored+=p.s;conceded+=p.c;});
+
+  // 해당 유저 경기 목록 (날짜 내림차순)
+  const userMatches=allM.filter(m=>
+    [m.a1_id,m.a2_id,m.b1_id,m.b2_id].includes(userId)
+  ).map(m=>{
+    const onA=[m.a1_id,m.a2_id].includes(userId);
+    const won=(m.score_a>m.score_b)===onA;
+    return{...m,won};
+  }).sort((a,b)=>{
+    const dd=new Date(b.match_date)-new Date(a.match_date);
+    return dd!==0?dd:new Date(b.created_at||0)-new Date(a.created_at||0);
   });
+
+  // 통계
+  const g=userMatches.length;
+  const w=userMatches.filter(m=>m.won).length;
   const l=g-w;
+  let scored=0,conceded=0;
+  userMatches.forEach(m=>{
+    const onA=[m.a1_id,m.a2_id].includes(userId);
+    scored+=onA?m.score_a:m.score_b;
+    conceded+=onA?m.score_b:m.score_a;
+  });
   const wr=g>0?Math.round(w/g*100):0;
   const diff=scored-conceded;
   const ci=Math.round(calcCI(w,g,diff));
   const avgDiff=g>0?((diff/g)>=0?'+':'')+((diff/g).toFixed(1)):'-';
+
+  // 최근 5경기 도트
+  const recent5=[...userMatches].slice(0,5).reverse();
+  const dotHTML=recent5.map(m=>
+    m.won
+      ?`<span style="width:28px;height:28px;border-radius:50%;background:rgba(41,121,255,.2);border:2px solid var(--primary);color:var(--primary);font-size:.72rem;font-weight:900;display:inline-flex;align-items:center;justify-content:center;">승</span>`
+      :`<span style="width:28px;height:28px;border-radius:50%;background:rgba(255,82,82,.12);border:2px solid var(--danger);color:var(--danger);font-size:.72rem;font-weight:900;display:inline-flex;align-items:center;justify-content:center;">패</span>`
+  ).join('');
+
+  // 현재 연승/연패 계산
+  let streakCount=0, streakType='';
+  if(userMatches.length>0){
+    const first=userMatches[0].won;
+    streakType=first?'연승':'연패';
+    for(const m of userMatches){
+      if(m.won===first) streakCount++;
+      else break;
+    }
+  }
+  const streakBadge=streakCount>=2
+    ?`<span style="margin-left:8px;font-size:.78rem;font-weight:700;padding:2px 10px;border-radius:20px;${streakType==='연승'?'background:rgba(41,121,255,.15);color:var(--primary);border:1px solid rgba(41,121,255,.3);':'background:rgba(255,82,82,.12);color:var(--danger);border:1px solid rgba(255,82,82,.3);'}">${streakCount}${streakType}</span>`
+    :'';
+
   const avatarUrl=profile?.avatar_url||'';
   const initials=(userName||'?')[0];
   const avatarHTML=avatarUrl
     ?`<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;cursor:pointer;" onclick="event.stopPropagation();showAvatarFull('${avatarUrl}')">`
     :`<span style="font-size:2rem;font-weight:700;color:var(--primary);">${initials}</span>`;
-  const isLight=document.body.classList.contains('light-mode');
+
   const overlay=document.createElement('div');
   overlay.id='player-card-overlay';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;display:flex;align-items:flex-end;justify-content:center;padding:0;';
@@ -673,32 +710,43 @@ function showPlayerCard(userId, userName){
   overlay.innerHTML=`
     <div onclick="event.stopPropagation()" style="background:var(--surface);border-radius:24px 24px 0 0;width:100%;max-width:480px;padding:24px 20px 36px;box-shadow:0 -4px 32px rgba(0,0,0,.3);animation:slideUp .28s cubic-bezier(.4,0,.2,1);">
       <div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;"></div>
-      <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+      <!-- 프로필 헤더 -->
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px;">
         <div style="width:72px;height:72px;border-radius:50%;background:var(--bg3);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">
           ${avatarHTML}
         </div>
         <div>
-          <div style="font-family:'Black Han Sans',sans-serif;font-size:1.4rem;color:var(--text);">${userName}</div>
-          ${profile?.email?`<div style="font-size:.76rem;color:var(--text-muted);margin-top:2px;">${profile.email}</div>`:''}
-          ${g>=5?`<div style="font-size:.78rem;color:var(--primary);font-weight:700;margin-top:4px;">종합 ${ci}점</div>`:'<div style="font-size:.76rem;color:var(--text-muted);margin-top:4px;">5경기 미만 (랭킹 미반영)</div>'}
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
+            <span style="font-family:'Black Han Sans',sans-serif;font-size:1.4rem;color:var(--text);">${userName}</span>
+            ${streakBadge}
+          </div>
+          ${g>=5?`<div style="font-size:.78rem;color:var(--primary);font-weight:700;margin-top:3px;">종합 ${ci}점</div>`:`<div style="font-size:.76rem;color:var(--text-muted);margin-top:3px;">5경기 미만</div>`}
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;">
+      <!-- 스탯 그리드 -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;">
         ${[['경기',g],['승',w],['패',l],['승률',wr+'%']].map(([lb,vl])=>`
           <div style="background:var(--bg2);border-radius:10px;padding:10px 6px;text-align:center;">
             <div style="font-size:.7rem;color:var(--text-muted);margin-bottom:4px;">${lb}</div>
             <div style="font-size:1rem;font-weight:700;color:var(--text);">${vl}</div>
           </div>`).join('')}
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
         ${[['득실차',diff>0?'+'+diff:diff],['평균득실',avgDiff]].map(([lb,vl])=>`
           <div style="background:var(--bg2);border-radius:10px;padding:10px 6px;text-align:center;">
             <div style="font-size:.7rem;color:var(--text-muted);margin-bottom:4px;">${lb}</div>
-            <div style="font-size:1rem;font-weight:700;color:${String(vl).startsWith('-')?'var(--danger)':'var(--primary)'};">${vl}</div>
+            <div style="font-size:1rem;font-weight:700;color:${String(vl).startsWith('-')?'var(--danger)':'var(--primary)'};"> ${vl}</div>
           </div>`).join('')}
       </div>
+      <!-- 최근 5경기 -->
+      ${recent5.length>0?`
+      <div style="background:var(--bg2);border-radius:10px;padding:10px 12px;margin-bottom:14px;">
+        <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:8px;">최근 ${recent5.length}경기</div>
+        <div style="display:flex;gap:6px;align-items:center;">${dotHTML}</div>
+      </div>`:''}
+      <!-- 기록 보기 버튼 -->
       <button onclick="goToFeedByName('${userName.replace(/'/g,"\\'")}');document.getElementById('player-card-overlay')?.remove();"
-        style="width:100%;margin-top:16px;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-family:inherit;font-size:.88rem;cursor:pointer;">
+        style="width:100%;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-family:inherit;font-size:.88rem;cursor:pointer;">
         📋 ${userName} 경기 기록 보기
       </button>
     </div>`;
@@ -1112,4 +1160,3 @@ function renderScatter(){
     setTimeout(()=>tip.remove(),3000);
   };
 }
-
