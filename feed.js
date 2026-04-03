@@ -186,7 +186,7 @@ function openDateSummaryPage(dateStr){
   const days=['일','월','화','수','목','금','토'];
   document.getElementById('dsp-title').textContent=`${d.getMonth()+1}월 ${d.getDate()}일(${days[d.getDay()]}) 요약`;
   // history에 기록해서 뒤로가기로 닫힘
-  window.history.pushState({page:'date-summary',dateStr,from:window.location.hash.slice(1)||'feed'},'','#date-summary');
+  window.history.pushState({page:'date-summary',dateStr,from:'feed'},'','#date-summary');
   renderDateSummaryContent(dateStr);
 }
 function closeDateSummaryPage(){
