@@ -485,8 +485,10 @@ function navigateTo(page){
   if(window.history){
     if(page==='install-guide'){
       window.history.pushState({page:'install-guide',from:currentPage},'','#install-guide');
-    } else {
+    } else if(window.location.hash!=='#'+page){
       window.history.pushState({page},'','#'+page);
+    } else {
+      window.history.replaceState({page},'','#'+page);
     }
   }
   switch(page){
@@ -512,6 +514,12 @@ function navigateTo(page){
 
 // 뒤로가기 → 앱 내 페이지 유지 (홈 화면으로 나가지 않음)
 window.addEventListener('popstate',e=>{
+  // date-summary 오버레이가 열려있으면 닫기
+  if(e.state&&e.state.page==='date-summary'){
+    const dsp=document.getElementById('page-date-summary');
+    if(dsp) dsp.style.display='none';
+    return;
+  }
   // install-guide 오버레이가 열려있으면 닫고 이전 탭으로
   const ig=document.getElementById('page-install-guide');
   if(ig&&ig.style.display==='block'){
