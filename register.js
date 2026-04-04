@@ -7,6 +7,9 @@ let _activeSlot=null; // 현재 선택 중인 슬롯
 let _chipFilter=''; // 초성/이름 필터
 
 async function renderRegisterPage(){
+  // chip-picker-wrap에 로딩 표시
+  const wrap=document.getElementById('chip-picker-wrap');
+  if(wrap) wrap.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:.85rem;">선수 목록 불러오는 중...</div>';
   _usersCache=await _getApprovedUsers();
   _regSlots={a1:null,a2:null,b1:null,b2:null};
   _activeSlot=null;
@@ -19,7 +22,7 @@ async function renderRegisterPage(){
 
 function _renderChipPicker(){
   const wrap=document.getElementById('chip-picker-wrap');
-  if(!wrap) return;
+  if(!wrap){ setTimeout(_renderChipPicker, 50); return; }
 
   const sorted=[..._usersCache].sort((a,b)=>a.name.localeCompare(b.name,'ko'));
 
