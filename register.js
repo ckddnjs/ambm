@@ -9,7 +9,7 @@ let _guestPool = []; // 비회원 칩 풀 (등록 완료 전까지 유지)
 const _CHO_IDX_TO_LABEL = ['ㄱ','ㄱ','ㄴ','ㄷ','ㄷ','ㄹ','ㅁ','ㅂ','ㅂ','ㅅ','ㅅ','ㅇ','ㅈ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
 const _CHO_BTN_ORDER   = {ㄱ:0,ㄴ:1,ㄷ:2,ㄹ:3,ㅁ:4,ㅂ:5,ㅅ:6,ㅇ:7,ㅈ:8,ㅊ:9,ㅋ:10,ㅌ:11,ㅍ:12,ㅎ:13};
 
-function _getChosung(name){
+function _regChosung(name){
   const c = name?.charCodeAt(0);
   if(!c || c < 44032 || c > 55203) return null;
   return _CHO_IDX_TO_LABEL[Math.floor((c - 44032) / 588)] ?? null;
@@ -200,7 +200,7 @@ function _reRenderRegister(){
     .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
 
   // 현재 회원에 존재하는 초성만 필터 버튼으로 생성
-  const _usedCS = [...new Set(allUsers.map(u => _getChosung(u.name)).filter(Boolean))].sort(
+  const _usedCS = [...new Set(allUsers.map(u => _regChosung(u.name)).filter(Boolean))].sort(
     (a, b) => (_CHO_BTN_ORDER[a] ?? 99) - (_CHO_BTN_ORDER[b] ?? 99)
   );
 
@@ -211,7 +211,7 @@ function _reRenderRegister(){
       ${_usedCS.map(cs => `<button type="button" onclick='setRegisterCsFilter(${JSON.stringify(cs)})' style="${btnBase}background:${_csFilter===cs?'var(--primary)':'var(--bg2)'};color:${_csFilter===cs?'#fff':'var(--text-muted)'};">${cs}</button>`).join('')}
     </div>`;
 
-  const filtered = _csFilter === 'ALL' ? allUsers : allUsers.filter(u => _getChosung(u.name) === _csFilter);
+  const filtered = _csFilter === 'ALL' ? allUsers : allUsers.filter(u => _regChosung(u.name) === _csFilter);
 
   // 회원 칩
   function makeChip(p){

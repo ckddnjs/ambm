@@ -94,7 +94,7 @@ async function renderDashboard(){
   const _helloEl=document.getElementById('dash-hello');
   if(_helloEl) _helloEl.innerHTML=
     `<span style="font-family:'Black Han Sans',sans-serif;font-weight:700;color:var(--text);">${ME.name}님,</span>`+
-    `<span style="font-family:'Noto Sans KR',sans-serif;font-weight:400;color:var(--text);opacity:.75;"> ${_greeting}</span>`;
+    `<span style="font-family:'Noto Sans KR',sans-serif;font-weight:400;font-size:.78rem;color:var(--text);opacity:.75;"> ${_greeting}</span>`;
   // 최근 10경기 스트릭
   const recentMatches=[...myMatches].sort((a,b)=>{
     const dd=new Date(b.match_date)-new Date(a.match_date);
