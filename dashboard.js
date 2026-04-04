@@ -185,7 +185,7 @@ async function renderDashboard(){
           (myCIRank?'<div style="font-size:.86rem;color:var(--primary);font-weight:700;">전체 '+myCIRank+'위 / '+total+'명</div>':'<div style="font-size:.82rem;color:var(--text-muted);">5경기 미만</div>')+
         '</div>'+
         '<div style="display:flex;align-items:baseline;gap:6px;">'+
-          '<span style="font-family:Black Han Sans,sans-serif;font-size:2.4rem;color:#5BA4F5;">'+ciVal+'</span>'+
+          '<span style="font-family:Black Han Sans,sans-serif;font-size:2.4rem;color:var(--primary);">'+ciVal+'</span>'+
         '</div>'+
       '</div>'+
       '<div style="height:8px;background:linear-gradient(to right,#4fc3f7,#00C896,#FFD700);border-radius:4px;position:relative;margin-bottom:4px;">'+
@@ -835,7 +835,7 @@ function renderRankTable(allMatches){
   else sorted.sort(multiSort([u=>u.games,wr,u=>u.wins,u=>u.diff]));
   if(sortDir===-1) sorted.reverse();
   const cls=['','top1','top2','top3'];
-  const diffColor=d=>d>0?'color:var(--primary)':d<0?'color:var(--danger)':'color:var(--text-muted)';
+  const diffColor=d=>d>0?'color:#1a6fc4':d<0?'color:var(--danger)':'color:var(--text-muted)';
   const MIN_GAMES=5; // 5경기 이상만 순위 부여
   const LIMIT=5;
   // 5경기 이상: 순위 부여 / 미만: 뒤에 흐리게 표시
@@ -855,7 +855,7 @@ function renderRankTable(allMatches){
       :`<span class="rank-no" style="color:var(--text-dim);font-size:.8rem;">-</span>`;
     const wr=u.games>0?Math.round(u.wins/u.games*100)+'%':'0%';
     const diff=`<span style="${diffColor(u.diff)}">${u.diff>0?'+':''}${u.diff}</span>`;
-    const ciVal=`<span style="font-weight:700;color:var(--primary);">${Math.round(u.ci)}</span>`;
+    const ciVal=`<span style="font-weight:700;color:var(--text);">${Math.round(u.ci)}</span>`;
     const guestBadge='';
     const nameOnclick=u.isGuest
       ?`goToFeedByName('${u.name.replace(/'/g,"\\'")}')`
@@ -1109,7 +1109,7 @@ function renderScatter(){
     const r=isHL||isMe?9:6;
 
     ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
-    ctx.fillStyle=isHL?'#00c896':isMe?'#2979ff':'rgba(0,200,150,0.45)';
+    ctx.fillStyle=isHL?'#1a6fc4':isMe?'#2979ff':'rgba(26,111,196,0.45)';
     ctx.fill();
 
     if(isHL){

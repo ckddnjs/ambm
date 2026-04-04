@@ -25,13 +25,16 @@ function _nextEmptySlot(){
 
 /* ── 칩 탭 ── */
 function chipTap(uid){
-  const users  = window._profilesCache || [];
-  const p      = users.find(u => u.id === uid) || Object.values(_chipSelected).find(v => v && v.id === uid);
+  const users = window._profilesCache || [];
+  const p = users.find(u => u.id === uid)
+         || Object.values(_chipSelected).find(v => v && v.id === uid);
   if(!p) return;
-  const _sa    = document.getElementById('reg-sa')?.value  || '';
-  const _sb    = document.getElementById('reg-sb')?.value  || '';
-  const _date  = document.getElementById('reg-date')?.value || '';
-  const _note  = document.getElementById('reg-note')?.value || '';
+
+  const _sa   = document.getElementById('reg-sa')?.value   || '';
+  const _sb   = document.getElementById('reg-sb')?.value   || '';
+  const _date = document.getElementById('reg-date')?.value || '';
+  const _note = document.getElementById('reg-note')?.value || '';
+
   const already = Object.entries(_chipSelected).find(([,v]) => v && v.id === uid);
   if(already){
     _chipSelected[already[0]] = null;
@@ -40,6 +43,7 @@ function chipTap(uid){
     if(!slot){ toast('선수 슬롯이 가득 찼습니다', 'error'); return; }
     _chipSelected[slot] = p;
   }
+
   _reRenderRegister();
   requestAnimationFrame(()=>{
     const sa   = document.getElementById('reg-sa');   if(sa   && _sa)   sa.value   = _sa;
@@ -53,10 +57,10 @@ function chipTap(uid){
 function clearChipSlot(slotId){
   if(!_chipSelected[slotId]) return;
   const p = _chipSelected[slotId];
-  showChipMenu(p.id || slotId, p.name, slotId);
+  showChipMenu(p.id || slotId, p.name, slotId, !!p.isGuest);
 }
 
-function showChipMenu(uid, name, currentSlot){
+function showChipMenu(uid, name, currentSlot, isGuest){
   document.getElementById('chip-ctx-menu')?.remove();
   const isA  = currentSlot.startsWith('a');
   const menu = document.createElement('div');
@@ -64,33 +68,35 @@ function showChipMenu(uid, name, currentSlot){
   menu.style.cssText = 'position:fixed;inset:0;z-index:500;display:flex;align-items:flex-end;';
   menu.onclick = e => { if(e.target === menu) menu.remove(); };
 
-  const opp     = isA ? ['b1','b2'] : ['a1','a2'];
-  const oppEmpty = opp.find(s => !_chipSelected[s]);
+  const opp      = isA ? ['b1','b2'] : ['a1','a2'];
+  const oppEmpty  = opp.find(s => !_chipSelected[s]);
   const oppFilled = opp.filter(s => _chipSelected[s]);
 
   let moveHtml = '';
-  if(oppEmpty){
+  if(oppEmpty && !isGuest){
     const lbl = isA ? 'B팀으로 이동' : 'A팀으로 이동';
     moveHtml += `<button onclick="chipMove('${currentSlot}','${oppEmpty}');document.getElementById('chip-ctx-menu').remove();" style="width:100%;padding:13px 16px;border:none;background:none;text-align:left;font-family:inherit;font-size:.9rem;cursor:pointer;color:var(--text);border-bottom:1px solid var(--border);">
       <span style="margin-right:8px;">${isA?'🟢':'🔴'}</span>${lbl}
     </button>`;
   }
-  oppFilled.forEach(oppSlot => {
-    const oppP = _chipSelected[oppSlot];
-    moveHtml += `<button onclick="chipSwap('${currentSlot}','${oppSlot}');document.getElementById('chip-ctx-menu').remove();" style="width:100%;padding:13px 16px;border:none;background:none;text-align:left;font-family:inherit;font-size:.9rem;cursor:pointer;color:var(--text);border-bottom:1px solid var(--border);">
-      <span style="margin-right:8px;">🔄</span>${oppP.name}과 교체
-    </button>`;
-  });
+  if(!isGuest){
+    oppFilled.forEach(oppSlot => {
+      const oppP = _chipSelected[oppSlot];
+      moveHtml += `<button onclick="chipSwap('${currentSlot}','${oppSlot}');document.getElementById('chip-ctx-menu').remove();" style="width:100%;padding:13px 16px;border:none;background:none;text-align:left;font-family:inherit;font-size:.9rem;cursor:pointer;color:var(--text);border-bottom:1px solid var(--border);">
+        <span style="margin-right:8px;">🔄</span>${oppP.name}과 교체
+      </button>`;
+    });
+  }
 
   menu.innerHTML = `
     <div style="width:100%;background:var(--surface,var(--bg));border-radius:16px 16px 0 0;border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom,0);">
       <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
-        <div style="font-size:.78rem;color:var(--text-muted);">선택된 선수</div>
-        <div style="font-size:1rem;font-weight:700;">${name} <span style="font-size:.72rem;color:${isA?'#c0392b':'#27ae60'};font-weight:400;">${isA?'A팀':'B팀'}</span></div>
+        <div style="font-size:.78rem;color:var(--text-muted);">${isGuest?'비회원':'선택된 선수'}</div>
+        <div style="font-size:1rem;font-weight:700;">${name} <span style="font-size:.72rem;color:${isA?'#c0392b':'#1a6fc4'};font-weight:400;">${isA?'A팀':'B팀'}</span></div>
       </div>
       ${moveHtml}
       <button onclick="_chipSelected['${currentSlot}']=null;document.getElementById('chip-ctx-menu').remove();_reRenderRegister();" style="width:100%;padding:13px 16px;border:none;background:none;text-align:left;font-family:inherit;font-size:.9rem;cursor:pointer;color:#FF7070;">
-        <span style="margin-right:8px;">✕</span>목록에서 제거
+        <span style="margin-right:8px;">✕</span>${isGuest?'비회원 제거':'목록에서 제거'}
       </button>
       <button onclick="document.getElementById('chip-ctx-menu').remove();" style="width:100%;padding:13px 16px;border:none;background:none;text-align:center;font-family:inherit;font-size:.9rem;cursor:pointer;color:var(--text-muted);">취소</button>
     </div>`;
@@ -98,7 +104,7 @@ function showChipMenu(uid, name, currentSlot){
 }
 
 function chipMove(fromSlot, toSlot){
-  _chipSelected[toSlot]  = _chipSelected[fromSlot];
+  _chipSelected[toSlot]   = _chipSelected[fromSlot];
   _chipSelected[fromSlot] = null;
   _reRenderRegister();
 }
@@ -110,25 +116,25 @@ function chipSwap(slotA, slotB){
   _reRenderRegister();
 }
 
-/* ── 비회원 추가 ── */
+/* ── 비회원 추가 → 다음 빈 슬롯으로 바로 배정 ── */
 function _addGuestPlayer(){
   const input = document.getElementById('reg-guest-input');
   const name  = (input?.value || '').trim();
   if(!name){ toast('비회원 이름을 입력하세요', 'error'); return; }
 
-  const duplicate = Object.values(_chipSelected).find(v => v && v.name === name);
-  if(duplicate){ toast(`${name}은 이미 선택됐습니다`, 'error'); return; }
+  const inSlot = Object.values(_chipSelected).find(v => v && v.name === name);
+  if(inSlot){ toast(`${name}은 이미 선택됐습니다`, 'error'); return; }
 
   const slot = _nextEmptySlot();
   if(!slot){ toast('선수 슬롯이 가득 찼습니다', 'error'); return; }
-
-  _chipSelected[slot] = { id: null, name, isGuest: true };
-  if(input) input.value = '';
 
   const _sa   = document.getElementById('reg-sa')?.value   || '';
   const _sb   = document.getElementById('reg-sb')?.value   || '';
   const _date = document.getElementById('reg-date')?.value || '';
   const _note = document.getElementById('reg-note')?.value || '';
+
+  _chipSelected[slot] = { id: null, name, isGuest: true };
+  if(input) input.value = '';
 
   _reRenderRegister();
   requestAnimationFrame(()=>{
@@ -193,7 +199,7 @@ function _reRenderRegister(){
     const slot = Object.entries(_chipSelected).find(([, v]) => v && v.id === p.id);
     if(slot){
       const isA = slot[0].startsWith('a');
-      const bc  = isA ? '#c0392b' : '#27ae60';
+      const bc  = isA ? '#c0392b' : '#1a6fc4';
       return `<div onclick="chipTap('${p.id}')" style="padding:6px 13px;border-radius:20px;border:1.5px solid ${bc};font-size:.82rem;cursor:pointer;background:var(--bg2);color:${bc};font-weight:700;min-height:34px;display:flex;align-items:center;">${p.name}</div>`;
     }
     const isSelf = p.id === ME?.id;
@@ -203,16 +209,16 @@ function _reRenderRegister(){
   const chips = filtered.map(makeChip).join('');
 
   function slotHTML(s){
-    const colorMap = {a1:'#c0392b', a2:'#c0392b', b1:'#27ae60', b2:'#27ae60'};
+    const colorMap = {a1:'#c0392b', a2:'#c0392b', b1:'#1a6fc4', b2:'#1a6fc4'};
     const labelMap = {a1:'선수 1', a2:'선수 2', b1:'선수 1', b2:'선수 2'};
     const p      = _chipSelected[s];
     const c      = colorMap[s];
     const lbl    = labelMap[s];
     const border = p ? `1.5px solid ${c}` : '1.5px dashed var(--border)';
-    const bg     = p ? (s.startsWith('a') ? 'rgba(192,57,43,.07)' : 'rgba(39,174,96,.07)') : 'transparent';
+    const bg     = p ? (s.startsWith('a') ? 'rgba(192,57,43,.07)' : 'rgba(26,111,196,.07)') : 'transparent';
     const dot    = `width:8px;height:8px;border-radius:50%;background:${c};flex-shrink:0;${p?'':'opacity:.4;'}`;
     const txt    = p ? `color:${c};font-weight:700` : 'color:var(--text-muted)';
-    const guestBadge = (p && p.isGuest) ? `<span style="font-size:.65rem;background:rgba(100,100,100,.15);color:var(--text-muted);border-radius:4px;padding:1px 5px;margin-left:4px;">비회원</span>` : '';
+    const guestBadge = (p && p.isGuest) ? `<span style="font-size:.65rem;background:rgba(100,100,100,.15);color:var(--text-muted);border-radius:4px;padding:1px 5px;margin-left:2px;">비회원</span>` : '';
     return `<div onclick="clearChipSlot('${s}')" style="min-height:38px;border:${border};border-radius:8px;padding:7px 10px;font-size:.82rem;cursor:pointer;background:${bg};display:flex;align-items:center;gap:6px;margin-bottom:4px;">
       <span style="${dot}"></span>
       <span style="${txt}">${p ? p.name : lbl}</span>${guestBadge}
@@ -236,7 +242,7 @@ function _reRenderRegister(){
           <span style="font-size:.75rem;color:var(--text-muted);font-weight:700;">vs</span>
         </div>
         <div>
-          <div style="font-size:.72rem;font-weight:700;color:#27ae60;margin-bottom:5px;">● B팀</div>
+          <div style="font-size:.72rem;font-weight:700;color:#1a6fc4;margin-bottom:5px;">● B팀</div>
           ${slotHTML('b1')}${slotHTML('b2')}
         </div>
       </div>
@@ -261,9 +267,9 @@ function _reRenderRegister(){
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
         <button onclick="_rSetScore(25,0)" style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid rgba(192,57,43,.3);background:rgba(192,57,43,.07);color:#c0392b;font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;min-width:55px;">A 25</button>
         <button onclick="_rSetScore(21,0)" style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid rgba(192,57,43,.3);background:rgba(192,57,43,.07);color:#c0392b;font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;min-width:55px;">A 21</button>
-        <button onclick="_rSwapScores()"  style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid var(--primary);background:rgba(0,200,150,.1);color:var(--primary);font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;min-width:44px;">⇄</button>
-        <button onclick="_rSetScore(0,25)" style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid rgba(39,174,96,.3);background:rgba(39,174,96,.07);color:#27ae60;font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;min-width:55px;">B 25</button>
-        <button onclick="_rSetScore(0,21)" style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid rgba(39,174,96,.3);background:rgba(39,174,96,.07);color:#27ae60;font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;min-width:55px;">B 21</button>
+        <button onclick="_rSwapScores()"  style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid var(--primary);background:rgba(77,159,255,.1);color:var(--primary);font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;min-width:44px;">⇄</button>
+        <button onclick="_rSetScore(0,25)" style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid rgba(26,111,196,.3);background:rgba(26,111,196,.07);color:#1a6fc4;font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;min-width:55px;">B 25</button>
+        <button onclick="_rSetScore(0,21)" style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid rgba(26,111,196,.3);background:rgba(26,111,196,.07);color:#1a6fc4;font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;min-width:55px;">B 21</button>
       </div>
     </div>
     <input class="form-input mb-2" type="text" id="reg-note" placeholder="메모 (선택)">
@@ -304,13 +310,13 @@ async function _doSubmitMatch(){
   const {error} = await sb.from('matches').insert({
     match_type: regMatchType || 'doubles',
     match_date: matchDate,
-    a1_id:   _chipSelected.a1?.id   || null,
+    a1_id:   _chipSelected.a1?.isGuest ? null : (_chipSelected.a1?.id || null),
     a1_name: _chipSelected.a1?.name || null,
-    a2_id:   _chipSelected.a2?.id   || null,
+    a2_id:   _chipSelected.a2?.isGuest ? null : (_chipSelected.a2?.id || null),
     a2_name: _chipSelected.a2?.name || null,
-    b1_id:   _chipSelected.b1?.id   || null,
+    b1_id:   _chipSelected.b1?.isGuest ? null : (_chipSelected.b1?.id || null),
     b1_name: _chipSelected.b1?.name || null,
-    b2_id:   _chipSelected.b2?.id   || null,
+    b2_id:   _chipSelected.b2?.isGuest ? null : (_chipSelected.b2?.id || null),
     b2_name: _chipSelected.b2?.name || null,
     score_a: sa, score_b: sbv,
     status: 'pending',
@@ -331,7 +337,7 @@ async function _doSubmitMatch(){
   _reRenderRegister();
 }
 
-// 구 API 호환 (admin.js 등 외부에서 호출 가능성)
+// 구 API 호환
 function setMatchType(t){ regMatchType = t; }
 function onSelectChange(){}
 function onGuestInput(){}
