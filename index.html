@@ -223,34 +223,7 @@
           <div class="page-sub" style="margin-bottom:0;">경기 기록 요청</div>
         </div>
       </div>
-      <div class="card" style="padding:16px;">
-        <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:12px;">관리자 승인 후 통계에 반영됩니다</div>
-        <!-- 칩 선택 영역 -->
-        <div id="chip-picker-wrap"></div>
-        <!-- 점수 -->
-        <hr class="section-divider" style="margin:14px 0 10px;">
-        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px;">
-          <div style="text-align:center;">
-            <div style="font-size:.72rem;color:#c0392b;font-weight:700;margin-bottom:4px;">🔴 A팀 점수</div>
-            <input class="form-input" type="number" id="reg-sa" placeholder="0" min="0" max="30" inputmode="numeric" style="text-align:center;font-weight:700;font-size:1.2rem;padding:10px 4px;">
-          </div>
-          <div style="font-size:1.2rem;font-weight:700;color:var(--text-muted);text-align:center;padding-top:18px;">:</div>
-          <div style="text-align:center;">
-            <div style="font-size:.72rem;color:#27ae60;font-weight:700;margin-bottom:4px;">🟢 B팀 점수</div>
-            <input class="form-input" type="number" id="reg-sb" placeholder="0" min="0" max="30" inputmode="numeric" style="text-align:center;font-weight:700;font-size:1.2rem;padding:10px 4px;">
-          </div>
-        </div>
-        <!-- 날짜 -->
-        <div class="form-group" style="margin-bottom:10px;">
-          <label class="form-label">경기 일자</label>
-          <input class="form-input" type="date" id="reg-date">
-        </div>
-        <div class="form-group" style="margin-bottom:10px;">
-          <label class="form-label">메모 (선택)</label>
-          <input class="form-input" type="text" id="reg-note" placeholder="특이사항 등">
-        </div>
-        <button class="btn btn-primary" style="width:100%;padding:14px;font-size:.95rem;" onclick="submitMatch()">📨 등록 요청</button>
-      </div>
+      <div id="register-inline-content"></div>
     </div>
 
     <!-- 관리자 -->

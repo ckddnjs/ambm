@@ -1,172 +1,338 @@
-/* ── REGISTER (칩 선택 UI) ── */
-// 전역 변수 — let 대신 window에 직접 할당 (중복 선언 방지)
-if(typeof window._regInit==='undefined'){
-  window.regMatchType='doubles';
-  window._usersCache=window._usersCache||[];
-  window._regSlots={a1:null,a2:null,b1:null,b2:null};
-  window._activeSlot=null;
-  window._chipFilter='';
-  window._regInit=true;
+/* ── register.js — 경기 등록 (칩 선택 UI) ── */
+
+let _chipSelected = {a1:null, a2:null, b1:null, b2:null};
+const _CHIP_SLOTS  = ['a1','a2','b1','b2'];
+let _csFilter = 'ALL';
+
+// 초성 변환 헬퍼 (쌍자음 → 기본 자음으로 통합)
+const _CHO_IDX_TO_LABEL = ['ㄱ','ㄱ','ㄴ','ㄷ','ㄷ','ㄹ','ㅁ','ㅂ','ㅂ','ㅅ','ㅅ','ㅇ','ㅈ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const _CHO_BTN_ORDER   = {ㄱ:0,ㄴ:1,ㄷ:2,ㄹ:3,ㅁ:4,ㅂ:5,ㅅ:6,ㅇ:7,ㅈ:8,ㅊ:9,ㅋ:10,ㅌ:11,ㅍ:12,ㅎ:13};
+
+function _getChosung(name){
+  const c = name?.charCodeAt(0);
+  if(!c || c < 44032 || c > 55203) return null;
+  return _CHO_IDX_TO_LABEL[Math.floor((c - 44032) / 588)] ?? null;
 }
 
-async function renderRegisterPage(){
-  const dateEl=document.getElementById('reg-date');
-  if(dateEl&&!dateEl.value) dateEl.value=todayStr();
-  window._regSlots={a1:null,a2:null,b1:null,b2:null};
-  window._activeSlot=null;
-  window._chipFilter='';
-  const wrap=document.getElementById('chip-picker-wrap');
-  if(wrap) wrap.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:.85rem;">선수 목록 불러오는 중…</div>';
-  window._usersCache=await _getApprovedUsers(true); // 항상 최신으로
-  _renderChipPicker();
+function setRegisterCsFilter(cs){
+  _csFilter = cs || 'ALL';
+  _reRenderRegister();
 }
 
-function _renderChipPicker(){
-  const wrap=document.getElementById('chip-picker-wrap');
-  if(!wrap){ setTimeout(_renderChipPicker,80); return; }
+function _nextEmptySlot(){
+  return _CHIP_SLOTS.find(s => !_chipSelected[s]) || null;
+}
 
-  const users=window._usersCache||[];
-  const sorted=[...users].sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+/* ── 칩 탭 ── */
+function chipTap(uid){
+  const users  = window._profilesCache || [];
+  const p      = users.find(u => u.id === uid) || Object.values(_chipSelected).find(v => v && v.id === uid);
+  if(!p) return;
+  const _sa    = document.getElementById('reg-sa')?.value  || '';
+  const _sb    = document.getElementById('reg-sb')?.value  || '';
+  const _date  = document.getElementById('reg-date')?.value || '';
+  const _note  = document.getElementById('reg-note')?.value || '';
+  const already = Object.entries(_chipSelected).find(([,v]) => v && v.id === uid);
+  if(already){
+    _chipSelected[already[0]] = null;
+  } else {
+    const slot = _nextEmptySlot();
+    if(!slot){ toast('선수 슬롯이 가득 찼습니다', 'error'); return; }
+    _chipSelected[slot] = p;
+  }
+  _reRenderRegister();
+  requestAnimationFrame(()=>{
+    const sa   = document.getElementById('reg-sa');   if(sa   && _sa)   sa.value   = _sa;
+    const sb   = document.getElementById('reg-sb');   if(sb   && _sb)   sb.value   = _sb;
+    const date = document.getElementById('reg-date'); if(date && _date) date.value = _date;
+    const note = document.getElementById('reg-note'); if(note && _note) note.value = _note;
+  });
+}
 
-  const _cho=(ch)=>{
-    const code=ch?.charCodeAt(0);
-    if(!code||code<0xAC00||code>0xD7A3) return ch||'';
-    return ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'][Math.floor((code-0xAC00)/28/21)];
-  };
+/* ── 슬롯 탭 → 컨텍스트 메뉴 ── */
+function clearChipSlot(slotId){
+  if(!_chipSelected[slotId]) return;
+  const p = _chipSelected[slotId];
+  showChipMenu(p.id || slotId, p.name, slotId);
+}
 
-  const cf=window._chipFilter||'';
-  const CHOSUNG=['전체','ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
-  const filterBar=CHOSUNG.map(c=>{
-    const active=(!cf&&c==='전체')||cf===c;
-    return `<button onclick="_setChipFilter('${c}')" style="padding:4px 10px;border-radius:16px;border:1px solid ${active?'var(--primary)':'var(--border)'};background:${active?'var(--primary)':'var(--bg2)'};color:${active?'#fff':'var(--text-muted)'};font-size:.78rem;font-family:inherit;cursor:pointer;flex-shrink:0;">${c}</button>`;
-  }).join('');
+function showChipMenu(uid, name, currentSlot){
+  document.getElementById('chip-ctx-menu')?.remove();
+  const isA  = currentSlot.startsWith('a');
+  const menu = document.createElement('div');
+  menu.id    = 'chip-ctx-menu';
+  menu.style.cssText = 'position:fixed;inset:0;z-index:500;display:flex;align-items:flex-end;';
+  menu.onclick = e => { if(e.target === menu) menu.remove(); };
 
-  const slots=window._regSlots;
-  const selectedIds=new Set(Object.values(slots).filter(s=>s&&s.id).map(s=>s.id));
-  const activeSlot=window._activeSlot;
+  const opp     = isA ? ['b1','b2'] : ['a1','a2'];
+  const oppEmpty = opp.find(s => !_chipSelected[s]);
+  const oppFilled = opp.filter(s => _chipSelected[s]);
 
-  const filtered=sorted.filter(u=>!cf||cf==='전체'?true:_cho(u.name[0])===cf);
-
-  const chips=filtered.map(u=>{
-    const isSel=selectedIds.has(u.id);
-    const safeName=u.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    return `<button onclick="_selectChip('${u.id}','${safeName}')"
-      style="padding:6px 14px;border-radius:20px;border:1.5px solid ${isSel?'var(--primary)':'var(--border)'};background:${isSel?'rgba(41,121,255,.15)':'var(--bg2)'};color:${isSel?'var(--primary)':'var(--text)'};font-size:.85rem;font-family:inherit;cursor:pointer;font-weight:${isSel?'700':'400'};white-space:nowrap;">${u.name}</button>`;
-  }).join('');
-
-  const slotBtn=(key,label,req)=>{
-    const s=slots[key];
-    const isAct=activeSlot===key;
-    return `<button onclick="_setActiveSlot('${key}')"
-      style="flex:1;min-width:0;padding:8px 4px;border-radius:10px;border:2px solid ${isAct?'var(--primary)':s?'rgba(41,121,255,.4)':'var(--border)'};background:${isAct?'rgba(41,121,255,.1)':s?'rgba(41,121,255,.05)':'var(--bg2)'};cursor:pointer;font-family:inherit;text-align:center;position:relative;">
-      <div style="font-size:.65rem;color:var(--text-muted);margin-bottom:2px;">${label}${req?'<span style="color:var(--danger);">*</span>':''}</div>
-      <div style="font-size:.88rem;font-weight:700;color:${s?'var(--primary)':'var(--text-dim)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s?s.name:'미선택'}</div>
-      ${s?`<span onclick="event.stopPropagation();_clearSlot('${key}')" style="position:absolute;top:2px;right:4px;font-size:.7rem;color:var(--text-muted);line-height:1;">✕</span>`:''}
+  let moveHtml = '';
+  if(oppEmpty){
+    const lbl = isA ? 'B팀으로 이동' : 'A팀으로 이동';
+    moveHtml += `<button onclick="chipMove('${currentSlot}','${oppEmpty}');document.getElementById('chip-ctx-menu').remove();" style="width:100%;padding:13px 16px;border:none;background:none;text-align:left;font-family:inherit;font-size:.9rem;cursor:pointer;color:var(--text);border-bottom:1px solid var(--border);">
+      <span style="margin-right:8px;">${isA?'🟢':'🔴'}</span>${lbl}
     </button>`;
-  };
+  }
+  oppFilled.forEach(oppSlot => {
+    const oppP = _chipSelected[oppSlot];
+    moveHtml += `<button onclick="chipSwap('${currentSlot}','${oppSlot}');document.getElementById('chip-ctx-menu').remove();" style="width:100%;padding:13px 16px;border:none;background:none;text-align:left;font-family:inherit;font-size:.9rem;cursor:pointer;color:var(--text);border-bottom:1px solid var(--border);">
+      <span style="margin-right:8px;">🔄</span>${oppP.name}과 교체
+    </button>`;
+  });
 
-  wrap.innerHTML=`
-    <div style="margin-bottom:12px;">
-      <div style="font-size:.76rem;font-weight:700;color:#c0392b;margin-bottom:5px;">🔴 A팀</div>
-      <div style="display:flex;gap:5px;margin-bottom:8px;">${slotBtn('a1','선수1',true)}${slotBtn('a2','선수2',false)}</div>
-      <div style="font-size:.76rem;font-weight:700;color:#27ae60;margin-bottom:5px;">🟢 B팀</div>
-      <div style="display:flex;gap:5px;">${slotBtn('b1','선수1',true)}${slotBtn('b2','선수2',false)}</div>
-    </div>
-    <div style="font-size:.78rem;color:${activeSlot?'var(--primary)':'var(--text-muted)'};margin-bottom:8px;padding:5px 10px;background:var(--bg2);border-radius:8px;text-align:center;font-weight:${activeSlot?'600':'400'};">
-      ${activeSlot?`<b>${{a1:'A팀 선수1',a2:'A팀 선수2',b1:'B팀 선수1',b2:'B팀 선수2'}[activeSlot]}</b> 선택 중`:'슬롯을 탭해 선수를 선택하세요'}
-    </div>
-    <div style="display:flex;gap:5px;overflow-x:auto;padding-bottom:6px;margin-bottom:8px;scrollbar-width:none;-webkit-overflow-scrolling:touch;">${filterBar}</div>
-    <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px;min-height:36px;">
-      ${sorted.length===0
-        ?'<span style="font-size:.8rem;color:var(--text-muted);">선수 정보를 불러오지 못했습니다</span>'
-        :(chips||'<span style="font-size:.8rem;color:var(--text-muted);">해당 초성 없음</span>')}
-    </div>
-    <div style="border-top:1px solid var(--border);padding-top:10px;">
-      <div style="font-size:.76rem;color:var(--text-muted);margin-bottom:6px;">✏️ 비회원 직접 입력</div>
-      <div style="display:flex;gap:6px;">
-        <input id="guest-name-input" class="form-input" placeholder="비회원 이름" style="flex:1;font-size:.88rem;" onkeydown="if(event.key==='Enter')_addGuestChip()">
-        <button onclick="_addGuestChip()" style="padding:9px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:.82rem;cursor:pointer;white-space:nowrap;font-weight:600;">추가</button>
+  menu.innerHTML = `
+    <div style="width:100%;background:var(--surface,var(--bg));border-radius:16px 16px 0 0;border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom,0);">
+      <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
+        <div style="font-size:.78rem;color:var(--text-muted);">선택된 선수</div>
+        <div style="font-size:1rem;font-weight:700;">${name} <span style="font-size:.72rem;color:${isA?'#c0392b':'#27ae60'};font-weight:400;">${isA?'A팀':'B팀'}</span></div>
       </div>
+      ${moveHtml}
+      <button onclick="_chipSelected['${currentSlot}']=null;document.getElementById('chip-ctx-menu').remove();_reRenderRegister();" style="width:100%;padding:13px 16px;border:none;background:none;text-align:left;font-family:inherit;font-size:.9rem;cursor:pointer;color:#FF7070;">
+        <span style="margin-right:8px;">✕</span>목록에서 제거
+      </button>
+      <button onclick="document.getElementById('chip-ctx-menu').remove();" style="width:100%;padding:13px 16px;border:none;background:none;text-align:center;font-family:inherit;font-size:.9rem;cursor:pointer;color:var(--text-muted);">취소</button>
     </div>`;
+  document.body.appendChild(menu);
 }
 
-function _setChipFilter(c){ window._chipFilter=(c==='전체')?'':c; _renderChipPicker(); }
-function _setActiveSlot(key){ window._activeSlot=(window._activeSlot===key)?null:key; _renderChipPicker(); }
-function _clearSlot(key){ window._regSlots[key]=null; _renderChipPicker(); }
+function chipMove(fromSlot, toSlot){
+  _chipSelected[toSlot]  = _chipSelected[fromSlot];
+  _chipSelected[fromSlot] = null;
+  _reRenderRegister();
+}
 
-function _selectChip(id,name){
-  if(!window._activeSlot){
-    const e=['a1','a2','b1','b2'].find(k=>!window._regSlots[k]);
-    if(!e){toast('슬롯을 먼저 선택하세요','info');return;}
-    window._activeSlot=e;
+function chipSwap(slotA, slotB){
+  const tmp = _chipSelected[slotA];
+  _chipSelected[slotA] = _chipSelected[slotB];
+  _chipSelected[slotB] = tmp;
+  _reRenderRegister();
+}
+
+/* ── 비회원 추가 ── */
+function _addGuestPlayer(){
+  const input = document.getElementById('reg-guest-input');
+  const name  = (input?.value || '').trim();
+  if(!name){ toast('비회원 이름을 입력하세요', 'error'); return; }
+
+  const duplicate = Object.values(_chipSelected).find(v => v && v.name === name);
+  if(duplicate){ toast(`${name}은 이미 선택됐습니다`, 'error'); return; }
+
+  const slot = _nextEmptySlot();
+  if(!slot){ toast('선수 슬롯이 가득 찼습니다', 'error'); return; }
+
+  _chipSelected[slot] = { id: null, name, isGuest: true };
+  if(input) input.value = '';
+
+  const _sa   = document.getElementById('reg-sa')?.value   || '';
+  const _sb   = document.getElementById('reg-sb')?.value   || '';
+  const _date = document.getElementById('reg-date')?.value || '';
+  const _note = document.getElementById('reg-note')?.value || '';
+
+  _reRenderRegister();
+  requestAnimationFrame(()=>{
+    const sa   = document.getElementById('reg-sa');   if(sa   && _sa)   sa.value   = _sa;
+    const sb   = document.getElementById('reg-sb');   if(sb   && _sb)   sb.value   = _sb;
+    const date = document.getElementById('reg-date'); if(date && _date) date.value = _date;
+    const note = document.getElementById('reg-note'); if(note && _note) note.value = _note;
+    document.getElementById('reg-guest-input')?.focus();
+  });
+}
+
+/* ── 점수 프리셋 ── */
+function _rSetScore(a, b){
+  const sa = document.getElementById('reg-sa');
+  const sb = document.getElementById('reg-sb');
+  if(!sa || !sb) return;
+  if(a > 0){ sa.value = a; } else { sb.value = b; }
+}
+
+function _rSwapScores(){
+  const sa = document.getElementById('reg-sa');
+  const sb = document.getElementById('reg-sb');
+  if(!sa || !sb) return;
+  const tmp = sa.value; sa.value = sb.value; sb.value = tmp;
+}
+
+/* ── 렌더 ── */
+async function renderRegisterPage(){
+  const wrap = document.getElementById('register-inline-content');
+  if(!wrap) return;
+
+  if(!window._profilesCache || window._profilesCache.length === 0){
+    window._profilesCache = await _getApprovedUsers(true);
   }
-  if(Object.entries(window._regSlots).find(([k,v])=>v&&v.id===id&&k!==window._activeSlot)){toast(`${name}은 이미 선택됨`,'error');return;}
-  window._regSlots[window._activeSlot]={id,name};
-  const next=['a1','a2','b1','b2'].filter(k=>k!==window._activeSlot&&!window._regSlots[k])[0]||null;
-  window._activeSlot=next;
-  _renderChipPicker();
+  _reRenderRegister();
 }
 
-function _addGuestChip(){
-  const input=document.getElementById('guest-name-input');
-  const name=(input?.value||'').trim();
-  if(!name){toast('비회원 이름을 입력하세요','error');return;}
-  if(!window._activeSlot){
-    const e=['a1','a2','b1','b2'].find(k=>!window._regSlots[k]);
-    if(!e){toast('슬롯을 먼저 선택하세요','info');return;}
-    window._activeSlot=e;
+function _reRenderRegister(){
+  const wrap = document.getElementById('register-inline-content');
+  if(!wrap) return;
+
+  const today    = new Date().toISOString().slice(0, 10);
+  const allUsers = (window._profilesCache || [])
+    .filter(u => !u.exclude_stats)
+    .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+
+  // 현재 회원에 존재하는 초성만 필터 버튼으로 생성
+  const _usedCS = [...new Set(allUsers.map(u => _getChosung(u.name)).filter(Boolean))].sort(
+    (a, b) => (_CHO_BTN_ORDER[a] ?? 99) - (_CHO_BTN_ORDER[b] ?? 99)
+  );
+
+  const btnBase = 'padding:3px 10px;border-radius:12px;border:1px solid var(--border);font-size:.72rem;font-weight:700;cursor:pointer;font-family:inherit;';
+  const csFilterBar = `
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
+      <button type="button" onclick="setRegisterCsFilter('ALL')" style="${btnBase}background:${_csFilter==='ALL'?'var(--primary)':'var(--bg2)'};color:${_csFilter==='ALL'?'#fff':'var(--text-muted)'};">전체</button>
+      ${_usedCS.map(cs => `<button type="button" onclick='setRegisterCsFilter(${JSON.stringify(cs)})' style="${btnBase}background:${_csFilter===cs?'var(--primary)':'var(--bg2)'};color:${_csFilter===cs?'#fff':'var(--text-muted)'};">${cs}</button>`).join('')}
+    </div>`;
+
+  const filtered = _csFilter === 'ALL' ? allUsers : allUsers.filter(u => _getChosung(u.name) === _csFilter);
+
+  function makeChip(p){
+    const slot = Object.entries(_chipSelected).find(([, v]) => v && v.id === p.id);
+    if(slot){
+      const isA = slot[0].startsWith('a');
+      const bc  = isA ? '#c0392b' : '#27ae60';
+      return `<div onclick="chipTap('${p.id}')" style="padding:6px 13px;border-radius:20px;border:1.5px solid ${bc};font-size:.82rem;cursor:pointer;background:var(--bg2);color:${bc};font-weight:700;min-height:34px;display:flex;align-items:center;">${p.name}</div>`;
+    }
+    const isSelf = p.id === ME?.id;
+    return `<div onclick="chipTap('${p.id}')" style="padding:6px 13px;border-radius:20px;border:1.5px solid var(--border);font-size:.82rem;cursor:pointer;background:var(--bg2);color:${isSelf?'#FFB300':'var(--text)'};font-weight:${isSelf?'700':'500'};min-height:34px;display:flex;align-items:center;">${p.name}</div>`;
   }
-  if(Object.entries(window._regSlots).find(([k,v])=>v&&v.name===name&&k!==window._activeSlot)){toast(`${name}은 이미 선택됨`,'error');return;}
-  window._regSlots[window._activeSlot]={id:null,name};
-  if(input) input.value='';
-  const next=['a1','a2','b1','b2'].filter(k=>k!==window._activeSlot&&!window._regSlots[k])[0]||null;
-  window._activeSlot=next;
-  _renderChipPicker();
+
+  const chips = filtered.map(makeChip).join('');
+
+  function slotHTML(s){
+    const colorMap = {a1:'#c0392b', a2:'#c0392b', b1:'#27ae60', b2:'#27ae60'};
+    const labelMap = {a1:'선수 1', a2:'선수 2', b1:'선수 1', b2:'선수 2'};
+    const p      = _chipSelected[s];
+    const c      = colorMap[s];
+    const lbl    = labelMap[s];
+    const border = p ? `1.5px solid ${c}` : '1.5px dashed var(--border)';
+    const bg     = p ? (s.startsWith('a') ? 'rgba(192,57,43,.07)' : 'rgba(39,174,96,.07)') : 'transparent';
+    const dot    = `width:8px;height:8px;border-radius:50%;background:${c};flex-shrink:0;${p?'':'opacity:.4;'}`;
+    const txt    = p ? `color:${c};font-weight:700` : 'color:var(--text-muted)';
+    const guestBadge = (p && p.isGuest) ? `<span style="font-size:.65rem;background:rgba(100,100,100,.15);color:var(--text-muted);border-radius:4px;padding:1px 5px;margin-left:4px;">비회원</span>` : '';
+    return `<div onclick="clearChipSlot('${s}')" style="min-height:38px;border:${border};border-radius:8px;padding:7px 10px;font-size:.82rem;cursor:pointer;background:${bg};display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+      <span style="${dot}"></span>
+      <span style="${txt}">${p ? p.name : lbl}</span>${guestBadge}
+    </div>`;
+  }
+
+  const nextSlot  = _nextEmptySlot();
+  const hintMap   = {a1:'① A팀 첫번째 선수를 탭하세요', a2:'② A팀 두번째 선수를 탭하세요', b1:'③ B팀 첫번째 선수를 탭하세요', b2:'④ B팀 두번째 선수를 탭하세요'};
+  const hintTxt   = nextSlot ? (hintMap[nextSlot] || '') : '✅ 선수 선택 완료';
+  const hintColor = nextSlot ? 'var(--text-muted)' : 'var(--primary)';
+
+  wrap.innerHTML = `
+    <div class="card mb-2">
+      <input class="form-input mb-2" type="date" id="reg-date" value="${today}">
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:stretch;margin-bottom:10px;">
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:#c0392b;margin-bottom:5px;">● A팀</div>
+          ${slotHTML('a1')}${slotHTML('a2')}
+        </div>
+        <div style="display:flex;align-items:center;justify-content:center;padding:0 6px;">
+          <span style="font-size:.75rem;color:var(--text-muted);font-weight:700;">vs</span>
+        </div>
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:#27ae60;margin-bottom:5px;">● B팀</div>
+          ${slotHTML('b1')}${slotHTML('b2')}
+        </div>
+      </div>
+      ${csFilterBar}
+      <div style="font-size:.72rem;color:${hintColor};text-align:center;margin-bottom:8px;">${hintTxt}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px;">${chips || '<span style="font-size:.8rem;color:var(--text-muted);">해당 초성 없음</span>'}</div>
+      <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">
+        <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:6px;">✏️ 비회원 직접 입력</div>
+        <div style="display:flex;gap:6px;">
+          <input id="reg-guest-input" class="form-input" placeholder="비회원 이름" style="flex:1;font-size:.88rem;" onkeydown="if(event.key==='Enter')_addGuestPlayer()">
+          <button onclick="_addGuestPlayer()" style="padding:9px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:.82rem;cursor:pointer;white-space:nowrap;font-weight:600;">추가</button>
+        </div>
+      </div>
+    </div>
+    <div class="card mb-2">
+      <div style="font-size:.72rem;font-weight:700;color:var(--text-muted);margin-bottom:8px;">점수</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <input class="form-input" type="number" id="reg-sa" placeholder="A" min="0" max="30" inputmode="numeric" style="flex:1;text-align:center;font-weight:700;font-size:1.1rem;">
+        <span style="color:var(--text-muted);font-weight:700;">:</span>
+        <input class="form-input" type="number" id="reg-sb" placeholder="B" min="0" max="30" inputmode="numeric" style="flex:1;text-align:center;font-weight:700;font-size:1.1rem;">
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button onclick="_rSetScore(25,0)" style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid rgba(192,57,43,.3);background:rgba(192,57,43,.07);color:#c0392b;font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;min-width:55px;">A 25</button>
+        <button onclick="_rSetScore(21,0)" style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid rgba(192,57,43,.3);background:rgba(192,57,43,.07);color:#c0392b;font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;min-width:55px;">A 21</button>
+        <button onclick="_rSwapScores()"  style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid var(--primary);background:rgba(0,200,150,.1);color:var(--primary);font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;min-width:44px;">⇄</button>
+        <button onclick="_rSetScore(0,25)" style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid rgba(39,174,96,.3);background:rgba(39,174,96,.07);color:#27ae60;font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;min-width:55px;">B 25</button>
+        <button onclick="_rSetScore(0,21)" style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid rgba(39,174,96,.3);background:rgba(39,174,96,.07);color:#27ae60;font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;min-width:55px;">B 21</button>
+      </div>
+    </div>
+    <input class="form-input mb-2" type="text" id="reg-note" placeholder="메모 (선택)">
+    <button class="btn btn-primary" style="width:100%;padding:14px;font-size:.95rem;" onclick="submitMatch()">📨 등록 요청</button>
+  `;
 }
 
+/* ── 제출 ── */
 async function submitMatch(){
-  if(window._submitLock){toast('처리 중입니다…','');return;}
-  window._submitLock=true;
-  const btn=document.querySelector('[onclick="submitMatch()"]');
-  if(btn){btn.disabled=true;btn.textContent='등록 중…';}
-  try{ await _doSubmitMatch(); }
-  finally{ window._submitLock=false; if(btn){btn.disabled=false;btn.textContent='📨 등록 요청';} }
+  if(window._submitLock){ toast('처리 중입니다…', ''); return; }
+  window._submitLock = true;
+  const btn = document.querySelector('#register-inline-content .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = '등록 중…'; }
+  try { await _doSubmitMatch(); }
+  finally {
+    window._submitLock = false;
+    if(btn){ btn.disabled = false; btn.textContent = '📨 등록 요청'; }
+  }
 }
 
 async function _doSubmitMatch(){
-  const matchDate=document.getElementById('reg-date').value;
-  const sa=parseInt(document.getElementById('reg-sa').value)||0;
-  const sbv=parseInt(document.getElementById('reg-sb').value)||0;
-  const{a1,a2,b1,b2}=window._regSlots;
-  if(!matchDate){toast('경기 일자 선택','error');return;}
-  if(!a1){toast('A팀 선수1을 선택하세요','error');return;}
-  if(!b1){toast('B팀 선수1을 선택하세요','error');return;}
-  if(sa===0&&sbv===0){toast('점수를 입력하세요','error');return;}
-  if(sa===sbv){toast('동점은 등록 불가','error');return;}
-  const ids=[a1.id,a2?.id,b1.id,b2?.id].filter(Boolean);
-  if(new Set(ids).size!==ids.length){toast('중복 선수 확인','error');return;}
-  const{error}=await sb.from('matches').insert({
-    match_type:window.regMatchType||'doubles',match_date:matchDate,
-    a1_id:a1.id||null,a1_name:a1.name||null,
-    a2_id:a2?.id||null,a2_name:a2?.name||null,
-    b1_id:b1.id||null,b1_name:b1.name||null,
-    b2_id:b2?.id||null,b2_name:b2?.name||null,
-    score_a:sa,score_b:sbv,status:'pending',
-    submitter_id:ME.id,submitter_name:ME.name,
-    note:document.getElementById('reg-note').value||null,
-    created_at:nowISO()
+  const matchDate = document.getElementById('reg-date')?.value;
+  const sa  = parseInt(document.getElementById('reg-sa')?.value)  || 0;
+  const sbv = parseInt(document.getElementById('reg-sb')?.value)  || 0;
+  const note = document.getElementById('reg-note')?.value || null;
+
+  if(!_chipSelected.a1){ toast('A팀 선수를 선택해주세요', 'error'); return; }
+  if(!_chipSelected.b1){ toast('B팀 선수를 선택해주세요', 'error'); return; }
+  if(!matchDate){ toast('경기 일자를 선택하세요', 'error'); return; }
+  if(sa === 0 && sbv === 0){ toast('점수를 입력하세요', 'error'); return; }
+  if(sa === sbv){ toast('동점은 등록할 수 없어요', 'error'); return; }
+  const winScore = Math.max(sa, sbv);
+  if(winScore !== 25 && winScore !== 21){ toast('승리 점수는 21점 또는 25점이어야 해요', 'error'); return; }
+
+  const memberIds = [_chipSelected.a1?.id, _chipSelected.a2?.id, _chipSelected.b1?.id, _chipSelected.b2?.id].filter(Boolean);
+  if(new Set(memberIds).size !== memberIds.length){ toast('중복 선수를 확인하세요', 'error'); return; }
+
+  const {error} = await sb.from('matches').insert({
+    match_type: regMatchType || 'doubles',
+    match_date: matchDate,
+    a1_id:   _chipSelected.a1?.id   || null,
+    a1_name: _chipSelected.a1?.name || null,
+    a2_id:   _chipSelected.a2?.id   || null,
+    a2_name: _chipSelected.a2?.name || null,
+    b1_id:   _chipSelected.b1?.id   || null,
+    b1_name: _chipSelected.b1?.name || null,
+    b2_id:   _chipSelected.b2?.id   || null,
+    b2_name: _chipSelected.b2?.name || null,
+    score_a: sa, score_b: sbv,
+    status: 'pending',
+    submitter_id:   ME.id,
+    submitter_name: ME.name,
+    note,
+    created_at: nowISO(),
   });
-  if(error){toast('등록 실패: '+error.message,'error');return;}
-  addLog(`경기 등록 요청: ${a1.name} vs ${b1.name}`,ME.id);
-  toast('✅ 등록 요청 완료! 관리자 승인 대기 중','success');
-  window.regMatchType='doubles';
-  window._regSlots={a1:null,a2:null,b1:null,b2:null};
-  window._activeSlot=null;
-  ['reg-sa','reg-sb','reg-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  navigateTo('feed');
+
+  if(error){ toast('등록 실패: ' + error.message, 'error'); return; }
+
+  addLog(`경기 등록 요청: ${_chipSelected.a1?.name} vs ${_chipSelected.b1?.name}`, ME.id);
+  if(navigator.vibrate) navigator.vibrate([50, 30, 50]);
+  toast('✅ 등록 요청 완료! 관리자 승인 대기 중', 'success');
+
+  _chipSelected = {a1:null, a2:null, b1:null, b2:null};
+  _csFilter = 'ALL';
+  _reRenderRegister();
 }
 
-function setMatchType(t){window.regMatchType=t;}
+// 구 API 호환 (admin.js 등 외부에서 호출 가능성)
+function setMatchType(t){ regMatchType = t; }
 function onSelectChange(){}
 function onGuestInput(){}
 function updateRegisterSelects(){}
