@@ -693,8 +693,14 @@ function showPlayerCard(userId, userName){
       else break;
     }
   }
+  // 최고 연승 계산
+  let maxWinStreak=0, cur=0;
+  [...userMatches].reverse().forEach(m=>{
+    if(m.won){ cur++; if(cur>maxWinStreak) maxWinStreak=cur; }
+    else cur=0;
+  });
   const streakBadge=streakCount>=2
-    ?`<span style="margin-left:8px;font-size:.78rem;font-weight:700;padding:2px 10px;border-radius:20px;${streakType==='연승'?'background:rgba(41,121,255,.15);color:var(--primary);border:1px solid rgba(41,121,255,.3);':'background:rgba(255,82,82,.12);color:var(--danger);border:1px solid rgba(255,82,82,.3);'}">${streakCount}${streakType}</span>`
+    ?`<span style="margin-left:8px;font-size:.78rem;font-weight:700;padding:2px 10px;border-radius:20px;background:${streakType==='연승'?'rgba(41,121,255,.15)':'rgba(255,82,82,.12)'};color:${streakType==='연승'?'var(--primary)':'var(--danger)'};border:1px solid ${streakType==='연승'?'rgba(41,121,255,.3)':'rgba(255,82,82,.3)'}">${streakCount}${streakType}</span>`
     :'';
 
   const avatarUrl=profile?.avatar_url||'';
@@ -731,11 +737,11 @@ function showPlayerCard(userId, userName){
             <div style="font-size:1rem;font-weight:700;color:var(--text);">${vl}</div>
           </div>`).join('')}
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
-        ${[['득실차',diff>0?'+'+diff:diff],['평균득실',avgDiff]].map(([lb,vl])=>`
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">
+        ${[['득실차',diff>0?'+'+diff:diff,''],['평균득실',avgDiff,''],['최고연승',maxWinStreak>0?maxWinStreak+'연승':'-','var(--primary)']].map(([lb,vl,vc])=>`
           <div style="background:var(--bg2);border-radius:10px;padding:10px 6px;text-align:center;">
             <div style="font-size:.7rem;color:var(--text-muted);margin-bottom:4px;">${lb}</div>
-            <div style="font-size:1rem;font-weight:700;color:${String(vl).startsWith('-')?'var(--danger)':'var(--primary)'};"> ${vl}</div>
+            <div style="font-size:1rem;font-weight:700;color:${vc||(String(vl).startsWith('-')?'var(--danger)':'var(--primary)')};"> ${vl}</div>
           </div>`).join('')}
       </div>
       <!-- 최근 5경기 -->
@@ -1160,3 +1166,4 @@ function renderScatter(){
     setTimeout(()=>tip.remove(),3000);
   };
 }
+

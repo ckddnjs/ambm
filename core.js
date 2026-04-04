@@ -43,93 +43,85 @@ window.addEventListener('DOMContentLoaded',async()=>{
   _applyLogo();
   // 다크모드 토글 시 필터 재적용
   window._logoApplyFn = _applyLogo;
-  let handled=false;
-  // 안전 타이머: 2초 안에 ready 안 붙으면 강제 표시
-  const _safetyTimer=setTimeout(()=>{
-    if(!handled){
-      console.warn('[AMBM] safety timer triggered - forcing ready');
-      handled=true;
-      initTheme();initFontScale();document.body.classList.add('ready');
-      fadeOutLoading();
-      ME?showApp():showLogin();
+  let _authResolved=false;
+  let _safetyTimer=null;
+
+  const _resolveAuth=async(isNewLogin)=>{
+    if(_authResolved) return;
+    _authResolved=true;
+    clearTimeout(_safetyTimer);
+    initTheme();initFontScale();document.body.classList.add('ready');
+    await fadeOutLoading();
+    if(!ME) showLogin();
+    else if(ME.status==='approved'){
+      showApp();
+      if(isNewLogin) toast(`어서오세요, ${ME.name}님! 🏸`,'success');
     }
-  },2000);
+    else if(ME.status==='pending') showPendingScreen(ME.name);
+    else{await sb.auth.signOut();showLogin();}
+  };
+
+  // ── 1. getSession() 즉시 호출 — PWA 재시작 시 캐시 세션 복원 핵심 ──
+  try{
+    const{data:{session}}=await sb.auth.getSession();
+    if(session?.user){
+      try{ await loadProfile(session.user); }catch(e){ console.warn('[boot] loadProfile err',e); }
+      await _resolveAuth(false);
+    }
+  }catch(e){ console.warn('[boot] getSession err',e); }
+
+  // ── 2. 안전장치: 5초 후에도 미해결이면 강제 표시 ──
+  if(!_authResolved){
+    _safetyTimer=setTimeout(async()=>{
+      if(!_authResolved){
+        console.warn('[AMBM] safety timeout');
+        initTheme();initFontScale();document.body.classList.add('ready');
+        await fadeOutLoading();
+        ME?showApp():showLogin();
+      }
+    },5000);
+  }
+
+  // ── 3. 이후 상태 변경 감지 ──
   sb.auth.onAuthStateChange(async(event,session)=>{
     if(event==='INITIAL_SESSION'){
-      // PWA 재시작 시 저장된 세션 복원
-      if(handled) return;
-      try{
-        if(session?.user) await loadProfile(session.user);
-      } catch(e){
-        console.warn('[AMBM] INITIAL_SESSION loadProfile err',e);
+      if(_authResolved) return;
+      if(session?.user){
+        try{ await loadProfile(session.user); }catch(e){ console.warn('[auth] INITIAL_SESSION err',e); }
+        await _resolveAuth(false);
+      } else {
+        await _resolveAuth(false);
       }
-      clearTimeout(_safetyTimer);
-      handled=true;
-      initTheme();initFontScale();document.body.classList.add('ready');
-      await fadeOutLoading();
-      if(!ME) showLogin();
-      else if(ME.status==='approved') showApp();
-      else if(ME.status==='pending') showPendingScreen(ME.name);
-      else{await sb.auth.signOut();showLogin();}
     } else if(event==='SIGNED_IN'){
-      // INITIAL_SESSION 이후 중복 실행 방지
-      if(handled&&ME) return;
       // 이메일 로그인은 doEmailLogin()이 직접 처리
       if(session?.user?.app_metadata?.provider==='email') return;
+      if(_authResolved) return;
       try{
         if(session?.user) await loadProfile(session.user);
-      } catch(e){
-        console.error('[AMBM] loadProfile error on SIGNED_IN',e);
-        ME=null;
-      }
-      document.body.classList.add('ready');
-      await fadeOutLoading();
-      if(!ME){showLogin();return;}
-      if(ME.status==='approved'){showApp();if(!handled)toast(`어서오세요, ${ME.name}님! 🏸`,'success');}
-      else if(ME.status==='pending'){showPendingScreen(ME.name);toast('승인 대기 중입니다','warning');}
-      else{showLogin();toast('이용 불가 계정','error');await sb.auth.signOut();ME=null;}
+      }catch(e){ console.error('[auth] SIGNED_IN loadProfile err',e); }
+      await _resolveAuth(true);
     } else if(event==='SIGNED_OUT'){
-      // ⚠️ 네트워크 오류 SIGNED_OUT → 최대 3회 자동 복구 시도
+      // 명시적 로그아웃이 아니면 세션 재확인 1회 시도
       if(!_explicitLogout){
-        let _recovered=false;
-        const _retryDelays=[500,2000,5000,10000];
-        const _tryRecover=async(attempt)=>{
-          if(_recovered||attempt>=_retryDelays.length){
-            if(!_recovered){ME=null;document.body.classList.add('ready');showLogin();}
-            return;
+        try{
+          const{data:{session:s}}=await sb.auth.getSession();
+          if(s?.user){
+            await loadProfile(s.user);
+            if(ME?.status==='approved') return; // 세션 복원 성공 → 로그아웃 무시
           }
-          setTimeout(async()=>{
-            try{
-              const{data:{session:s}}=await sb.auth.getSession();
-              if(s?.user){
-                await loadProfile(s.user);
-                if(ME?.status==='approved'){_recovered=true;return;}
-              }
-            }catch(e){}
-            _tryRecover(attempt+1);
-          },_retryDelays[attempt]);
-        };
-        _tryRecover(0);
-        return;
+        }catch(e){}
       }
-      ME=null;_explicitLogout=false;
-      document.body.classList.add('ready');
+      _explicitLogout=false;
+      _authResolved=false;
+      ME=null;
+      initTheme();initFontScale();document.body.classList.add('ready');
       showLogin();
     } else if(event==='TOKEN_REFRESHED'){
-      // 토큰 갱신 성공 — 이미 로그인 상태면 유지
       if(session?.user&&ME&&session.user.id===ME.id) return;
       try{ if(session?.user) await loadProfile(session.user); }catch(e){}
     }
   });
-  setTimeout(async()=>{
-    if(!handled){
-      const{data:{session}}=await sb.auth.getSession();
-      if(session?.user) await loadProfile(session.user);
-      document.body.classList.add('ready');
-      await fadeOutLoading();
-      ME?showApp():showLogin();
-    }
-  },1500);
+
   if(window.location.hash.includes('access_token')||window.location.search.includes('code=')){
     setTimeout(()=>window.history.replaceState({},'',window.location.pathname),500);
   }
