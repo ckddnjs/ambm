@@ -2,7 +2,8 @@
 
 let _chipSelected = {a1:null, a2:null, b1:null, b2:null};
 const _CHIP_SLOTS  = ['a1','a2','b1','b2'];
-let _csFilter = 'ALL';
+let _csFilter  = 'ALL';
+let _guestPool = []; // 비회원 칩 풀 (등록 완료 전까지 유지)
 
 // 초성 변환 헬퍼 (쌍자음 → 기본 자음으로 통합)
 const _CHO_IDX_TO_LABEL = ['ㄱ','ㄱ','ㄴ','ㄷ','ㄷ','ㄹ','ㅁ','ㅂ','ㅂ','ㅅ','ㅅ','ㅇ','ㅈ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
@@ -27,6 +28,7 @@ function _nextEmptySlot(){
 function chipTap(uid){
   const users = window._profilesCache || [];
   const p = users.find(u => u.id === uid)
+         || _guestPool.find(g => g.id === uid)
          || Object.values(_chipSelected).find(v => v && v.id === uid);
   if(!p) return;
 
@@ -37,6 +39,7 @@ function chipTap(uid){
 
   const already = Object.entries(_chipSelected).find(([,v]) => v && v.id === uid);
   if(already){
+    // 슬롯에서만 제거 — 비회원이어도 풀에는 남아 있음
     _chipSelected[already[0]] = null;
   } else {
     const slot = _nextEmptySlot();
@@ -88,6 +91,18 @@ function showChipMenu(uid, name, currentSlot, isGuest){
     });
   }
 
+  // 비회원: 슬롯에서만 제거 / 풀에서도 완전 삭제 두 가지 옵션
+  const removeButtons = isGuest ? `
+    <button onclick="_chipSelected['${currentSlot}']=null;document.getElementById('chip-ctx-menu').remove();_reRenderRegister();" style="width:100%;padding:13px 16px;border:none;background:none;text-align:left;font-family:inherit;font-size:.9rem;cursor:pointer;color:var(--text);border-bottom:1px solid var(--border);">
+      <span style="margin-right:8px;">↩️</span>슬롯에서만 제거 (목록 유지)
+    </button>
+    <button onclick="_removeGuestFully('${uid}','${currentSlot}');document.getElementById('chip-ctx-menu').remove();" style="width:100%;padding:13px 16px;border:none;background:none;text-align:left;font-family:inherit;font-size:.9rem;cursor:pointer;color:#FF7070;">
+      <span style="margin-right:8px;">✕</span>비회원 완전 삭제
+    </button>` : `
+    <button onclick="_chipSelected['${currentSlot}']=null;document.getElementById('chip-ctx-menu').remove();_reRenderRegister();" style="width:100%;padding:13px 16px;border:none;background:none;text-align:left;font-family:inherit;font-size:.9rem;cursor:pointer;color:#FF7070;">
+      <span style="margin-right:8px;">✕</span>목록에서 제거
+    </button>`;
+
   menu.innerHTML = `
     <div style="width:100%;background:var(--surface,var(--bg));border-radius:16px 16px 0 0;border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom,0);">
       <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
@@ -95,12 +110,17 @@ function showChipMenu(uid, name, currentSlot, isGuest){
         <div style="font-size:1rem;font-weight:700;">${name} <span style="font-size:.72rem;color:${isA?'#c0392b':'#1a6fc4'};font-weight:400;">${isA?'A팀':'B팀'}</span></div>
       </div>
       ${moveHtml}
-      <button onclick="_chipSelected['${currentSlot}']=null;document.getElementById('chip-ctx-menu').remove();_reRenderRegister();" style="width:100%;padding:13px 16px;border:none;background:none;text-align:left;font-family:inherit;font-size:.9rem;cursor:pointer;color:#FF7070;">
-        <span style="margin-right:8px;">✕</span>${isGuest?'비회원 제거':'목록에서 제거'}
-      </button>
+      ${removeButtons}
       <button onclick="document.getElementById('chip-ctx-menu').remove();" style="width:100%;padding:13px 16px;border:none;background:none;text-align:center;font-family:inherit;font-size:.9rem;cursor:pointer;color:var(--text-muted);">취소</button>
     </div>`;
   document.body.appendChild(menu);
+}
+
+// 비회원 슬롯 + 풀 동시 삭제
+function _removeGuestFully(uid, slot){
+  _chipSelected[slot] = null;
+  _guestPool = _guestPool.filter(g => g.id !== uid);
+  _reRenderRegister();
 }
 
 function chipMove(fromSlot, toSlot){
@@ -116,24 +136,22 @@ function chipSwap(slotA, slotB){
   _reRenderRegister();
 }
 
-/* ── 비회원 추가 → 다음 빈 슬롯으로 바로 배정 ── */
+/* ── 비회원 추가 → 풀에 추가 후 칩으로 표시 ── */
 function _addGuestPlayer(){
   const input = document.getElementById('reg-guest-input');
   const name  = (input?.value || '').trim();
   if(!name){ toast('비회원 이름을 입력하세요', 'error'); return; }
 
+  const inPool = _guestPool.find(g => g.name === name);
   const inSlot = Object.values(_chipSelected).find(v => v && v.name === name);
-  if(inSlot){ toast(`${name}은 이미 선택됐습니다`, 'error'); return; }
-
-  const slot = _nextEmptySlot();
-  if(!slot){ toast('선수 슬롯이 가득 찼습니다', 'error'); return; }
+  if(inPool || inSlot){ toast(`${name}은 이미 추가됐습니다`, 'error'); return; }
 
   const _sa   = document.getElementById('reg-sa')?.value   || '';
   const _sb   = document.getElementById('reg-sb')?.value   || '';
   const _date = document.getElementById('reg-date')?.value || '';
   const _note = document.getElementById('reg-note')?.value || '';
 
-  _chipSelected[slot] = { id: null, name, isGuest: true };
+  _guestPool.push({ id: '__guest__' + Date.now(), name, isGuest: true });
   if(input) input.value = '';
 
   _reRenderRegister();
@@ -195,6 +213,7 @@ function _reRenderRegister(){
 
   const filtered = _csFilter === 'ALL' ? allUsers : allUsers.filter(u => _getChosung(u.name) === _csFilter);
 
+  // 회원 칩
   function makeChip(p){
     const slot = Object.entries(_chipSelected).find(([, v]) => v && v.id === p.id);
     if(slot){
@@ -206,7 +225,19 @@ function _reRenderRegister(){
     return `<div onclick="chipTap('${p.id}')" style="padding:6px 13px;border-radius:20px;border:1.5px solid var(--border);font-size:.82rem;cursor:pointer;background:var(--bg2);color:${isSelf?'#FFB300':'var(--text)'};font-weight:${isSelf?'700':'500'};min-height:34px;display:flex;align-items:center;">${p.name}</div>`;
   }
 
-  const chips = filtered.map(makeChip).join('');
+  // 비회원 칩 — 초성 필터 무시, 항상 맨 뒤에 표시
+  function makeGuestChip(g){
+    const slot = Object.entries(_chipSelected).find(([, v]) => v && v.id === g.id);
+    if(slot){
+      const isA = slot[0].startsWith('a');
+      const bc  = isA ? '#c0392b' : '#1a6fc4';
+      return `<div onclick="chipTap('${g.id}')" style="padding:6px 13px;border-radius:20px;border:1.5px solid ${bc};font-size:.82rem;cursor:pointer;background:var(--bg2);color:${bc};font-weight:700;min-height:34px;display:flex;align-items:center;gap:5px;">${g.name}<span style="font-size:.65rem;opacity:.75;">비회원</span></div>`;
+    }
+    return `<div onclick="chipTap('${g.id}')" style="padding:6px 13px;border-radius:20px;border:1.5px dashed var(--border);font-size:.82rem;cursor:pointer;background:var(--bg2);color:var(--text-muted);font-weight:500;min-height:34px;display:flex;align-items:center;gap:5px;">${g.name}<span style="font-size:.65rem;">비회원</span></div>`;
+  }
+
+  const memberChips = filtered.map(makeChip).join('');
+  const guestChips  = _guestPool.map(makeGuestChip).join('');
 
   function slotHTML(s){
     const colorMap = {a1:'#c0392b', a2:'#c0392b', b1:'#1a6fc4', b2:'#1a6fc4'};
@@ -248,7 +279,7 @@ function _reRenderRegister(){
       </div>
       ${csFilterBar}
       <div style="font-size:.72rem;color:${hintColor};text-align:center;margin-bottom:8px;">${hintTxt}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:7px;">${chips || '<span style="font-size:.8rem;color:var(--text-muted);">해당 초성 없음</span>'}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px;">${memberChips || ''}${guestChips ? (memberChips?'':'') + guestChips : (!memberChips?'<span style="font-size:.8rem;color:var(--text-muted);">해당 초성 없음</span>':'')}</div>
       <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">
         <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:6px;">✏️ 비회원 직접 입력</div>
         <div style="display:flex;gap:6px;">
@@ -304,7 +335,8 @@ async function _doSubmitMatch(){
   const winScore = Math.max(sa, sbv);
   if(winScore !== 25 && winScore !== 21){ toast('승리 점수는 21점 또는 25점이어야 해요', 'error'); return; }
 
-  const memberIds = [_chipSelected.a1?.id, _chipSelected.a2?.id, _chipSelected.b1?.id, _chipSelected.b2?.id].filter(Boolean);
+  const memberIds = [_chipSelected.a1?.id, _chipSelected.a2?.id, _chipSelected.b1?.id, _chipSelected.b2?.id]
+    .filter(id => id && !String(id).startsWith('__guest__'));
   if(new Set(memberIds).size !== memberIds.length){ toast('중복 선수를 확인하세요', 'error'); return; }
 
   const {error} = await sb.from('matches').insert({
@@ -332,8 +364,10 @@ async function _doSubmitMatch(){
   if(navigator.vibrate) navigator.vibrate([50, 30, 50]);
   toast('✅ 등록 요청 완료! 관리자 승인 대기 중', 'success');
 
+  // 등록 완료 시에만 비회원 풀 초기화
   _chipSelected = {a1:null, a2:null, b1:null, b2:null};
-  _csFilter = 'ALL';
+  _guestPool    = [];
+  _csFilter     = 'ALL';
   _reRenderRegister();
 }
 
