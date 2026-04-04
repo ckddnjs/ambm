@@ -68,8 +68,29 @@ async function renderDashboard(){
   const ci=calcCI(stats.total.wins,stats.total.games,stats.total.diff||0);
   const grade=ciToLabel(ci);
 
-  const _greetings=['오늘도 스매시 한 방 날려봐요! 🏸','셔틀콕은 배신하지 않아요 💪','오늘 경기 준비됐나요? 🔥','네트 앞에서 빛나세요 ✨','백핸드 클리어, 완벽하게! 🎯','코트 위의 주인공 🏆','땀 흘린 만큼 빛납니다 💦','오늘도 풀스윙 가봅시다 🚀','배드민턴이 최고의 운동! 🥇','스매시로 하루를 시작해요 💥','오늘은 꼭 이겨봐요! 😤','가볍게 몸 풀고 시작해요 🤸'];
-  const _greeting=_greetings[Math.floor(Math.random()*_greetings.length)];
+  // 맞춤형 인사말: 시간대 + 연승/연패 + 경기수 상황 반영
+  const _h=new Date().getHours();
+  const _timeGreet=_h>=5&&_h<9?'좋은 아침이에요':_h>=9&&_h<12?'오전부터 스매시':_h>=12&&_h<14?'점심 후 한 판':_h>=14&&_h<18?'오후에도 풀스윙':_h>=18&&_h<22?'저녁 경기 파이팅':'새벽민턴, 달려봐요';
+  const _sortedM=[...myMatches].sort((a,b)=>new Date(b.match_date)-new Date(a.match_date));
+  let _curStreak=0,_curType='';
+  if(_sortedM.length>0){
+    const _first=[_sortedM[0].a1_id,_sortedM[0].a2_id].includes(ME.id)?_sortedM[0].score_a>_sortedM[0].score_b:_sortedM[0].score_b>_sortedM[0].score_a;
+    _curType=_first?'승':'패';
+    for(const _m of _sortedM){
+      const _onA=[_m.a1_id,_m.a2_id].includes(ME.id);
+      const _w=_onA?_m.score_a>_m.score_b:_m.score_b>_m.score_a;
+      if((_w&&_curType==='승')||(!_w&&_curType==='패')) _curStreak++;
+      else break;
+    }
+  }
+  const _totalG=stats.total.games||0;
+  let _greeting='';
+  if(_curStreak>=3&&_curType==='승') _greeting=`${_curStreak}연승 중! 지금 이 기세 🔥`;
+  else if(_curStreak>=3&&_curType==='패') _greeting=`슬럼프는 곧 끝나요, 다시 스매시 💪`;
+  else if(_curStreak===2&&_curType==='승') _greeting=`2연승! 다음 경기도 기대돼요 ⚡`;
+  else if(_totalG===0) _greeting=`첫 경기를 기록해볼까요? 🏸`;
+  else if(_totalG<5) _greeting=`경기 ${_totalG}개째, 계속 쌓아가요!`;
+  else _greeting=_timeGreet+' 🏸';
   const _helloEl=document.getElementById('dash-hello');
   if(_helloEl) _helloEl.innerHTML=
     `<span style="font-family:'Black Han Sans',sans-serif;font-weight:700;color:var(--text);">${ME.name}님,</span>`+
