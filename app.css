@@ -9,8 +9,8 @@
   --accent:#00D4AA;--danger:#FF6B6B;--warn:#FFA940;--info:#4D9FFF;--success:#00D4AA;
   --accent-rgb:0,212,170;
 
-  /* 배경: 더 어둡고 대비 높게 */
-  --bg:#0A0E1A;--bg2:#111827;--bg3:#1C2535;--surface:#141D2E;--surface2:#1E2A3D;
+  /* 배경: 중립 차콜 계열 — 파란색 승리팀과 구분되도록 */
+  --bg:#0C0D10;--bg2:#14161A;--bg3:#1C1F25;--surface:#131519;--surface2:#1A1D23;
 
   /* 테두리: 약간 더 선명하게 */
   --border:rgba(255,255,255,0.10);--border-strong:rgba(77,159,255,0.4);
