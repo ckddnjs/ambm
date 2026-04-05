@@ -194,7 +194,8 @@ function _reRenderRegister(){
   const wrap = document.getElementById('register-inline-content');
   if(!wrap) return;
 
-  const today    = new Date().toISOString().slice(0, 10);
+  const _d = new Date();
+  const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
   const allUsers = (window._profilesCache || [])
     .filter(u => !u.exclude_stats)
     .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
