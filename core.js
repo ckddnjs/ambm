@@ -541,12 +541,18 @@ window.addEventListener('popstate',e=>{
     case 'feed':window._feedAllMatches=null;renderFeed();break;
     case 'register':renderRegisterPage();break;
     case 'admin':renderAdminPage();break;
+    case 'tournament':renderTournamentPage();break;
+    case 'compare':renderComparePage();break;
+    case 'balance':renderBalancePage();break;
     case 'community':renderCommunityPage();break;
     case 'settings':renderSettingsPage();break;
     default:renderDashboard();break;
   }
-  // 스택 유지: 항상 현재 페이지를 하나 더 쌓아둠
-  window.history.pushState({page},'','#'+page);
+  // 대시보드에 도달하면 buffer 엔트리를 하나 더 쌓아
+  // 앱 종료 방지 (뒤로가기가 앱 밖으로 나가지 않음)
+  if(page==='dashboard'){
+    window.history.pushState({page:'dashboard'},'','#dashboard');
+  }
 });
 
 /* ── GRADE ── */
