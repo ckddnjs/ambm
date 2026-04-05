@@ -535,6 +535,11 @@ window.addEventListener('popstate',e=>{
     return;
   }
   const page=(e.state&&e.state.page)||'dashboard';
+  // install-guide는 오버레이 방식 — 앞으로가기로 도달했을 때도 열어줌
+  if(page==='install-guide'){
+    if(ig){ig.style.display='block';ig.scrollTop=0;}
+    return;
+  }
   // ★ history는 절대 건드리지 않음 — 앞으로가기 보존
   currentPage=page;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
