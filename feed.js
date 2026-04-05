@@ -314,7 +314,7 @@ function matchCardHTML(m,isAdmin=false){
         <div class="mc-wl-badge ${!aWin?'win':'lose'}">${!aWin?'승':'패'}</div>${emojiSlotR}
       </div>
     </div>
-    ${m.note?`<div style="font-size:.74rem;color:var(--text-muted);padding:4px 10px 6px;text-align:center;border-top:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.04);">${m.note}</div>`:''}
+    ${m.note?`<div style="font-size:.74rem;color:var(--text-muted);padding:5px 12px 7px;display:flex;align-items:flex-start;gap:5px;border-top:1px solid var(--border);"><span style="flex-shrink:0;opacity:.55;font-size:.72rem;margin-top:1px;">📝</span><span style="line-height:1.5;word-break:break-all;">${m.note}</span></div>`:''}
     ${isAdmin&&m.status==='pending'?`<div class="btn-row" style="padding:6px 8px 8px;" onclick="event.stopPropagation()"><button class="btn btn-success btn-xs" onclick="approveMatch('${m.id}')">✅ 승인</button><button class="btn btn-danger btn-xs" onclick="confirmRejectMatch('${m.id}')">❌ 반려</button><button class="btn btn-warn btn-xs" onclick="openEditMatch('${m.id}')">✏️ 수정</button></div>`:''}
   </div>`;
 }
