@@ -5,7 +5,7 @@ async function renderDashboard(){
   // 경기 캐시: 30초 이내면 재조회 생략
   const _now=Date.now();
   if(!window._matchCacheTime||_now-window._matchCacheTime>30000||!_allMatchesCache.length){
-    const{data:allMatches}=await sb.from('matches').select('*').eq('status','approved').order('match_date',{ascending:false}).order('created_at',{ascending:false});
+    const{data:allMatches}=await sb.from('matches').select('id,match_type,match_date,a1_id,a1_name,a2_id,a2_name,b1_id,b1_name,b2_id,b2_name,score_a,score_b,status,note,admin_note,submitter_id,submitter_name,approved_at,created_at').eq('status','approved').order('match_date',{ascending:false}).order('created_at',{ascending:false});
     _allMatchesCache=allMatches||[];window._allMatchesCache=_allMatchesCache;
     window._matchCacheTime=_now;
     window._profilesCache=null; // 경기 새로 불러오면 프로필도 갱신

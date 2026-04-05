@@ -61,7 +61,8 @@ async function _renderFeedInner(forceNameQ, token){
   const clearBtn=document.getElementById('feed-search-clear');
   if(clearBtn) clearBtn.style.display=nameQ?'block':'none';
 
-  let q=sb.from('matches').select('*')
+  const _MATCH_COLS='id,match_type,match_date,a1_id,a1_name,a2_id,a2_name,b1_id,b1_name,b2_id,b2_name,score_a,score_b,status,note,admin_note,submitter_id,submitter_name,approved_at,created_at';
+  let q=sb.from('matches').select(_MATCH_COLS)
     .eq('status','approved')
     .order('match_date',{ascending:false})
     .order('created_at',{ascending:false})
@@ -314,13 +315,13 @@ function matchCardHTML(m,isAdmin=false){
         <div class="mc-wl-badge ${!aWin?'win':'lose'}">${!aWin?'승':'패'}</div>${emojiSlotR}
       </div>
     </div>
-    ${m.note?`<div style="font-size:.78rem;color:var(--text-muted);padding:5px 14px 8px;text-align:center;border-top:1px solid var(--border);line-height:1.5;word-break:break-word;">${m.note}</div>`:''}
+    ${(()=>{const _n=m.note||m['note'];if(_n){console.log('[feed] note found:',_n,m.id);}return _n?`<div style="font-size:.78rem;color:var(--text-muted);padding:5px 14px 8px;text-align:center;border-top:1px solid var(--border);line-height:1.5;word-break:break-word;">${_n}</div>`:'';})()} 
     ${isAdmin&&m.status==='pending'?`<div class="btn-row" style="padding:6px 8px 8px;" onclick="event.stopPropagation()"><button class="btn btn-success btn-xs" onclick="approveMatch('${m.id}')">✅ 승인</button><button class="btn btn-danger btn-xs" onclick="confirmRejectMatch('${m.id}')">❌ 반려</button><button class="btn btn-warn btn-xs" onclick="openEditMatch('${m.id}')">✏️ 수정</button></div>`:''}
   </div>`;
 }
 
 async function openMatchDetail(id,isAdmin=false){
-  const{data:m}=await sb.from('matches').select('*').eq('id',id).single();
+  const{data:m}=await sb.from('matches').select('id,match_type,match_date,a1_id,a1_name,a2_id,a2_name,b1_id,b1_name,b2_id,b2_name,score_a,score_b,status,note,admin_note,submitter_id,submitter_name,approved_at,created_at').eq('id',id).single();
   if(!m) return;
   const aWin=m.score_a>m.score_b;
   const canCancel=m.status==='pending'&&m.submitter_id===ME.id;
