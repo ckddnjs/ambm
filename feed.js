@@ -315,7 +315,7 @@ function matchCardHTML(m,isAdmin=false){
         <div class="mc-wl-badge ${!aWin?'win':'lose'}">${!aWin?'승':'패'}</div>${emojiSlotR}
       </div>
     </div>
-    ${(()=>{const _n=m.note||m['note'];if(_n){console.log('[feed] note found:',_n,m.id);}return _n?`<div style="font-size:.78rem;color:var(--text-muted);padding:5px 14px 8px;text-align:center;border-top:1px solid var(--border);line-height:1.5;word-break:break-word;">${_n}</div>`:'';})()} 
+    ${(m.note||m.admin_note)?`<div style="font-size:.78rem;color:var(--text-muted);padding:5px 14px 8px;text-align:center;border-top:1px solid var(--border);line-height:1.5;word-break:break-word;">${[m.note,m.admin_note].filter(Boolean).join(' · ')}</div>`:''}
     ${isAdmin&&m.status==='pending'?`<div class="btn-row" style="padding:6px 8px 8px;" onclick="event.stopPropagation()"><button class="btn btn-success btn-xs" onclick="approveMatch('${m.id}')">✅ 승인</button><button class="btn btn-danger btn-xs" onclick="confirmRejectMatch('${m.id}')">❌ 반려</button><button class="btn btn-warn btn-xs" onclick="openEditMatch('${m.id}')">✏️ 수정</button></div>`:''}
   </div>`;
 }
