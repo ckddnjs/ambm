@@ -427,8 +427,11 @@ function initApp(){
   if(feedRegBtn) feedRegBtn.style.display=ME?.role==='admin'?'':'none';
   _updateHeaderWeather();
   _startWeatherInterval();
-  // 초기 히스토리 스택 설정 (뒤로가기 방지)
-  window.history.replaceState({page:'dashboard'},'','#dashboard');
+  // 초기 히스토리 스택 설정
+  // _guard 엔트리: 이것에 도달하면 앱 종료 대신 대시보드 유지
+  window.history.replaceState({page:'dashboard',_guard:true},'','#dashboard');
+  // 실제 대시보드 엔트리 (여기서부터 정상 동작)
+  window.history.pushState({page:'dashboard'},'','#dashboard');
   goHome();
 }
 function refreshHeader(){if(!ME) return; const el=document.getElementById('hdr-name'); if(el) el.textContent=ME.name;}
@@ -511,24 +514,28 @@ function navigateTo(page){
   }
 }
 
-// 뒤로가기 → 앱 내 페이지 유지 (홈 화면으로 나가지 않음)
+// 뒤로가기 / 앞으로가기 핸들러
 window.addEventListener('popstate',e=>{
-  // date-summary 오버레이가 열려있으면 먼저 닫기 (state 무관하게 DOM 체크)
+  // date-summary 오버레이가 열려있으면 먼저 닫기
   const dsp=document.getElementById('page-date-summary');
   if(dsp&&dsp.style.display==='block'){
     dsp.style.display='none';
     return;
   }
-  // install-guide 오버레이가 열려있으면 닫고 이전 탭으로
+  // install-guide 오버레이가 열려있으면 닫고, 이동 대상 페이지만 렌더 (pushState 없이)
   const ig=document.getElementById('page-install-guide');
   if(ig&&ig.style.display==='block'){
     ig.style.display='none';
-    const fromPage=(e.state&&e.state.from)||'settings';
-    navigateTo(fromPage);
+    // e.state.page 가 이동 대상 (settings 등) — 아래 공통 렌더로 진행
+  }
+  // _guard 엔트리에 도달 = 히스토리 바닥 → 대시보드를 다시 쌓아 앱 종료 방지
+  if(e.state&&e.state._guard){
+    window.history.pushState({page:'dashboard'},'','#dashboard');
+    renderDashboard();
     return;
   }
   const page=(e.state&&e.state.page)||'dashboard';
-  // navigateTo를 직접 호출하되 history push 없이
+  // ★ history는 절대 건드리지 않음 — 앞으로가기 보존
   currentPage=page;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.bottom-nav-item').forEach(n=>n.classList.remove('active'));
@@ -547,11 +554,6 @@ window.addEventListener('popstate',e=>{
     case 'community':renderCommunityPage();break;
     case 'settings':renderSettingsPage();break;
     default:renderDashboard();break;
-  }
-  // 대시보드에 도달하면 buffer 엔트리를 하나 더 쌓아
-  // 앱 종료 방지 (뒤로가기가 앱 밖으로 나가지 않음)
-  if(page==='dashboard'){
-    window.history.pushState({page:'dashboard'},'','#dashboard');
   }
 });
 
