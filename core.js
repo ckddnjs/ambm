@@ -573,10 +573,10 @@ async function _getApprovedUsers(forceRefresh=false){
 }
 
 /* ── CI 상수 ── */
-const BASE_RATING=1000, CONFIDENCE_DENOMINATOR=10, PD_WEIGHT=5,
+const BASE_RATING=1000, CONFIDENCE_DENOMINATOR=15, PD_WEIGHT=5,
       WR_WEIGHT=200, SYNERGY_WEIGHT=100, SYNERGY_CAP=50,
       H2H_WEIGHT=80, RECENT_WEIGHT=60, ELO_DIVISOR=400,
-      GAMES_BONUS=1; // 참가 경기당 가산점
+      GAMES_BONUS=1, GAMES_BONUS_CAP=30; // 참가 경기당 가산점 (최대 30점)
 
 /** 개인 CI (Composite Index) 계산 */
 function calcCI(wins, games, diff){
@@ -589,8 +589,8 @@ function calcCI(wins, games, diff){
   // 경기당 평균 득실차
   const avgDiff = diff / games;
   const diffScore = avgDiff * PD_WEIGHT;
-  // 참가 경기 가산점 (경기당 1점)
-  const gamesBonus = games * GAMES_BONUS;
+  // 참가 경기 가산점 (경기당 1점, 최대 30점)
+  const gamesBonus = Math.min(games, GAMES_BONUS_CAP) * GAMES_BONUS;
   return BASE_RATING + (adjustedWR * WR_WEIGHT) + diffScore + gamesBonus;
 }
 

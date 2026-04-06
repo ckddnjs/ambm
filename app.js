@@ -405,10 +405,10 @@ async function _getApprovedUsers(forceRefresh=false){
 }
 
 /* ── CI 상수 ── */
-const BASE_RATING=1000, CONFIDENCE_DENOMINATOR=10, PD_WEIGHT=5,
+const BASE_RATING=1000, CONFIDENCE_DENOMINATOR=15, PD_WEIGHT=5,
       WR_WEIGHT=200, SYNERGY_WEIGHT=100, SYNERGY_CAP=50,
       H2H_WEIGHT=80, RECENT_WEIGHT=60, ELO_DIVISOR=400,
-      GAMES_BONUS=1; // 참가 경기당 가산점
+      GAMES_BONUS=1, GAMES_BONUS_CAP=30; // 참가 경기당 가산점 (최대 30점)
 
 /** 개인 CI (Composite Index) 계산 */
 function calcCI(wins, games, diff){
@@ -421,8 +421,8 @@ function calcCI(wins, games, diff){
   // 경기당 평균 득실차
   const avgDiff = diff / games;
   const diffScore = avgDiff * PD_WEIGHT;
-  // 참가 경기 가산점 (경기당 1점)
-  const gamesBonus = games * GAMES_BONUS;
+  // 참가 경기 가산점 (경기당 1점, 최대 30점)
+  const gamesBonus = Math.min(games, GAMES_BONUS_CAP) * GAMES_BONUS;
   return BASE_RATING + (adjustedWR * WR_WEIGHT) + diffScore + gamesBonus;
 }
 
@@ -3741,7 +3741,7 @@ function showCIInfo(){
   1000
   + 신뢰보정승률 × 200
   + 평균득실차 × 5
-  + 참가경기수 × 1
+  + 참가경기수 × 1 (최대 30점)
 
 ━━━━━━━━━━━━━━━━━━
 🔍 각 항목 설명
@@ -3752,16 +3752,16 @@ function showCIInfo(){
 
 ② 신뢰보정승률
   · 경기수가 적을수록 승률을 낮게 반영
-  · 보정계수 = 경기수 ÷ (경기수 + 10)
+  · 보정계수 = 경기수 ÷ (경기수 + 20)
   · 보정승률 = 승률 × 보정계수
 
   예) 1경기 1승 → 승률 100%이지만
-      보정계수 = 1÷11 ≈ 0.09
-      → 보정승률 ≈ 9%만 반영
+      보정계수 = 1÷21 ≈ 0.05
+      → 보정승률 ≈ 5%만 반영
   예) 10경기 7승 → 승률 70%,
-      보정계수 = 10÷20 = 0.5
-      → 보정승률 = 35% 반영
-  예) 50경기 → 보정계수 ≈ 0.83
+      보정계수 = 10÷30 ≈ 0.33
+      → 보정승률 ≈ 23% 반영
+  예) 50경기 → 보정계수 ≈ 0.71
       (경기가 많을수록 1에 수렴)
 
 ③ 평균 득실차 × 5
@@ -3769,8 +3769,9 @@ function showCIInfo(){
   · 이길 때 크게 이길수록 가산
   · 질 때 크게 질수록 감산
 
-④ 참가경기 가산점 × 1
+④ 참가경기 가산점 × 1 (최대 30점)
   · 참가한 경기 수만큼 1점씩 추가
+  · 30경기 이상은 최대 30점으로 고정
   · 꾸준히 참여할수록 유리
 
 ━━━━━━━━━━━━━━━━━━
@@ -3778,10 +3779,10 @@ function showCIInfo(){
 ━━━━━━━━━━━━━━━━━━
 
   5경기 4승 1패, 평균득실 +3
-  → 보정계수 = 5÷15 ≈ 0.33
-  → 보정승률 = 80% × 0.33 = 26.7%
-  → 종합점수 = 1000 + 26.7×200 + 3×5 + 5×1
-              ≈ 1000 + 53 + 15 + 5 = 1073
+  → 보정계수 = 5÷25 = 0.20
+  → 보정승률 = 80% × 0.20 = 16%
+  → 종합점수 = 1000 + 16×200 + 3×5 + 5×1
+              ≈ 1000 + 32 + 15 + 5 = 1052
 
   ✅ 5경기 이상부터 랭킹에 반영됩니다`;
 

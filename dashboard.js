@@ -314,12 +314,13 @@ function renderMyTypeStats(stats, allM){
   const diff=d.diff||0;
 
   const wr=games>0?wins/games:0;
-  const confidence=games>0?games/(games+10):0;
+  const confidence=games>0?games/(games+15):0;
   const adjustedWR=wr*confidence;
   const avgDiff=games>0?diff/games:0;
   const wrScore=adjustedWR*200;
   const diffScore=avgDiff*5;
-  const ci=Math.round(1000+wrScore+diffScore);
+  const gamesBonus=Math.min(games,30)*1;
+  const ci=Math.round(1000+wrScore+diffScore+gamesBonus);
 
   const wrPct=Math.round(wr*100);
   const confPct=Math.round(confidence*100);
@@ -358,7 +359,7 @@ function renderMyTypeStats(stats, allM){
       )}
 
       ${row('③ 신뢰도 보정',`×${confidence.toFixed(2)}`,
-        `${games} ÷ (${games}+10) = ${confidence.toFixed(2)} — 경기가 적을수록 승률을 보수적으로 반영`,
+        `${games} ÷ (${games}+20) = ${confidence.toFixed(2)} — 경기가 적을수록 승률을 보수적으로 반영`,
         bar(confPct,100,'#9C6FE4'),'#9C6FE4'
       )}
 
@@ -372,13 +373,18 @@ function renderMyTypeStats(stats, allM){
         '',signColor(avgDiff)
       )}
 
+      ${row('⑥ 참가 경기 가산점',`+${gamesBonus}점`,
+        `${games}경기 × 1점${games>=30?' (30경기 상한 적용)':' (최대 30점)'}`,
+        bar(gamesBonus,30,'#F5A623'),'#F5A623'
+      )}
+
       <div style="margin-top:10px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <span style="font-size:.9rem;font-weight:700;color:var(--text);">종합점수</span>
           <span style="font-family:'Black Han Sans',sans-serif;font-size:1.8rem;color:#5BA4F5;">${ci}</span>
         </div>
         <div style="font-size:.76rem;color:var(--text-muted);margin-top:4px;">
-          1000 + ${Math.round(wrScore)} + ${Math.round(diffScore)} = <strong style="color:#5BA4F5;">${ci}</strong>
+          1000 + ${Math.round(wrScore)} + ${Math.round(diffScore)} + ${gamesBonus} = <strong style="color:#5BA4F5;">${ci}</strong>
         </div>
       </div>
     </div>
