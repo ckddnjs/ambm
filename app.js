@@ -407,7 +407,8 @@ async function _getApprovedUsers(forceRefresh=false){
 /* ── CI 상수 ── */
 const BASE_RATING=1000, CONFIDENCE_DENOMINATOR=10, PD_WEIGHT=5,
       WR_WEIGHT=200, SYNERGY_WEIGHT=100, SYNERGY_CAP=50,
-      H2H_WEIGHT=80, RECENT_WEIGHT=60, ELO_DIVISOR=400;
+      H2H_WEIGHT=80, RECENT_WEIGHT=60, ELO_DIVISOR=400,
+      GAMES_BONUS=1; // 참가 경기당 가산점
 
 /** 개인 CI (Composite Index) 계산 */
 function calcCI(wins, games, diff){
@@ -420,7 +421,9 @@ function calcCI(wins, games, diff){
   // 경기당 평균 득실차
   const avgDiff = diff / games;
   const diffScore = avgDiff * PD_WEIGHT;
-  return BASE_RATING + (adjustedWR * WR_WEIGHT) + diffScore;
+  // 참가 경기 가산점 (경기당 1점)
+  const gamesBonus = games * GAMES_BONUS;
+  return BASE_RATING + (adjustedWR * WR_WEIGHT) + diffScore + gamesBonus;
 }
 
 /** 하위 호환: SABCD 등급 → 수치 기반 등급 표시 */
@@ -3738,6 +3741,7 @@ function showCIInfo(){
   1000
   + 신뢰보정승률 × 200
   + 평균득실차 × 5
+  + 참가경기수 × 1
 
 ━━━━━━━━━━━━━━━━━━
 🔍 각 항목 설명
@@ -3765,6 +3769,10 @@ function showCIInfo(){
   · 이길 때 크게 이길수록 가산
   · 질 때 크게 질수록 감산
 
+④ 참가경기 가산점 × 1
+  · 참가한 경기 수만큼 1점씩 추가
+  · 꾸준히 참여할수록 유리
+
 ━━━━━━━━━━━━━━━━━━
 📊 점수 예시
 ━━━━━━━━━━━━━━━━━━
@@ -3772,8 +3780,8 @@ function showCIInfo(){
   5경기 4승 1패, 평균득실 +3
   → 보정계수 = 5÷15 ≈ 0.33
   → 보정승률 = 80% × 0.33 = 26.7%
-  → 종합점수 = 1000 + 26.7×200 + 3×5
-              ≈ 1000 + 53 + 15 = 1068
+  → 종합점수 = 1000 + 26.7×200 + 3×5 + 5×1
+              ≈ 1000 + 53 + 15 + 5 = 1073
 
   ✅ 5경기 이상부터 랭킹에 반영됩니다`;
 

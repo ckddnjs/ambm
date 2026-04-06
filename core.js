@@ -575,7 +575,8 @@ async function _getApprovedUsers(forceRefresh=false){
 /* ── CI 상수 ── */
 const BASE_RATING=1000, CONFIDENCE_DENOMINATOR=10, PD_WEIGHT=5,
       WR_WEIGHT=200, SYNERGY_WEIGHT=100, SYNERGY_CAP=50,
-      H2H_WEIGHT=80, RECENT_WEIGHT=60, ELO_DIVISOR=400;
+      H2H_WEIGHT=80, RECENT_WEIGHT=60, ELO_DIVISOR=400,
+      GAMES_BONUS=1; // 참가 경기당 가산점
 
 /** 개인 CI (Composite Index) 계산 */
 function calcCI(wins, games, diff){
@@ -588,7 +589,9 @@ function calcCI(wins, games, diff){
   // 경기당 평균 득실차
   const avgDiff = diff / games;
   const diffScore = avgDiff * PD_WEIGHT;
-  return BASE_RATING + (adjustedWR * WR_WEIGHT) + diffScore;
+  // 참가 경기 가산점 (경기당 1점)
+  const gamesBonus = games * GAMES_BONUS;
+  return BASE_RATING + (adjustedWR * WR_WEIGHT) + diffScore + gamesBonus;
 }
 
 /** 하위 호환: SABCD 등급 → 수치 기반 등급 표시 */
