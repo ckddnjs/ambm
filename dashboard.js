@@ -359,7 +359,7 @@ function renderMyTypeStats(stats, allM){
       )}
 
       ${row('③ 신뢰도 보정',`×${confidence.toFixed(2)}`,
-        `${games} ÷ (${games}+20) = ${confidence.toFixed(2)} — 경기가 적을수록 승률을 보수적으로 반영`,
+        `${games} ÷ (${games}+15) = ${confidence.toFixed(2)} — 경기가 적을수록 승률을 보수적으로 반영`,
         bar(confPct,100,'#9C6FE4'),'#9C6FE4'
       )}
 
@@ -1193,4 +1193,3 @@ function renderScatter(){
     setTimeout(()=>tip.remove(),3000);
   };
 }
-
