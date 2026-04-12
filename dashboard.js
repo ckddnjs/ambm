@@ -24,16 +24,15 @@ async function renderDashboard(){
   const excludedIds=new Set((allUsers||[]).filter(u=>u.exclude_stats).map(u=>u.id));
   const uStats={};
   // 회원 초기화
-  (allUsers||[]).filter(u=>!u.exclude_stats).forEach(u=>uStats[u.id]={id:u.id,games:0,wins:0,diff:0,scored:0,conceded:0,closeWins:0});
+  (allUsers||[]).filter(u=>!u.exclude_stats).forEach(u=>uStats[u.id]={id:u.id,games:0,wins:0,diff:0,scored:0,conceded:0});
   _allMatchesCache.forEach(m=>{
     const aWin=m.score_a>m.score_b;
-    const isClose=Math.abs(m.score_a-m.score_b)<=3;
     // 회원 (id 기반)
     [{id:m.a1_id,win:aWin,s:m.score_a,c:m.score_b},{id:m.a2_id,win:aWin,s:m.score_a,c:m.score_b},
      {id:m.b1_id,win:!aWin,s:m.score_b,c:m.score_a},{id:m.b2_id,win:!aWin,s:m.score_b,c:m.score_a}]
     .filter(p=>p.id&&!excludedIds.has(p.id)).forEach(p=>{
       if(!uStats[p.id])return;
-      uStats[p.id].games++;if(p.win){uStats[p.id].wins++;if(isClose)uStats[p.id].closeWins++;}
+      uStats[p.id].games++;if(p.win)uStats[p.id].wins++;
       uStats[p.id].scored+=p.s;uStats[p.id].conceded+=p.c;
     });
     // 비회원 (name 기반)
@@ -43,15 +42,15 @@ async function renderDashboard(){
      {id:m.b2_id,name:m.b2_name,win:!aWin,s:m.score_b,c:m.score_a}]
     .filter(p=>!p.id&&p.name&&!guestModeNames.has(p.name)).forEach(p=>{
       const key='name:'+p.name;
-      if(!uStats[key]) uStats[key]={id:key,games:0,wins:0,diff:0,scored:0,conceded:0,closeWins:0};
-      uStats[key].games++;if(p.win){uStats[key].wins++;if(isClose)uStats[key].closeWins++;}
+      if(!uStats[key]) uStats[key]={id:key,games:0,wins:0,diff:0,scored:0,conceded:0};
+      uStats[key].games++;if(p.win)uStats[key].wins++;
       uStats[key].scored+=p.s;uStats[key].conceded+=p.c;
     });
   });
   window._rankExcludedIds=(allUsers||[]).filter(u=>u.exclude_stats).map(u=>u.id);
   Object.values(uStats).forEach(u=>{
     u.diff=u.scored-u.conceded;
-    u.ci=calcCI(u.wins,u.games,u.diff,u.closeWins);
+    u.ci=calcCI(u.wins,u.games,u.diff);
   });
   const MIN_G=5;
   const rankedAll=Object.values(uStats).filter(u=>u.games>=MIN_G);
@@ -66,7 +65,7 @@ async function renderDashboard(){
   const ciRanked=[...rankedAll].sort((a,b)=>b.ci-a.ci);
   const myCIRank=stats.total.games>=MIN_G?ciRanked.findIndex(u=>u.id===ME.id)+1:0;
 
-  const ci=calcCI(stats.total.wins,stats.total.games,stats.total.diff||0,stats.total.closeWins||0);
+  const ci=calcCI(stats.total.wins,stats.total.games,stats.total.diff||0);
   const grade=ciToLabel(ci);
 
   // 맞춤형 인사말: 시간대 + 연승/연패 + 경기수 상황 반영
@@ -282,17 +281,16 @@ async function renderDashboard(){
 
 function computeStats(matches,userId){
   const cats=['doubles','total'];
-  const s={};cats.forEach(c=>s[c]={games:0,wins:0,losses:0,scored:0,conceded:0,closeWins:0});
+  const s={};cats.forEach(c=>s[c]={games:0,wins:0,losses:0,scored:0,conceded:0});
   matches.forEach(m=>{
     const onA=[m.a1_id,m.a2_id].includes(userId);
     const aWin=m.score_a>m.score_b;
     const won=onA?aWin:!aWin;
     const myScore=onA?m.score_a:m.score_b;
     const opScore=onA?m.score_b:m.score_a;
-    const isClose=Math.abs(m.score_a-m.score_b)<=3;
     const cat=m.match_type;
-    if(s[cat]){s[cat].games++;if(won){s[cat].wins++;if(isClose)s[cat].closeWins++;}else s[cat].losses++;s[cat].scored+=myScore;s[cat].conceded+=opScore;}
-    s.total.games++;if(won){s.total.wins++;if(isClose)s.total.closeWins++;}else s.total.losses++;
+    if(s[cat]){s[cat].games++;if(won)s[cat].wins++;else s[cat].losses++;s[cat].scored+=myScore;s[cat].conceded+=opScore;}
+    s.total.games++;if(won)s.total.wins++;else s.total.losses++;
     s.total.scored+=myScore;s.total.conceded+=opScore;
   });
   ['doubles','total'].forEach(c=>{s[c].diff=s[c].scored-s[c].conceded;});
@@ -310,10 +308,11 @@ function toggleTypeStats(){
 
 /* ─ 종목별 세부 통계 테이블 ─ */
 function renderMyTypeStats(stats, allM){
-  const d=stats.total||{games:0,wins:0,losses:0,diff:0,scored:0,conceded:0};
+  const d=stats.total||{games:0,wins:0,losses:0,diff:0,scored:0,conceded:0,closeWins:0};
   const games=d.games||0;
   const wins=d.wins||0;
   const diff=d.diff||0;
+  const closeWins=d.closeWins||0;
 
   const wr=games>0?wins/games:0;
   const confidence=games>0?games/(games+15):0;
@@ -322,7 +321,8 @@ function renderMyTypeStats(stats, allM){
   const wrScore=adjustedWR*200;
   const diffScore=avgDiff*5;
   const gamesBonus=Math.min(games,30)*1;
-  const ci=Math.round(1000+wrScore+diffScore+gamesBonus);
+  const closeWinBonus=closeWins*1;
+  const ci=Math.round(1000+wrScore+diffScore+gamesBonus+closeWinBonus);
 
   const wrPct=Math.round(wr*100);
   const confPct=Math.round(confidence*100);
@@ -349,35 +349,57 @@ function renderMyTypeStats(stats, allM){
   const diffScoreStr=`${diffScore>=0?'+':''}${Math.round(diffScore)}점`;
   const totalDiffStr=`누적 득실 ${diff>0?'+':''}${diff}점 ÷ ${games}경기 = ${avgDiff>=0?'+':''}${avgDiff.toFixed(1)} / 경기`;
 
+  // 보정승률 서브 계산과정 블록
+  const wrSubBlock=`
+    <div style="margin-top:8px;background:var(--surface2);border-radius:8px;padding:8px 10px;">
+      <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:6px;font-weight:600;letter-spacing:.2px;">계산 과정</div>
+      <div style="display:flex;justify-content:space-between;font-size:.75rem;padding:3px 0;border-bottom:1px solid var(--border);">
+        <span style="color:var(--text-muted);">승률</span>
+        <span style="color:#5BA4F5;font-weight:600;">${wins}승 ${d.losses}패 → ${wrPct}%</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.75rem;padding:3px 0;border-bottom:1px solid var(--border);">
+        <span style="color:var(--text-muted);">신뢰도 보정 <span style="font-family:monospace;">${games}÷(${games}+15)</span></span>
+        <span style="color:#9C6FE4;font-weight:600;">×${confidence.toFixed(2)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.75rem;padding:3px 0;border-bottom:1px solid var(--border);">
+        <span style="color:var(--text-muted);">보정 승률 = 승률 × 신뢰도</span>
+        <span style="color:var(--text);font-weight:600;">${adjustedPct}%</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.75rem;padding:3px 0;">
+        <span style="color:var(--text-muted);">점수 = 보정승률 × 200</span>
+        <span style="color:var(--primary);font-weight:700;">+${Math.round(wrScore)}점</span>
+      </div>
+      ${bar(adjustedPct,100,'var(--primary)')}
+    </div>`;
+
   document.getElementById('my-type-stats').innerHTML=`
     <div style="border-radius:12px;padding:4px 0;margin-bottom:4px;">
       <div style="font-size:.8rem;color:var(--text-muted);font-weight:600;letter-spacing:.3px;margin-bottom:4px;">📐 종합점수 산정 내역</div>
 
       ${row('① 기본점수','1,000점','모든 선수의 공통 시작값','')}
 
-      ${row('② 승률',`${wrPct}%`,
-        `${wins}승 ${d.losses}패 · ${games}경기`,
-        bar(wrPct,100,'#5BA4F5'),'#5BA4F5'
-      )}
+      <div style="padding:11px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <span style="font-size:.86rem;color:var(--text);font-weight:500;">② 보정승률점수</span>
+          <span style="font-size:1.05rem;font-weight:700;color:var(--primary);flex-shrink:0;">+${Math.round(wrScore)}점</span>
+        </div>
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:3px;">${wins}승 ${d.losses}패 · ${games}경기</div>
+        ${wrSubBlock}
+      </div>
 
-      ${row('③ 신뢰도 보정',`×${confidence.toFixed(2)}`,
-        `${games} ÷ (${games}+15) = ${confidence.toFixed(2)} — 경기가 적을수록 승률을 보수적으로 반영`,
-        bar(confPct,100,'#9C6FE4'),'#9C6FE4'
-      )}
-
-      ${row('④ 보정 승률',`+${Math.round(wrScore)}점`,
-        `${wrPct}% × ${confidence.toFixed(2)} = ${adjustedPct}% → ×200`,
-        bar(adjustedPct,100,'var(--primary)'),'var(--primary)'
-      )}
-
-      ${row('⑤ 평균 득실차',`${diffScoreStr}`,
-        `${totalDiffStr}<br>평균득실 × 5점 (5경기 기준 환산)`,
+      ${row('③ 평균 득실차',`${diffScoreStr}`,
+        `${totalDiffStr}<br>평균득실 × 5점`,
         '',signColor(avgDiff)
       )}
 
-      ${row('⑥ 참가 경기 가산점',`+${gamesBonus}점`,
+      ${row('④ 참가 경기 가산점',`+${gamesBonus}점`,
         `${games}경기 × 1점${games>=30?' (30경기 상한 적용)':' (최대 30점)'}`,
         bar(gamesBonus,30,'#F5A623'),'#F5A623'
+      )}
+
+      ${row('⑤ 접전 클러치',`+${closeWinBonus}점`,
+        `${closeWins}회 접전 승리 × 1점 (점수차 3점 이내, 상한 없음)`,
+        bar(Math.min(closeWins,30),30,'#E0634A'),'#E0634A'
       )}
 
       <div style="margin-top:10px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
@@ -386,7 +408,7 @@ function renderMyTypeStats(stats, allM){
           <span style="font-family:'Black Han Sans',sans-serif;font-size:1.8rem;color:#5BA4F5;">${ci}</span>
         </div>
         <div style="font-size:.76rem;color:var(--text-muted);margin-top:4px;">
-          1000 + ${Math.round(wrScore)} + ${Math.round(diffScore)} + ${gamesBonus} = <strong style="color:#5BA4F5;">${ci}</strong>
+          1000 + ${Math.round(wrScore)} + ${Math.round(diffScore)} + ${gamesBonus} + ${closeWinBonus} = <strong style="color:#5BA4F5;">${ci}</strong>
         </div>
       </div>
     </div>
@@ -434,10 +456,9 @@ function renderWrTrend(myMatches){
     const won=onA?aWin:!aWin;
     const myScore=onA?m.score_a:m.score_b;
     const opScore=onA?m.score_b:m.score_a;
-    if(!dateMap.has(dateKey)) dateMap.set(dateKey,{wins:0,total:0,scored:0,conceded:0,closeWins:0});
+    if(!dateMap.has(dateKey)) dateMap.set(dateKey,{wins:0,total:0,scored:0,conceded:0});
     const d=dateMap.get(dateKey);
-    const isClose=Math.abs(m.score_a-m.score_b)<=3;
-    d.total++; if(won){d.wins++;if(isClose)d.closeWins++;}
+    d.total++; if(won) d.wins++;
     d.scored+=myScore; d.conceded+=opScore;
   });
 
@@ -452,12 +473,12 @@ function renderWrTrend(myMatches){
 
   // 누적 포인트 계산
   const points=[];
-  let cumWins=0,cumTotal=0,cumScored=0,cumConceded=0,cumCloseWins=0;
+  let cumWins=0,cumTotal=0,cumScored=0,cumConceded=0;
   sortedDates.forEach(dateKey=>{
-    const {wins,total,scored,conceded,closeWins}=dateMap.get(dateKey);
-    cumWins+=wins; cumTotal+=total; cumScored+=scored; cumConceded+=conceded; cumCloseWins+=closeWins;
+    const {wins,total,scored,conceded}=dateMap.get(dateKey);
+    cumWins+=wins; cumTotal+=total; cumScored+=scored; cumConceded+=conceded;
     const cumDiff=cumScored-cumConceded;
-    const cumCI=calcCI(cumWins,cumTotal,cumDiff,cumCloseWins);
+    const cumCI=calcCI(cumWins,cumTotal,cumDiff);
     const d=new Date(dateKey+'T00:00:00');
     const label=`${d.getMonth()+1}/${d.getDate()}`;
     points.push({
@@ -576,7 +597,6 @@ function renderMvpPodium(allMatches, users) {
   var uStats = {};
   (allMatches||[]).filter(m=>m.status==='approved').forEach(m=>{
     var aWin=m.score_a>m.score_b;
-    var isClose=Math.abs(m.score_a-m.score_b)<=3;
     // 회원 (id 기반)
     [{id:m.a1_id,win:aWin,s:m.score_a,c:m.score_b},{id:m.a2_id,win:aWin,s:m.score_a,c:m.score_b},
      {id:m.b1_id,win:!aWin,s:m.score_b,c:m.score_a},{id:m.b2_id,win:!aWin,s:m.score_b,c:m.score_a}]
@@ -585,10 +605,10 @@ function renderMvpPodium(allMatches, users) {
       if(!uStats[p.id]){
         var u=userMap[p.id];
         var nm=u?u.name:p.id;
-        uStats[p.id]={id:p.id,name:nm,games:0,wins:0,diff:0,scored:0,conceded:0,closeWins:0};
+        uStats[p.id]={id:p.id,name:nm,games:0,wins:0,diff:0,scored:0,conceded:0};
       }
       uStats[p.id].games++;
-      if(p.win){uStats[p.id].wins++;if(isClose)uStats[p.id].closeWins++;}
+      if(p.win)uStats[p.id].wins++;
       uStats[p.id].scored+=p.s; uStats[p.id].conceded+=p.c;
     });
     // 비회원 (id null, name 기반)
@@ -599,15 +619,15 @@ function renderMvpPodium(allMatches, users) {
     .filter(p=>!p.id && p.name && !guestModeNames.has(p.name))
     .forEach(p=>{
       var key='name:'+p.name;
-      if(!uStats[key]) uStats[key]={id:key,name:p.name,games:0,wins:0,diff:0,scored:0,conceded:0,closeWins:0};
+      if(!uStats[key]) uStats[key]={id:key,name:p.name,games:0,wins:0,diff:0,scored:0,conceded:0};
       uStats[key].games++;
-      if(p.win){uStats[key].wins++;if(isClose)uStats[key].closeWins++;}
+      if(p.win)uStats[key].wins++;
       uStats[key].scored+=p.s; uStats[key].conceded+=p.c;
     });
   });
   Object.values(uStats).forEach(u=>{
     u.diff=u.scored-u.conceded;
-    u.ci=calcCI(u.wins,u.games,u.diff,u.closeWins);
+    u.ci=calcCI(u.wins,u.games,u.diff);
   });
 
   var qualified=Object.values(uStats).filter(u=>u.games>=5);
@@ -695,16 +715,15 @@ function showPlayerCard(userId, userName){
   const g=userMatches.length;
   const w=userMatches.filter(m=>m.won).length;
   const l=g-w;
-  let scored=0,conceded=0,closeWins=0;
+  let scored=0,conceded=0;
   userMatches.forEach(m=>{
     const onA=[m.a1_id,m.a2_id].includes(userId);
     scored+=onA?m.score_a:m.score_b;
     conceded+=onA?m.score_b:m.score_a;
-    if(m.won&&Math.abs(m.score_a-m.score_b)<=3) closeWins++;
   });
   const wr=g>0?Math.round(w/g*100):0;
   const diff=scored-conceded;
-  const ci=Math.round(calcCI(w,g,diff,closeWins));
+  const ci=Math.round(calcCI(w,g,diff));
   const avgDiff=g>0?((diff/g)>=0?'+':'')+((diff/g).toFixed(1)):'-';
 
   // 최근 5경기 도트
@@ -807,18 +826,17 @@ function renderRankTable(allMatches){
   const excludedIds=new Set(users.filter(u=>u.exclude_stats).map(u=>u.id));
   const guestModeNames=window._guestModeNamesCache||new Set();
   const userStats={};
-  users.filter(u=>!u.exclude_stats).forEach(u=>{userStats[u.id]={id:u.id,name:u.name,games:0,wins:0,losses:0,scored:0,conceded:0,closeWins:0,isGuest:false,isGuestMode:false};});
+  users.filter(u=>!u.exclude_stats).forEach(u=>{userStats[u.id]={id:u.id,name:u.name,games:0,wins:0,losses:0,scored:0,conceded:0,isGuest:false,isGuestMode:false};});
   const filtered=rankTab==='all'?allMatches:allMatches.filter(m=>m.match_type===rankTab);
   filtered.forEach(m=>{
     const aWin=m.score_a>m.score_b;
-    const isClose=Math.abs(m.score_a-m.score_b)<=3;
     // id 기반
     [{id:m.a1_id,win:aWin,s:m.score_a,c:m.score_b},{id:m.a2_id,win:aWin,s:m.score_a,c:m.score_b},
      {id:m.b1_id,win:!aWin,s:m.score_b,c:m.score_a},{id:m.b2_id,win:!aWin,s:m.score_b,c:m.score_a}]
     .filter(p=>p.id&&!excludedIds.has(p.id)).forEach(p=>{
       if(!userStats[p.id])return;
       userStats[p.id].games++;
-      if(p.win){userStats[p.id].wins++;if(isClose)userStats[p.id].closeWins++;}else userStats[p.id].losses++;
+      if(p.win)userStats[p.id].wins++;else userStats[p.id].losses++;
       userStats[p.id].scored+=p.s;userStats[p.id].conceded+=p.c;
     });
     // 이름 기반 비회원 (id null, name 있음)
@@ -830,13 +848,13 @@ function renderRankTable(allMatches){
       const isGM=guestModeNames.has(p.name);
       if(isGM) return; // 게스트 모드(랭킹 미반영) 이름은 랭킹에서 완전 제외
       const key='name:'+p.name;
-      if(!userStats[key]) userStats[key]={id:key,name:p.name,games:0,wins:0,losses:0,scored:0,conceded:0,closeWins:0,isGuest:true,isGuestMode:false};
+      if(!userStats[key]) userStats[key]={id:key,name:p.name,games:0,wins:0,losses:0,scored:0,conceded:0,isGuest:true,isGuestMode:false};
       userStats[key].games++;
-      if(p.win){userStats[key].wins++;if(isClose)userStats[key].closeWins++;}else userStats[key].losses++;
+      if(p.win)userStats[key].wins++;else userStats[key].losses++;
       userStats[key].scored+=p.s;userStats[key].conceded+=p.c;
     });
   });
-  Object.values(userStats).forEach(u=>{u.diff=u.scored-u.conceded;u.ci=calcCI(u.wins,u.games,u.diff,u.closeWins);});
+  Object.values(userStats).forEach(u=>{u.diff=u.scored-u.conceded;u.ci=calcCI(u.wins,u.games,u.diff);});
   let sorted=Object.values(userStats).filter(u=>u.games>0);
   const wr=u=>u.games>0?u.wins/u.games:0;
   const multiSort=(keys)=>(a,b)=>{for(const k of keys){const d=k(b)-k(a);if(d!==0)return d;}return 0;};
