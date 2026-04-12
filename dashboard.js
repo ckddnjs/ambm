@@ -359,7 +359,12 @@ function renderMyTypeStats(stats, allM){
         <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:4px;letter-spacing:.3px;">종합 점수</div>
         <div style="font-family:'Black Han Sans',sans-serif;font-size:2.4rem;color:#5BA4F5;line-height:1.1;">${ci}</div>
         <div style="font-size:.7rem;color:var(--text-muted);margin-top:6px;">
-          1000 + ${Math.round(wrScore)} + ${Math.round(diffScore)} + ${gamesBonus} + ${closeBonus} = <strong style="color:#5BA4F5;">${ci}</strong>
+          <span style="color:var(--text);">1000</span>
+          <span style="color:#4CAF50;"> +${Math.round(wrScore)}</span>
+          <span style="color:#F5A623;"> ${Math.round(diffScore)>=0?'+':''}${Math.round(diffScore)}</span>
+          <span style="color:#9C6FE4;"> +${gamesBonus}</span>
+          <span style="color:#E0634A;"> +${closeBonus}</span>
+          = <strong style="color:#5BA4F5;">${ci}</strong>
         </div>
       </div>
 
@@ -374,7 +379,7 @@ function renderMyTypeStats(stats, allM){
 
       ${row(3,'평균 득실',diffScoreStr,
         `누적 득실 ${diff>0?'+':''}${diff} ÷ ${games}경기 = 평균 ${avgDiff>=0?'+':''}${avgDiff.toFixed(1)}<br>평균 득실 × 5 = ${diffScoreStr}`,
-        signColor(avgDiff)
+        '#F5A623'
       )}
 
       ${row(4,'참가 경기',`+${gamesBonus}점`,
@@ -384,7 +389,7 @@ function renderMyTypeStats(stats, allM){
 
       ${row(5,'접전 클러치',`+${closeBonus}점`,
         `${closeWins}회 접전 승리 × 1점 (점수차 3점 이내)`,
-        closeBonus>0?'#E0634A':'var(--text-muted)'
+        '#E0634A'
       )}
 
     </div>
@@ -805,7 +810,7 @@ function showPlayerCard(userId, userName){
           <div style="text-align:center;padding:12px 10px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;">
             <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:3px;letter-spacing:.3px;">종합 점수</div>
             <div style="font-family:'Black Han Sans',sans-serif;font-size:2rem;color:#5BA4F5;line-height:1.1;">${ci}</div>
-            <div style="font-size:.68rem;color:var(--text-muted);margin-top:5px;">1000 + ${Math.round(_wrScore)} + ${Math.round(_diffScore)} + ${_gamesBonus} + ${_closeBonus} = <strong style="color:#5BA4F5;">${ci}</strong></div>
+            <div style="font-size:.68rem;color:var(--text-muted);margin-top:5px;"><span style="color:var(--text);">1000</span><span style="color:#4CAF50;"> +${Math.round(_wrScore)}</span><span style="color:#F5A623;"> ${Math.round(_diffScore)>=0?'+':''}${Math.round(_diffScore)}</span><span style="color:#9C6FE4;"> +${_gamesBonus}</span><span style="color:#E0634A;"> +${_closeBonus}</span> = <strong style="color:#5BA4F5;">${ci}</strong></div>
           </div>
           <div style="font-size:.72rem;font-weight:700;color:var(--text-muted);letter-spacing:.5px;margin-bottom:2px;">점수 구성</div>
           ${[
@@ -815,11 +820,11 @@ function showPlayerCard(userId, userName){
               '#4CAF50','#4CAF50'],
             [3,'평균 득실',`${_diffScore>=0?'+':''}${Math.round(_diffScore)}점`,
               `누적 득실 ${diff>0?'+':''}${diff} ÷ ${g}경기 = 평균 ${_avgDiff>=0?'+':''}${_avgDiff.toFixed(1)}<br>평균 득실 × 5 = ${_diffScore>=0?'+':''}${Math.round(_diffScore)}점`,
-              '#F5A623',_avgDiff>0?'#5BA4F5':_avgDiff<0?'var(--danger)':'var(--text-muted)'],
+              '#F5A623','#F5A623'],
             [4,'참가 경기',`+${_gamesBonus}점`,
               `${g}경기 × 1점 (최대 30점)`,'#9C6FE4','#9C6FE4'],
             [5,'접전 클러치',`+${_closeBonus}점`,
-              `${closeWins}회 접전 승리 × 1점 (점수차 3점 이내)`,'#E0634A',_closeBonus>0?'#E0634A':'var(--text-muted)'],
+              `${closeWins}회 접전 승리 × 1점 (점수차 3점 이내)`,'#E0634A','#E0634A'],
           ].map(([num,label,val,desc,badgeColor,valColor])=>`
             <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
               <div style="width:26px;height:26px;border-radius:50%;background:${badgeColor};display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
