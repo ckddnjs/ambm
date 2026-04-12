@@ -770,24 +770,25 @@ function showPlayerCard(userId, userName){
           ${g>=5?`<div style="font-size:.78rem;color:var(--primary);font-weight:700;margin-top:3px;">종합 ${ci}점</div>`:`<div style="font-size:.76rem;color:var(--text-muted);margin-top:3px;">5경기 미만</div>`}
         </div>
       </div>
+      <div style="height:1px;background:var(--border);margin-bottom:16px;"></div>
       <!-- 스탯 그리드 -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;">
         ${[['경기',g],['승',w],['패',l],['승률',wr+'%']].map(([lb,vl])=>`
-          <div style="background:var(--bg2);border-radius:10px;padding:10px 6px;text-align:center;">
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 6px;text-align:center;">
             <div style="font-size:.7rem;color:var(--text-muted);margin-bottom:4px;">${lb}</div>
             <div style="font-size:1rem;font-weight:700;color:var(--text);">${vl}</div>
           </div>`).join('')}
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">
         ${[['득실차',diff>0?'+'+diff:diff,''],['평균득실',avgDiff,''],['최고연승',maxWinStreak>0?maxWinStreak+'연승':'-','var(--primary)']].map(([lb,vl,vc])=>`
-          <div style="background:var(--bg2);border-radius:10px;padding:10px 6px;text-align:center;">
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 6px;text-align:center;">
             <div style="font-size:.7rem;color:var(--text-muted);margin-bottom:4px;">${lb}</div>
             <div style="font-size:1rem;font-weight:700;color:${vc||(String(vl).startsWith('-')?'var(--danger)':'var(--primary)')};"> ${vl}</div>
           </div>`).join('')}
       </div>
       <!-- 최근 5경기 -->
       ${recent5.length>0?`
-      <div style="background:var(--bg2);border-radius:10px;padding:10px 12px;margin-bottom:14px;">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;">
         <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:8px;">최근 ${recent5.length}경기</div>
         <div style="display:flex;gap:6px;align-items:center;">${dotHTML}</div>
       </div>`:''}
