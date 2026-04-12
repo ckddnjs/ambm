@@ -1,9 +1,12 @@
 /* ── FEED ── */
 let _feedPage=1;
+let _feedOffset=0;          // DB fetch 오프셋
+const _FEED_BATCH=50;       // 한 번에 DB에서 가져올 건수
+const PAGE=20;              // 화면에 한 번에 렌더할 건수
+
 function _populateFeedDateFilter(matches, currentVal){
   const sel=document.getElementById('feed-date-filter');
   if(!sel) return;
-  // 이미 옵션이 있고 현재 값 있으면 유지 (재렌더 시 옵션 유지)
   const dates=[...new Set((matches||[]).map(m=>m.match_date).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
   const days=['일','월','화','수','목','금','토'];
   const fmt=d=>{const dt=new Date(d+'T00:00:00');return `${String(dt.getFullYear()).slice(2)}.${dt.getMonth()+1}.${dt.getDate()}(${days[dt.getDay()]})`;};
@@ -40,9 +43,15 @@ function _matchSearch(name,q){
 }
 
 let _feedRenderToken=0; // 렌더 취소 토큰
+let _feedHasMore=false; // DB에 아직 더 있는지
+let _feedLoadingMore=false; // 추가 fetch 중 여부
+let _feedNameQ=''; // 현재 검색어 (추가 fetch 시 재사용)
 
 async function renderFeed(forceNameQ){
   _feedPage=1;
+  _feedOffset=0;
+  _feedHasMore=false;
+  _feedLoadingMore=false;
   const batchBtn=document.getElementById('btn-batch-register');
   if(batchBtn) batchBtn.style.display=ME?.role==='admin'?'':'none';
   _detachFeedScroll();
@@ -57,43 +66,47 @@ async function _renderFeedInner(forceNameQ, token){
   el.innerHTML=`<div class="skeleton sk-card"></div>`.repeat(4);
 
   const rawName=forceNameQ!==undefined?forceNameQ:(document.getElementById('feed-name-search')?.value||'');
-  const nameQ=rawName.trim();
+  _feedNameQ=rawName.trim();
   const clearBtn=document.getElementById('feed-search-clear');
-  if(clearBtn) clearBtn.style.display=nameQ?'block':'none';
+  if(clearBtn) clearBtn.style.display=_feedNameQ?'block':'none';
 
   const _MATCH_COLS='id,match_type,match_date,a1_id,a1_name,a2_id,a2_name,b1_id,b1_name,b2_id,b2_name,score_a,score_b,status,note,admin_note,submitter_id,submitter_name,approved_at,created_at';
   let q=sb.from('matches').select(_MATCH_COLS)
     .eq('status','approved')
     .order('match_date',{ascending:false})
-    .order('created_at',{ascending:false})
-    .limit(2000);
+    .order('created_at',{ascending:false});
+
+  // 검색어 있으면 전체 fetch (이름 필터는 클라이언트에서), 없으면 첫 배치만
+  if(_feedNameQ) q=q.limit(2000);
+  else q=q.range(0, _FEED_BATCH-1);
 
   let{data:matches,error:feedErr}=await q;
 
-  // 다른 탭 갔다가 돌아왔으면 이 렌더는 취소
   if(token!==_feedRenderToken) return;
-
   if(feedErr){ console.error('[Feed]',feedErr); matches=[]; }
   matches=matches||[];
 
-  matches.sort((a,b)=>{
-    const dd=(b.match_date||'').localeCompare(a.match_date||'');
-    if(dd!==0) return dd;
-    return (b.created_at||'').localeCompare(a.created_at||'');
-  });
-  const _fullCountByDate={};
-  matches.forEach(m=>{ const d=m.match_date||''; _fullCountByDate[d]=(_fullCountByDate[d]||0)+1; });
-  window._feedFullCountByDate=_fullCountByDate;
-
-  if(nameQ){
-    matches=matches.filter(m=>[m.a1_name,m.a2_name,m.b1_name,m.b2_name]
-      .some(n=>_matchSearch(n,nameQ)));
+  // 날짜별 전체 카운트를 위해 전체 건수는 별도로 집계 (캐시 있으면 재사용)
+  if(!window._feedFullCountByDate){
+    const{data:allDates}=await sb.from('matches').select('match_date').eq('status','approved');
+    if(token!==_feedRenderToken) return;
+    const cnt={};
+    (allDates||[]).forEach(m=>{ const d=m.match_date||''; cnt[d]=(cnt[d]||0)+1; });
+    window._feedFullCountByDate=cnt;
   }
 
-  if(token!==_feedRenderToken) return; // 한 번 더 체크
+  _feedHasMore=!_feedNameQ && matches.length===_FEED_BATCH;
+  _feedOffset=matches.length;
+
+  if(_feedNameQ){
+    matches=matches.filter(m=>[m.a1_name,m.a2_name,m.b1_name,m.b2_name]
+      .some(n=>_matchSearch(n,_feedNameQ)));
+  }
+
+  if(token!==_feedRenderToken) return;
 
   if(!matches.length){
-    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><div>${nameQ?`'${rawName}' 검색 결과 없음`:'경기 내역 없음'}</div></div>`;
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><div>${_feedNameQ?`'${rawName}' 검색 결과 없음`:'경기 내역 없음'}</div></div>`;
     return;
   }
   window._feedAllMatches=matches;
@@ -102,19 +115,46 @@ async function _renderFeedInner(forceNameQ, token){
   _attachFeedScroll();
 }
 
-const PAGE=20;
+// 화면 슬라이스 렌더 (이미 가져온 데이터 내에서 페이지 처리)
 function _renderFeedSlice(){
   const el=document.getElementById('feed-list');
   if(!el||!window._feedAllMatches) return;
   const slice=window._feedAllMatches.slice(0,_feedPage*PAGE);
-  const hasMore=window._feedAllMatches.length>slice.length;
+  const hasMoreLocal=window._feedAllMatches.length>slice.length;
+  const hasMoreDB=_feedHasMore;
   el.innerHTML=renderMatchesWithDateHeaders(slice, window._feedFullCountByDate||{});
-  if(hasMore){
+  if(hasMoreLocal||hasMoreDB){
     const sentinel=document.createElement('div');
     sentinel.id='feed-sentinel';
-    sentinel.style.cssText='height:40px;margin-top:4px;';
+    sentinel.style.cssText='height:40px;margin-top:4px;display:flex;align-items:center;justify-content:center;';
+    if(!hasMoreLocal&&hasMoreDB) sentinel.innerHTML='<span style="font-size:.78rem;color:var(--text-muted);">불러오는 중...</span>';
     el.appendChild(sentinel);
   }
+}
+
+// DB에서 추가 배치 fetch
+async function _feedFetchMore(){
+  if(_feedLoadingMore||!_feedHasMore) return;
+  _feedLoadingMore=true;
+  const token=_feedRenderToken;
+  const _MATCH_COLS='id,match_type,match_date,a1_id,a1_name,a2_id,a2_name,b1_id,b1_name,b2_id,b2_name,score_a,score_b,status,note,admin_note,submitter_id,submitter_name,approved_at,created_at';
+  const{data:more}=await sb.from('matches').select(_MATCH_COLS)
+    .eq('status','approved')
+    .order('match_date',{ascending:false})
+    .order('created_at',{ascending:false})
+    .range(_feedOffset, _feedOffset+_FEED_BATCH-1);
+  if(token!==_feedRenderToken){_feedLoadingMore=false;return;}
+  const batch=more||[];
+  _feedHasMore=batch.length===_FEED_BATCH;
+  _feedOffset+=batch.length;
+  let filtered=batch;
+  if(_feedNameQ){
+    filtered=batch.filter(m=>[m.a1_name,m.a2_name,m.b1_name,m.b2_name]
+      .some(n=>_matchSearch(n,_feedNameQ)));
+  }
+  window._feedAllMatches=[...(window._feedAllMatches||[]),...filtered];
+  _feedLoadingMore=false;
+  _renderFeedSlice();
 }
 
 let _feedScrollHandler=null;
@@ -127,12 +167,17 @@ function _attachFeedScroll(){
     const bodyRect=appBody.getBoundingClientRect();
     const sentRect=sentinel.getBoundingClientRect();
     if(sentRect.top < bodyRect.bottom + 300){
-      _feedPage++;
-      _renderFeedSlice();
+      // 로컬 데이터가 남아있으면 페이지만 증가
+      if(window._feedAllMatches.length > _feedPage*PAGE){
+        _feedPage++;
+        _renderFeedSlice();
+      } else if(_feedHasMore && !_feedLoadingMore){
+        // 로컬 소진 → DB에서 추가 fetch
+        _feedFetchMore();
+      }
     }
   };
   appBody.addEventListener('scroll',_feedScrollHandler,{passive:true});
-  // 초기 렌더 직후 sentinel이 이미 보이면 즉시 추가 로드
   setTimeout(_feedScrollHandler, 100);
 }
 function _detachFeedScroll(){
