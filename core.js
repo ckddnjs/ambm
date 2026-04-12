@@ -576,10 +576,16 @@ async function _getApprovedUsers(forceRefresh=false){
 const BASE_RATING=1000, CONFIDENCE_DENOMINATOR=15, PD_WEIGHT=5,
       WR_WEIGHT=200, SYNERGY_WEIGHT=100, SYNERGY_CAP=50,
       H2H_WEIGHT=80, RECENT_WEIGHT=60, ELO_DIVISOR=400,
-      GAMES_BONUS=1, GAMES_BONUS_CAP=30; // 참가 경기당 가산점 (최대 30점)
+      GAMES_BONUS=1, GAMES_BONUS_CAP=30, // 참가 경기당 가산점 (최대 30점)
+      CLOSE_WIN_BONUS=1, CLOSE_WIN_THRESHOLD=3; // 접전 승리 가산점 (점수차 3 이내, 상한 없음)
 
-/** 개인 CI (Composite Index) 계산 */
-function calcCI(wins, games, diff){
+/** 개인 CI (Composite Index) 계산
+ *  @param {number} wins      승리 수
+ *  @param {number} games     총 경기 수
+ *  @param {number} diff      누적 득실차
+ *  @param {number} closeWins 점수차 3점 이내 접전 승리 수 (기본값 0)
+ */
+function calcCI(wins, games, diff, closeWins=0){
   if(games===0) return BASE_RATING;
   const wr = wins / games;
   // 경기수 신뢰도 (경기수가 적을수록 0에 가까움)
@@ -591,7 +597,9 @@ function calcCI(wins, games, diff){
   const diffScore = avgDiff * PD_WEIGHT;
   // 참가 경기 가산점 (경기당 1점, 최대 30점)
   const gamesBonus = Math.min(games, GAMES_BONUS_CAP) * GAMES_BONUS;
-  return BASE_RATING + (adjustedWR * WR_WEIGHT) + diffScore + gamesBonus;
+  // 접전 승리 가산점 (점수차 3점 이내 승리당 1점, 상한 없음)
+  const closeWinBonus = (closeWins||0) * CLOSE_WIN_BONUS;
+  return BASE_RATING + (adjustedWR * WR_WEIGHT) + diffScore + gamesBonus + closeWinBonus;
 }
 
 /** 하위 호환: SABCD 등급 → 수치 기반 등급 표시 */

@@ -94,17 +94,18 @@ async function _balLoadAttendees(){
     const activeUsers=(users||[]).filter(u=>!u.exclude_stats);
     const memberNames=new Set((users||[]).map(u=>u.name)); // 이름 중복 방지용 (제외 회원 포함)
     const stats={};
-    activeUsers.forEach(u=>{stats[u.id]={id:u.id,name:u.name,isGuest:false,games:0,wins:0,scored:0,conceded:0};});
+    activeUsers.forEach(u=>{stats[u.id]={id:u.id,name:u.name,isGuest:false,games:0,wins:0,scored:0,conceded:0,closeWins:0};});
     // 비회원(id없음, 게스트모드 제외) 수집
     const guestModeNames=window._guestModeNamesCache||await _loadGuestModeNames();
     const guestStats={};
     matches.forEach(m=>{
       const aWin=m.score_a>m.score_b;
+      const isClose=Math.abs(m.score_a-m.score_b)<=3;
       // 정회원 (id 기반)
       [{id:m.a1_id,win:aWin,s:m.score_a,c:m.score_b},{id:m.a2_id,win:aWin,s:m.score_a,c:m.score_b},
        {id:m.b1_id,win:!aWin,s:m.score_b,c:m.score_a},{id:m.b2_id,win:!aWin,s:m.score_b,c:m.score_a}]
       .filter(p=>p.id&&stats[p.id]).forEach(p=>{
-        stats[p.id].games++;if(p.win)stats[p.id].wins++;
+        stats[p.id].games++;if(p.win){stats[p.id].wins++;if(isClose)stats[p.id].closeWins++;}
         stats[p.id].scored+=p.s;stats[p.id].conceded+=p.c;
       });
       // 비회원 (이름 기반, id없음, 게스트모드 제외, 회원이름 제외)
@@ -114,15 +115,15 @@ async function _balLoadAttendees(){
        {n:m.b2_name,id:m.b2_id,win:!aWin,s:m.score_b,c:m.score_a}]
       .filter(p=>p.n&&!p.id&&!memberNames.has(p.n)&&!guestModeNames.has(p.n))
       .forEach(p=>{
-        if(!guestStats[p.n]) guestStats[p.n]={id:'guest:'+p.n,name:p.n,isGuest:true,games:0,wins:0,scored:0,conceded:0};
-        guestStats[p.n].games++;if(p.win)guestStats[p.n].wins++;
+        if(!guestStats[p.n]) guestStats[p.n]={id:'guest:'+p.n,name:p.n,isGuest:true,games:0,wins:0,scored:0,conceded:0,closeWins:0};
+        guestStats[p.n].games++;if(p.win){guestStats[p.n].wins++;if(isClose)guestStats[p.n].closeWins++;}
         guestStats[p.n].scored+=p.s;guestStats[p.n].conceded+=p.c;
       });
     });
     const allStats=[...Object.values(stats),...Object.values(guestStats)];
     window._balUserPool=allStats.map(u=>{
       const diff=u.scored-u.conceded;
-      const ci=Math.round(calcCI(u.wins,u.games,diff));
+      const ci=Math.round(calcCI(u.wins,u.games,diff,u.closeWins));
       return {...u,diff,score:ci,ci};
     }).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
     console.log('[bal] pool 완성: 정회원',Object.keys(stats).length,'명 + 비회원',Object.keys(guestStats).length,'명');
