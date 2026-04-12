@@ -24,15 +24,17 @@ async function renderDashboard(){
   const excludedIds=new Set((allUsers||[]).filter(u=>u.exclude_stats).map(u=>u.id));
   const uStats={};
   // 회원 초기화
-  (allUsers||[]).filter(u=>!u.exclude_stats).forEach(u=>uStats[u.id]={id:u.id,games:0,wins:0,diff:0,scored:0,conceded:0});
+  (allUsers||[]).filter(u=>!u.exclude_stats).forEach(u=>uStats[u.id]={id:u.id,games:0,wins:0,diff:0,scored:0,conceded:0,closeWins:0});
   _allMatchesCache.forEach(m=>{
     const aWin=m.score_a>m.score_b;
+    const isClose=Math.abs(m.score_a-m.score_b)<=3;
     // 회원 (id 기반)
     [{id:m.a1_id,win:aWin,s:m.score_a,c:m.score_b},{id:m.a2_id,win:aWin,s:m.score_a,c:m.score_b},
      {id:m.b1_id,win:!aWin,s:m.score_b,c:m.score_a},{id:m.b2_id,win:!aWin,s:m.score_b,c:m.score_a}]
     .filter(p=>p.id&&!excludedIds.has(p.id)).forEach(p=>{
       if(!uStats[p.id])return;
-      uStats[p.id].games++;if(p.win)uStats[p.id].wins++;
+      uStats[p.id].games++;
+      if(p.win){uStats[p.id].wins++;if(isClose)uStats[p.id].closeWins++;}
       uStats[p.id].scored+=p.s;uStats[p.id].conceded+=p.c;
     });
     // 비회원 (name 기반)
@@ -42,15 +44,16 @@ async function renderDashboard(){
      {id:m.b2_id,name:m.b2_name,win:!aWin,s:m.score_b,c:m.score_a}]
     .filter(p=>!p.id&&p.name&&!guestModeNames.has(p.name)).forEach(p=>{
       const key='name:'+p.name;
-      if(!uStats[key]) uStats[key]={id:key,games:0,wins:0,diff:0,scored:0,conceded:0};
-      uStats[key].games++;if(p.win)uStats[key].wins++;
+      if(!uStats[key]) uStats[key]={id:key,games:0,wins:0,diff:0,scored:0,conceded:0,closeWins:0};
+      uStats[key].games++;
+      if(p.win){uStats[key].wins++;if(isClose)uStats[key].closeWins++;}
       uStats[key].scored+=p.s;uStats[key].conceded+=p.c;
     });
   });
   window._rankExcludedIds=(allUsers||[]).filter(u=>u.exclude_stats).map(u=>u.id);
   Object.values(uStats).forEach(u=>{
     u.diff=u.scored-u.conceded;
-    u.ci=calcCI(u.wins,u.games,u.diff);
+    u.ci=calcCI(u.wins,u.games,u.diff,u.closeWins);
   });
   const MIN_G=5;
   const rankedAll=Object.values(uStats).filter(u=>u.games>=MIN_G);
@@ -573,6 +576,7 @@ function renderMvpPodium(allMatches, users) {
   var uStats = {};
   (allMatches||[]).filter(m=>m.status==='approved').forEach(m=>{
     var aWin=m.score_a>m.score_b;
+    var isClose=Math.abs(m.score_a-m.score_b)<=3;
     // 회원 (id 기반)
     [{id:m.a1_id,win:aWin,s:m.score_a,c:m.score_b},{id:m.a2_id,win:aWin,s:m.score_a,c:m.score_b},
      {id:m.b1_id,win:!aWin,s:m.score_b,c:m.score_a},{id:m.b2_id,win:!aWin,s:m.score_b,c:m.score_a}]
@@ -581,10 +585,10 @@ function renderMvpPodium(allMatches, users) {
       if(!uStats[p.id]){
         var u=userMap[p.id];
         var nm=u?u.name:p.id;
-        uStats[p.id]={id:p.id,name:nm,games:0,wins:0,diff:0,scored:0,conceded:0};
+        uStats[p.id]={id:p.id,name:nm,games:0,wins:0,diff:0,scored:0,conceded:0,closeWins:0};
       }
       uStats[p.id].games++;
-      if(p.win)uStats[p.id].wins++;
+      if(p.win){uStats[p.id].wins++;if(isClose)uStats[p.id].closeWins++;}
       uStats[p.id].scored+=p.s; uStats[p.id].conceded+=p.c;
     });
     // 비회원 (id null, name 기반)
@@ -595,15 +599,15 @@ function renderMvpPodium(allMatches, users) {
     .filter(p=>!p.id && p.name && !guestModeNames.has(p.name))
     .forEach(p=>{
       var key='name:'+p.name;
-      if(!uStats[key]) uStats[key]={id:key,name:p.name,games:0,wins:0,diff:0,scored:0,conceded:0};
+      if(!uStats[key]) uStats[key]={id:key,name:p.name,games:0,wins:0,diff:0,scored:0,conceded:0,closeWins:0};
       uStats[key].games++;
-      if(p.win)uStats[key].wins++;
+      if(p.win){uStats[key].wins++;if(isClose)uStats[key].closeWins++;}
       uStats[key].scored+=p.s; uStats[key].conceded+=p.c;
     });
   });
   Object.values(uStats).forEach(u=>{
     u.diff=u.scored-u.conceded;
-    u.ci=calcCI(u.wins,u.games,u.diff);
+    u.ci=calcCI(u.wins,u.games,u.diff,u.closeWins);
   });
 
   var qualified=Object.values(uStats).filter(u=>u.games>=5);
@@ -848,17 +852,19 @@ function renderRankTable(allMatches){
   const excludedIds=new Set(users.filter(u=>u.exclude_stats).map(u=>u.id));
   const guestModeNames=window._guestModeNamesCache||new Set();
   const userStats={};
-  users.filter(u=>!u.exclude_stats).forEach(u=>{userStats[u.id]={id:u.id,name:u.name,games:0,wins:0,losses:0,scored:0,conceded:0,isGuest:false,isGuestMode:false};});
+  users.filter(u=>!u.exclude_stats).forEach(u=>{userStats[u.id]={id:u.id,name:u.name,games:0,wins:0,losses:0,scored:0,conceded:0,closeWins:0,isGuest:false,isGuestMode:false};});
   const filtered=rankTab==='all'?allMatches:allMatches.filter(m=>m.match_type===rankTab);
   filtered.forEach(m=>{
     const aWin=m.score_a>m.score_b;
+    const isClose=Math.abs(m.score_a-m.score_b)<=3;
     // id 기반
     [{id:m.a1_id,win:aWin,s:m.score_a,c:m.score_b},{id:m.a2_id,win:aWin,s:m.score_a,c:m.score_b},
      {id:m.b1_id,win:!aWin,s:m.score_b,c:m.score_a},{id:m.b2_id,win:!aWin,s:m.score_b,c:m.score_a}]
     .filter(p=>p.id&&!excludedIds.has(p.id)).forEach(p=>{
       if(!userStats[p.id])return;
       userStats[p.id].games++;
-      if(p.win)userStats[p.id].wins++;else userStats[p.id].losses++;
+      if(p.win){userStats[p.id].wins++;if(isClose)userStats[p.id].closeWins++;}
+      else userStats[p.id].losses++;
       userStats[p.id].scored+=p.s;userStats[p.id].conceded+=p.c;
     });
     // 이름 기반 비회원 (id null, name 있음)
@@ -870,13 +876,14 @@ function renderRankTable(allMatches){
       const isGM=guestModeNames.has(p.name);
       if(isGM) return; // 게스트 모드(랭킹 미반영) 이름은 랭킹에서 완전 제외
       const key='name:'+p.name;
-      if(!userStats[key]) userStats[key]={id:key,name:p.name,games:0,wins:0,losses:0,scored:0,conceded:0,isGuest:true,isGuestMode:false};
+      if(!userStats[key]) userStats[key]={id:key,name:p.name,games:0,wins:0,losses:0,scored:0,conceded:0,closeWins:0,isGuest:true,isGuestMode:false};
       userStats[key].games++;
-      if(p.win)userStats[key].wins++;else userStats[key].losses++;
+      if(p.win){userStats[key].wins++;if(isClose)userStats[key].closeWins++;}
+      else userStats[key].losses++;
       userStats[key].scored+=p.s;userStats[key].conceded+=p.c;
     });
   });
-  Object.values(userStats).forEach(u=>{u.diff=u.scored-u.conceded;u.ci=calcCI(u.wins,u.games,u.diff);});
+  Object.values(userStats).forEach(u=>{u.diff=u.scored-u.conceded;u.ci=calcCI(u.wins,u.games,u.diff,u.closeWins);});
   let sorted=Object.values(userStats).filter(u=>u.games>0);
   const wr=u=>u.games>0?u.wins/u.games:0;
   const multiSort=(keys)=>(a,b)=>{for(const k of keys){const d=k(b)-k(a);if(d!==0)return d;}return 0;};
