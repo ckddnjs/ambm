@@ -65,10 +65,10 @@ async function renderDashboard(){
   const myDiffRank=stats.total.games>=MIN_G?diffRanked.findIndex(u=>u.id===ME.id)+1:0;
   const myGamesRank=stats.total.games>=MIN_G?gamesRanked.findIndex(u=>u.id===ME.id)+1:0;
   const total=rankedAll.length;
-  const ciRanked=[...rankedAll].sort((a,b)=>b.ci-a.ci);
+  const ciRanked=[...rankedAll].sort((a,b)=>b.ci-a.ci||wrOf(b)-wrOf(a)||(b.diff-a.diff)||(b.games-a.games));
   const myCIRank=stats.total.games>=MIN_G?ciRanked.findIndex(u=>u.id===ME.id)+1:0;
 
-  const ci=calcCI(stats.total.wins,stats.total.games,stats.total.diff||0);
+  const ci=calcCI(stats.total.wins,stats.total.games,stats.total.diff||0,uStats[ME.id]?.closeWins||0);
   const grade=ciToLabel(ci);
 
   // 맞춤형 인사말: 시간대 + 연승/연패 + 경기수 상황 반영
@@ -320,15 +320,16 @@ function renderMyTypeStats(stats, allM){
   const confidence=games>0?games/(games+15):0;
   const adjustedWR=wr*confidence;
   const avgDiff=games>0?diff/games:0;
-  const wrScore=adjustedWR*200;
-  const diffScore=avgDiff*5;
-  const gamesBonus=Math.min(games,30)*1;
   // 접전 승리 집계 (점수차 3점 이내 승리)
   const _myM=(allM||[]).filter(m=>[m.a1_id,m.a2_id,m.b1_id,m.b2_id].includes(ME?.id));
   let closeWins=0;
   _myM.forEach(m=>{const onA=[m.a1_id,m.a2_id].includes(ME?.id);const won=onA?(m.score_a>m.score_b):(m.score_b>m.score_a);if(won&&Math.abs(m.score_a-m.score_b)<=3)closeWins++;});
   const closeBonus=closeWins;
-  const ci=Math.round(1000+wrScore+diffScore+gamesBonus+closeBonus);
+  // calcCI와 동일하게 각 항목 Math.round 후 합산
+  const wrScore=Math.round(adjustedWR*200);
+  const diffScore=Math.round(avgDiff*5);
+  const gamesBonus=Math.min(games,30)*1;
+  const ci=calcCI(wins,games,diff,closeWins);
 
   const wrPct=Math.round(wr*100);
   const adjustedPct=Math.round(adjustedWR*100);
@@ -614,7 +615,7 @@ function renderMvpPodium(allMatches, users) {
 
   var qualified=Object.values(uStats).filter(u=>u.games>=5);
   var wr=u=>u.games>0?u.wins/u.games:0;
-  qualified.sort((a,b)=>b.ci-a.ci||wr(b)-wr(a)||b.wins-a.wins||b.diff-a.diff);
+  qualified.sort((a,b)=>b.ci-a.ci||wr(b)-wr(a)||b.diff-a.diff||b.games-a.games);
   var top3=qualified.slice(0,3);
 
   if(!top3.length){
@@ -904,7 +905,7 @@ function renderRankTable(allMatches){
   if(sortBy==='winrate') sorted.sort(multiSort([wr,u=>u.wins,u=>u.diff,u=>u.games]));
   else if(sortBy==='wins') sorted.sort(multiSort([u=>u.wins,wr,u=>u.diff,u=>u.games]));
   else if(sortBy==='diff') sorted.sort(multiSort([u=>u.diff,wr,u=>u.wins,u=>u.games]));
-  else if(sortBy==='ci') sorted.sort(multiSort([u=>u.ci,wr,u=>u.wins,u=>u.diff]));
+  else if(sortBy==='ci') sorted.sort(multiSort([u=>u.ci,wr,u=>u.diff,u=>u.games]));
   else sorted.sort(multiSort([u=>u.games,wr,u=>u.wins,u=>u.diff]));
   if(sortDir===-1) sorted.reverse();
   const cls=['','top1','top2','top3'];

@@ -594,12 +594,12 @@ function calcCI(wins, games, diff, closeWins=0){
   const adjustedWR = wr * confidence;
   // 경기당 평균 득실차
   const avgDiff = diff / games;
-  const diffScore = avgDiff * PD_WEIGHT;
-  // 참가 경기 가산점 (경기당 1점, 최대 30점)
+  // 각 항목을 정수로 반올림한 뒤 합산 (표시값과 일치)
+  const wrScore = Math.round(adjustedWR * WR_WEIGHT);
+  const diffScore = Math.round(avgDiff * PD_WEIGHT);
   const gamesBonus = Math.min(games, GAMES_BONUS_CAP) * GAMES_BONUS;
-  // 접전 승리 가산점 (점수차 3점 이내 승리당 1점, 상한 없음)
   const closeWinBonus = (closeWins||0) * CLOSE_WIN_BONUS;
-  return BASE_RATING + (adjustedWR * WR_WEIGHT) + diffScore + gamesBonus + closeWinBonus;
+  return BASE_RATING + wrScore + diffScore + gamesBonus + closeWinBonus;
 }
 
 /** 하위 호환: SABCD 등급 → 수치 기반 등급 표시 */
