@@ -68,8 +68,8 @@ async function renderStockMarketPage(){
   } else if(tab==='news'){
     tabContent=await _smRenderNews(stocks);
   } else if(tab==='craft'){
-    const{data:savW}=await sb.from('savings_wallets').select('cash').eq('user_id',ME.id).maybeSingle();
-    tabContent=await _smRenderCraftTab(Math.floor(Number(savW?.cash??0)));
+    // 이미 로드된 증권 현금(cash)을 그대로 전달
+    tabContent=await _smRenderCraftTab(cash);
   }
 
   el.innerHTML=

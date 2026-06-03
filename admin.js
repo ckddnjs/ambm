@@ -7,7 +7,7 @@ function switchAdminTab(tab){
     const m=el.getAttribute('onclick')?.match(/switchAdminTab\('(\w+)'\)/);
     el.classList.toggle('active', m&&m[1]===tab);
   });
-  switch(tab){case 'pending':renderAdminPending();break;case 'members':renderAdminMembers();break;case 'logs':renderAdminLogs();break;case 'tournamentImport':renderAdminTournamentImport();break;case 'matchDelete':renderAdminMatchDelete();break;}
+  switch(tab){case 'pending':renderAdminPending();break;case 'members':renderAdminMembers();break;case 'logs':renderAdminLogs();break;case 'tournamentImport':renderAdminTournamentImport();break;case 'matchDelete':renderAdminMatchDelete();break;case 'craft':renderAdminCraft();break;}
 }
 async function renderAdminPending(){
   const el=document.getElementById('admin-content');
@@ -1220,5 +1220,170 @@ async function createUser(){
 }
 async function clearLogs(){
   showConfirm({icon:'🗑️',title:'로그 초기화',msg:'모든 로그가 삭제됩니다.',okLabel:'초기화',okClass:'btn-danger',onOk:async()=>{await sb.from('logs').delete().not('id','is',null);addLog('로그 초기화',ME.id);renderAdminLogs();}});
+}
+
+/* ══════════════════════════════════════════
+   🏸 셔틀콕 제작소 관리
+══════════════════════════════════════════ */
+async function renderAdminCraft(){
+  const el=document.getElementById('admin-content');
+  el.innerHTML=`<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:.82rem;">불러오는 중...</div>`;
+
+  // 교환 요청 + 설정 병렬 로드
+  const [logsRes, priceRes, configRes, profilesRes]=await Promise.all([
+    sb.from('logs').select('*').eq('action','shuttle_exchange_request').order('created_at',{ascending:false}),
+    sb.from('app_settings').select('value').eq('key','market_prices').maybeSingle(),
+    sb.from('app_settings').select('value').eq('key','market_config').maybeSingle(),
+    sb.from('profiles').select('id,name').eq('status','approved'),
+  ]);
+
+  const requests=(logsRes.data||[]).map(r=>{
+    let note={};
+    try{note=JSON.parse(r.note||'{}');}catch(e){}
+    const user=(profilesRes.data||[]).find(u=>u.id===r.user_id);
+    return {...r, note, userName: note.userName||user?.name||r.user_id.slice(0,8)};
+  });
+
+  let prices={};
+  try{prices=JSON.parse(priceRes.data?.value||'{}');}catch(e){}
+  let flightRate=40;
+  try{flightRate=JSON.parse(configRes.data?.value||'{}').flight_rate??40;}catch(e){}
+
+  const pending=requests.filter(r=>r.note.status==='pending');
+  const done=requests.filter(r=>r.note.status!=='pending');
+
+  // 아이템 정의 (craft.js의 MARKET_ITEMS와 동일)
+  const ITEMS=[
+    {id:'feather_bundle',icon:'🪶',name:'깃털 번들',defaultPrice:400},
+    {id:'cork',icon:'🔘',name:'코르크',defaultPrice:400},
+    {id:'thread',icon:'🧵',name:'실',defaultPrice:200},
+    {id:'tape',icon:'🩹',name:'띠지',defaultPrice:200},
+    {id:'artisan_craft',icon:'✨',name:'장인의 손길',defaultPrice:4000},
+    {id:'recycle',icon:'♻️',name:'재활용의 손길',defaultPrice:6000},
+  ];
+
+  // ── 교환 요청 섹션 ──
+  const pendingHtml=pending.length
+    ?pending.map(r=>`
+      <div class="card" style="padding:12px;margin-bottom:8px;border-left:3px solid var(--accent);">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:.9rem;font-weight:700;">${escHtml(r.userName)} <span style="font-size:.75rem;color:var(--text-muted);">· ${r.note.qty||1}개 요청</span></div>
+            ${r.note.memo?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px;">📝 ${escHtml(r.note.memo)}</div>`:''}
+            <div style="font-size:.68rem;color:var(--text-dim);margin-top:3px;">${new Date(r.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            <button class="btn btn-success btn-sm" onclick="adminCraftApprove('${r.id}','${r.user_id}',${r.note.qty||1})">✅ 승인</button>
+            <button class="btn btn-danger btn-sm" onclick="adminCraftReject('${r.id}','${r.user_id}',${r.note.qty||1})">❌ 반려</button>
+          </div>
+        </div>
+      </div>`).join('')
+    :`<div style="text-align:center;padding:20px 0;color:var(--text-muted);font-size:.82rem;">대기 중인 요청이 없습니다</div>`;
+
+  const doneHtml=done.length
+    ?`<details style="margin-top:4px;"><summary style="font-size:.78rem;color:var(--text-muted);cursor:pointer;padding:6px 0;">처리 완료 ${done.length}건 보기</summary><div style="margin-top:8px;">`+
+      done.slice(0,20).map(r=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">
+          <span style="font-size:.85rem;">${r.note.status==='approved'?'✅':'❌'}</span>
+          <div style="flex:1;font-size:.82rem;">${escHtml(r.userName)} · ${r.note.qty||1}개</div>
+          <div style="font-size:.68rem;color:var(--text-muted);">${new Date(r.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+        </div>`).join('')+
+      '</div></details>'
+    :'';
+
+  // ── 가격·설정 섹션 ──
+  const priceRows=ITEMS.map(item=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:1.2rem;width:28px;text-align:center;">${item.icon}</span>
+      <div style="flex:1;font-size:.85rem;font-weight:600;">${item.name}</div>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <input id="price-${item.id}" type="number" min="0" step="100" value="${prices[item.id]??item.defaultPrice}"
+          style="width:80px;padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;text-align:right;">
+        <span style="font-size:.78rem;color:var(--text-muted);">p</span>
+      </div>
+    </div>`).join('');
+
+  el.innerHTML=`
+    <div style="padding-bottom:24px;">
+      <!-- 교환 요청 -->
+      <div style="font-size:.82rem;font-weight:700;color:var(--accent);margin-bottom:10px;">
+        🔄 교환 요청 대기 <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 7px;font-size:.72rem;">${pending.length}</span>
+      </div>
+      ${pendingHtml}
+      ${doneHtml}
+
+      <div style="height:1px;background:var(--border);margin:20px 0;"></div>
+
+      <!-- 가격 설정 -->
+      <div style="font-size:.82rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;">⚙️ 재료 가격 설정</div>
+      <div class="card" style="padding:12px 14px;">
+        ${priceRows}
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 0;">
+          <span style="font-size:1.2rem;width:28px;text-align:center;">🎯</span>
+          <div style="flex:1;font-size:.85rem;font-weight:600;">비행 성공 확률</div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <input id="price-flight_rate" type="number" min="1" max="100" step="1" value="${flightRate}"
+              style="width:60px;padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;text-align:right;">
+            <span style="font-size:.78rem;color:var(--text-muted);">%</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="adminCraftSaveConfig()" style="width:100%;margin-top:10px;padding:11px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;">💾 설정 저장</button>
+    </div>`;
+}
+
+async function adminCraftApprove(logId, userId, qty){
+  showConfirm({icon:'✅',title:'교환 승인',msg:`셔틀콕 ${qty}개 교환을 승인하시겠습니까?<br><span style="font-size:.78rem;color:var(--text-muted);">실물 지급 후 승인하세요.</span>`,okLabel:'승인',okClass:'btn-success',
+    onOk:async()=>{
+      // 로그 note의 status를 approved로 업데이트
+      const {data:log}=await sb.from('logs').select('note').eq('id',logId).maybeSingle();
+      let note={};try{note=JSON.parse(log?.note||'{}');}catch(e){}
+      note.status='approved';
+      await sb.from('logs').update({note:JSON.stringify(note)}).eq('id',logId);
+      addLog('shuttle_exchange_approved',ME.id,JSON.stringify({targetUser:userId,qty}));
+      toast(`✅ 교환 승인 완료 (${qty}개)`,'success');
+      renderAdminCraft();
+    }
+  });
+}
+
+async function adminCraftReject(logId, userId, qty){
+  showConfirm({icon:'❌',title:'교환 반려',msg:`교환 요청을 반려하고 셔틀콕 ${qty}개를 인벤토리에 복구합니다.`,okLabel:'반려',okClass:'btn-danger',
+    onOk:async()=>{
+      // 로그 status 업데이트
+      const {data:log}=await sb.from('logs').select('note').eq('id',logId).maybeSingle();
+      let note={};try{note=JSON.parse(log?.note||'{}');}catch(e){}
+      note.status='rejected';
+      await sb.from('logs').update({note:JSON.stringify(note)}).eq('id',logId);
+      // 인벤토리 복구
+      const {data:inv}=await sb.from('market_inventory').select('*').eq('user_id',userId).maybeSingle();
+      if(inv){
+        await sb.from('market_inventory').update({shuttles:(inv.shuttles||0)+qty}).eq('user_id',userId);
+      }
+      addLog('shuttle_exchange_rejected',ME.id,JSON.stringify({targetUser:userId,qty}));
+      toast(`반려 완료. 셔틀콕 ${qty}개 복구됨`,'success');
+      renderAdminCraft();
+    }
+  });
+}
+
+async function adminCraftSaveConfig(){
+  const ITEM_IDS=['feather_bundle','cork','thread','tape','artisan_craft','recycle'];
+  const prices={};
+  ITEM_IDS.forEach(id=>{
+    const v=parseInt(document.getElementById('price-'+id)?.value||'0');
+    if(!isNaN(v)&&v>0) prices[id]=v;
+  });
+  const flightRate=Math.min(100,Math.max(1,parseInt(document.getElementById('price-flight_rate')?.value||'40')));
+
+  await Promise.all([
+    sb.from('app_settings').upsert({key:'market_prices',value:JSON.stringify(prices)},{onConflict:'key'}),
+    sb.from('app_settings').upsert({key:'market_config',value:JSON.stringify({flight_rate:flightRate})},{onConflict:'key'}),
+  ]);
+  addLog('craft_config_updated',ME.id,JSON.stringify({prices,flightRate}));
+  toast('✅ 설정이 저장됐습니다','success');
+  // 캐시 초기화 (다음 진입 시 새 설정 반영)
+  window._cachedMarketItems=null;
+  window._marketFlightRate=flightRate;
 }
 
