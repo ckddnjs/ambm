@@ -83,7 +83,7 @@ async function renderStockMarketPage(){
           '</div>'+
           '<div style="text-align:right;">'+
             '<div style="font-size:.6rem;color:var(--text-muted);">총 자산</div>'+
-            '<div style="font-weight:800;font-size:.95rem;color:#FFD600;">'+totalAsset.toLocaleString()+'p</div>'+
+            '<div style="font-weight:800;font-size:.95rem;color:var(--warn);">'+totalAsset.toLocaleString()+'p</div>'+
           '</div>'+
         '</div>'+
         '<div style="display:flex;padding:0 14px 8px;gap:0;">'+
@@ -127,9 +127,9 @@ function _smCalcStocks(users,allM,allPortfolio){
 
     // 종목 분류
     let type='일반주',typeColor='var(--text-muted)',typeBg='rgba(255,255,255,.05)',typeIcon='⬜';
-    if(ci>=1070&&wr>=0.65&&games>=10){type='우량주';typeColor='#FFD600';typeBg='rgba(255,214,0,.12)';typeIcon='🛡';}
-    else if(recentWR>=0.6&&(recentWR-wr)>=0.15&&games>=3){type='성장주';typeColor='#00C896';typeBg='rgba(0,200,150,.12)';typeIcon='🔥';}
-    else if(games>=3&&games<=8){type='위험주';typeColor='#FF7070';typeBg='rgba(255,82,82,.1)';typeIcon='⚠️';}
+    if(ci>=1070&&wr>=0.65&&games>=10){type='우량주';typeColor='var(--warn)';typeBg='rgba(217,119,6,.12)';typeIcon='🛡';}
+    else if(recentWR>=0.6&&(recentWR-wr)>=0.15&&games>=3){type='성장주';typeColor='var(--accent)';typeBg='rgba(0,168,130,.12)';typeIcon='🔥';}
+    else if(games>=3&&games<=8){type='위험주';typeColor='var(--danger)';typeBg='rgba(220,53,69,.10)';typeIcon='⚠️';}
 
     const {spark,change:sparkDelta}=_smSparklineCI(u.id,approved);
     const holders=(allPortfolio||[]).filter(p=>p.stock_user_id===u.id).length;
@@ -357,7 +357,7 @@ function _smRenderPortfolio(stocks,portfolio,cash,totalAsset,netTransferIn=0,tra
     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">'
       +'<div>'
         +'<div style="font-size:.65rem;color:var(--text-muted);margin-bottom:2px;">총 자산</div>'
-        +'<div style="font-weight:800;font-size:1.5rem;color:#FFD600;line-height:1.1;">'+totalAsset.toLocaleString()+'p</div>'
+        +'<div style="font-weight:800;font-size:1.5rem;color:var(--warn);line-height:1.1;">'+totalAsset.toLocaleString()+'p</div>'
       +'</div>'
       +'<div style="text-align:right;">'
         +'<div style="font-size:.65rem;color:var(--text-muted);margin-bottom:2px;">📈 트레이딩 수익</div>'
@@ -722,7 +722,7 @@ async function renderStockDetailPage(){
         // 자산 요약
         '<div style="background:linear-gradient(135deg,rgba(255,179,0,.1),rgba(255,179,0,.03));border:1px solid rgba(255,179,0,.25);border-radius:14px;padding:14px;margin-bottom:14px;">'+
           '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">'+
-            '<div><div style="font-size:.65rem;color:var(--text-muted);margin-bottom:3px;">총 자산</div><div style="font-weight:800;font-size:1rem;color:#FFB300;">'+totalAsset.toLocaleString()+'p</div></div>'+
+            '<div><div style="font-size:.65rem;color:var(--text-muted);margin-bottom:3px;">총 자산</div><div style="font-weight:800;font-size:1rem;color:var(--warn);">'+totalAsset.toLocaleString()+'p</div></div>'+
             '<div><div style="font-size:.65rem;color:var(--text-muted);margin-bottom:3px;">현금</div><div style="font-weight:800;font-size:1rem;">'+cash.toLocaleString()+'p</div></div>'+
             '<div><div style="font-size:.65rem;color:var(--text-muted);margin-bottom:3px;">주식평가</div><div style="font-weight:800;font-size:1rem;color:var(--primary);">'+totalStock.toLocaleString()+'p</div></div>'+
           '</div>'+

@@ -65,7 +65,6 @@ async function _smRenderCraftTab(stockCash){
       '<button onclick="window._smCraftTab=\'market\';renderStockMarketPage();" style="flex:1;padding:9px 4px 8px;border:none;border-bottom:2px solid '+(subTab==='market'?'var(--primary)':'transparent')+';margin-bottom:-1px;background:none;font-family:inherit;font-size:.78rem;font-weight:'+(subTab==='market'?'700':'500')+';color:'+(subTab==='market'?'var(--primary)':'var(--text-muted)')+';cursor:pointer;transition:color .15s;">🪶 재료</button>'+
       '<button onclick="window._smCraftTab=\'workshop\';renderStockMarketPage();" style="flex:1;padding:9px 4px 8px;border:none;border-bottom:2px solid '+(subTab==='workshop'?'var(--primary)':'transparent')+';margin-bottom:-1px;background:none;font-family:inherit;font-size:.78rem;font-weight:'+(subTab==='workshop'?'700':'500')+';color:'+(subTab==='workshop'?'var(--primary)':'var(--text-muted)')+';cursor:pointer;transition:color .15s;">🔨 공방</button>'+
       '<button onclick="window._smCraftTab=\'inventory\';renderStockMarketPage();" style="flex:1;padding:9px 4px 8px;border:none;border-bottom:2px solid '+(subTab==='inventory'?'var(--primary)':'transparent')+';margin-bottom:-1px;background:none;font-family:inherit;font-size:.78rem;font-weight:'+(subTab==='inventory'?'700':'500')+';color:'+(subTab==='inventory'?'var(--primary)':'var(--text-muted)')+';cursor:pointer;transition:color .15s;">🎒 인벤토리</button>'+
-      '<div style="padding:0 0 10px 8px;white-space:nowrap;font-size:.72rem;color:var(--text-muted);">💵 <b style="color:#FFD600;">'+cash.toLocaleString()+'p</b></div>'+
     '</div>'+
     (subTab==='market'?_renderMarketShop(inv,cash,_items):
      subTab==='workshop'?_renderWorkshop(inv,myShuttles,myDefective):
@@ -77,17 +76,27 @@ async function _smRenderCraftTab(stockCash){
 function _renderMarketShop(inv,cash,items){
   const craftItems=items.filter(i=>i.category==='craft');
   const specialItems=items.filter(i=>i.category==='special');
+  // 아이템별 이미지 매핑 (images/craft 폴더 기준)
+  const ITEM_IMGS={
+    feather_bundle:'/images/craft/feather_4.png',
+    artisan_craft:'/images/craft/feather_cork_thread_tape.png',
+    recycle:'/images/craft/feather_cork_thread_tape.png',
+  };
   function itemCard(item){
     const owned=inv[item.craftItem]||0;
+    const imgSrc=ITEM_IMGS[item.id];
+    const iconEl=imgSrc
+      ?'<img src="'+imgSrc+'" style="width:44px;height:44px;object-fit:contain;border-radius:12px;background:var(--bg3);border:1px solid var(--border);padding:4px;flex-shrink:0;" onerror="this.outerHTML=\'<div style=width:44px;height:44px;border-radius:12px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0>'+item.icon+'</div>\'">'
+      :'<div style="width:44px;height:44px;border-radius:12px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">'+item.icon+'</div>';
     return '<div class="card" style="padding:12px;margin-bottom:6px;">'+
       '<div style="display:flex;align-items:center;gap:10px;">'+
-        '<div style="width:44px;height:44px;border-radius:12px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">'+item.icon+'</div>'+
+        iconEl+
         '<div style="flex:1;min-width:0;">'+
           '<div style="font-size:.87rem;font-weight:700;">'+item.name+'</div>'+
           '<div style="font-size:.68rem;color:var(--text-muted);line-height:1.3;">'+item.desc+'</div>'+
         '</div>'+
         '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">'+
-          '<span style="font-weight:800;font-size:.88rem;color:#FFD600;">'+item.price.toLocaleString()+'p</span>'+
+          '<span style="font-weight:800;font-size:.88rem;color:var(--warn);">'+item.price.toLocaleString()+'p</span>'+
           '<button onclick="smShopBuy(\''+item.id+'\')" style="padding:4px 10px;border-radius:8px;border:none;background:var(--primary);color:#fff;font-family:inherit;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;">구매</button>'+
           (owned?'<span style="font-size:.65rem;color:var(--primary);">보유 '+owned+'개</span>':'<span style="font-size:.65rem;color:var(--text-dim);">미보유</span>')+
         '</div>'+
@@ -95,8 +104,9 @@ function _renderMarketShop(inv,cash,items){
     '</div>';
   }
   return (
-    '<div style="font-size:.72rem;color:var(--text-muted);margin-bottom:10px;padding:8px 10px;background:rgba(255,214,0,.06);border:1px solid rgba(255,214,0,.2);border-radius:10px;">'+
-      '💵 증권 현금으로 구매합니다. 증권 계좌에 현금이 있어야 합니다.'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;padding:9px 12px;background:rgba(255,183,0,.07);border:1px solid rgba(255,183,0,.22);border-radius:10px;">'+
+      '<span style="font-size:.72rem;color:var(--text-muted);">💵 증권 현금으로 구매합니다</span>'+
+      '<span style="font-size:.78rem;font-weight:800;color:var(--warn);white-space:nowrap;">'+cash.toLocaleString()+'p</span>'+
     '</div>'+
     '<div style="font-size:.78rem;font-weight:700;color:var(--text-muted);margin-bottom:8px;">🏸 제작 재료</div>'+
     craftItems.map(itemCard).join('')+
@@ -193,7 +203,7 @@ function _renderInventory(inv,myShuttles,myDefective){
   if(myShuttles>0){
     html+='<div class="card" style="padding:12px;margin-bottom:8px;border:1px solid rgba(0,200,150,.3);background:rgba(0,200,150,.05);">'+
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'+
-        '<span style="font-size:2rem;">🏸</span>'+
+        '<img src="/images/craft/feather_cork_thread_tape.png" style="width:44px;height:44px;object-fit:contain;border-radius:8px;background:var(--bg3);padding:3px;" onerror="this.style.display=\'none\'">'+
         '<div style="flex:1;"><div style="font-size:.88rem;font-weight:700;">완성된 셔틀콕</div><div style="font-size:.72rem;color:var(--text-muted);">실물 교환 가능</div></div>'+
         '<div style="font-family:Black Han Sans,sans-serif;font-size:1.3rem;color:var(--primary);">'+myShuttles+'개</div>'+
       '</div>'+
@@ -204,8 +214,8 @@ function _renderInventory(inv,myShuttles,myDefective){
     const hasRecycle=(inv['recycle']||0)>0;
     html+='<div class="card" style="padding:12px;margin-bottom:8px;border:1px solid rgba(255,82,82,.3);background:rgba(255,82,82,.05);">'+
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">'+
-        '<span style="font-size:1.8rem;">💔</span>'+
-        '<div style="flex:1;"><div style="font-size:.88rem;font-weight:700;">불량 셔틀콕</div><div style="font-size:.72rem;color:#FF7070;">비행 테스트 실패</div></div>'+
+        '<img src="/images/craft/feather_cork_thread_tape.png" style="width:40px;height:40px;object-fit:contain;border-radius:8px;background:var(--bg3);padding:3px;opacity:.4;filter:grayscale(1);" onerror="this.outerHTML=\'<span style=font-size:1.8rem>💔</span>\'">'+
+        '<div style="flex:1;"><div style="font-size:.88rem;font-weight:700;">불량 셔틀콕</div><div style="font-size:.72rem;color:var(--danger);">비행 테스트 실패</div></div>'+
         '<div style="font-family:Black Han Sans,sans-serif;font-size:1.3rem;color:#FF7070;">'+myDefective+'개</div>'+
       '</div>'+
       '<button onclick="doFlightTest(true)" '+(hasRecycle?'':'disabled')+' style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(0,200,150,.4);background:rgba(0,200,150,.1);color:var(--primary);font-family:inherit;font-size:.76rem;font-weight:700;cursor:pointer;'+(hasRecycle?'':'opacity:.4;cursor:not-allowed;')+'">♻️ 재활용의 손길 (불량 복구)</button>'+
