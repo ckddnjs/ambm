@@ -445,6 +445,7 @@ const NAV_ICONS={
   admin:`<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>`,
   settings:`<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96a7.02 7.02 0 00-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.37 1.04.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>`,
   register:`<svg width="26" height="26" viewBox="0 0 24 24" fill="#fff"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>`,
+  stockmarket:`<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>`,
 };
 
 const USER_NAVS=[
@@ -452,14 +453,14 @@ const USER_NAVS=[
   {id:'feed',label:'기록'},
   {id:'register',label:'등록',fab:true},
   {id:'community',label:'소식'},
-  {id:'settings',label:'설정'},
+  {id:'stockmarket',label:'거래소'},
 ];
 const ADMIN_NAVS=[
   {id:'dashboard',label:'홈'},
   {id:'feed',label:'기록'},
   {id:'register',label:'등록',fab:true},
   {id:'community',label:'소식'},
-  {id:'settings',label:'설정'},
+  {id:'stockmarket',label:'거래소'},
   {id:'admin',label:'관리'},
 ];
 function buildNav(){
@@ -478,11 +479,26 @@ function goHome(){navigateTo('dashboard');}
 function navigateTo(page){
   const prevPage=currentPage;
   currentPage=page;
+  const _overlayPages=['stockmarket','stockdetail'];
+  // fixed 오버레이 페이지 닫기
+  _overlayPages.forEach(id=>{
+    const el=document.getElementById('page-'+id);
+    if(el) el.style.display='none';
+  });
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.bottom-nav-item').forEach(n=>n.classList.remove('active'));
-  document.getElementById('page-'+page)?.classList.add('active');
+  if(_overlayPages.includes(page)){
+    // 오버레이 방식으로 열기
+    const oel=document.getElementById('page-'+page);
+    if(oel){oel.style.display='block';oel.scrollTop=0;}
+  } else {
+    document.getElementById('page-'+page)?.classList.add('active');
+  }
   document.getElementById('nav-'+page)?.classList.add('active');
   document.querySelector('.app-body').scrollTop=0;
+  // 헤더 설정 버튼 활성 상태
+  const hsBtn=document.getElementById('btn-header-settings');
+  if(hsBtn) hsBtn.style.color=page==='settings'?'var(--primary)':'var(--text-muted)';
   if(page!=='feed' && typeof _detachFeedScroll==='function') _detachFeedScroll();
   if(window.history){
     if(page==='install-guide'){
@@ -507,6 +523,8 @@ function navigateTo(page){
     case 'compare':renderComparePage();break;
     case 'balance':renderBalancePage();break;
     case 'settings':renderSettingsPage();break;
+    case 'stockmarket':renderStockMarketPage();break;
+    case 'stockdetail':renderStockDetailPage();break;
     case 'install-guide':
       const ig=document.getElementById('page-install-guide');
       if(ig){ig.style.display='block';ig.scrollTop=0;}
@@ -542,9 +560,16 @@ window.addEventListener('popstate',e=>{
   }
   // ★ history는 절대 건드리지 않음 — 앞으로가기 보존
   currentPage=page;
+  const _op2=['stockmarket','stockdetail'];
+  _op2.forEach(id=>{const el=document.getElementById('page-'+id);if(el)el.style.display='none';});
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.bottom-nav-item').forEach(n=>n.classList.remove('active'));
-  document.getElementById('page-'+page)?.classList.add('active');
+  if(_op2.includes(page)){
+    const oel=document.getElementById('page-'+page);
+    if(oel){oel.style.display='block';oel.scrollTop=0;}
+  } else {
+    document.getElementById('page-'+page)?.classList.add('active');
+  }
   document.getElementById('nav-'+page)?.classList.add('active');
   document.querySelector('.app-body').scrollTop=0;
   if(page!=='feed'&&typeof _detachFeedScroll==='function') _detachFeedScroll();
@@ -558,6 +583,8 @@ window.addEventListener('popstate',e=>{
     case 'balance':renderBalancePage();break;
     case 'community':renderCommunityPage();break;
     case 'settings':renderSettingsPage();break;
+    case 'stockmarket':renderStockMarketPage();break;
+    case 'stockdetail':renderStockDetailPage();break;
     default:renderDashboard();break;
   }
 });
