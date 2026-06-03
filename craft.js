@@ -173,10 +173,13 @@ function _renderWorkshop(inv,myShuttles,myDefective){
     '</div>'+
     recipeRows+
     '<div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--bg2);border:1px solid '+(((inv['artisan']||0)>0)?'rgba(255,214,0,.4)':'var(--border)')+';display:flex;align-items:center;gap:10px;">'+
-      '<input type="checkbox" id="use-artisan" '+(((inv['artisan']||0)>0)?'':'disabled')+' style="width:16px;height:16px;accent-color:#FFD600;cursor:'+(((inv['artisan']||0)>0)?'pointer':'not-allowed')+';flex-shrink:0;">'+
+      '<input type="checkbox" id="use-artisan" '+(((inv['artisan']||0)>0)?'':'disabled')+' style="width:16px;height:16px;accent-color:var(--warn);cursor:'+(((inv['artisan']||0)>0)?'pointer':'not-allowed')+';flex-shrink:0;">'+
       '<label for="use-artisan" style="flex:1;cursor:'+(((inv['artisan']||0)>0)?'pointer':'not-allowed')+';opacity:'+(((inv['artisan']||0)>0)?1:.45)+';">'+
-        '<div style="font-size:.82rem;font-weight:700;color:#FFD600;">✨ 장인의 손길 사용</div>'+
-        '<div style="font-size:.68rem;color:var(--text-muted);">'+(((inv['artisan']||0)>0)?'보유 '+inv['artisan']+'개 · 비행 테스트 100% 통과':'보유 없음 — 재료 탭에서 구매하세요')+'</div>'+
+        '<div style="display:flex;align-items:center;gap:6px;">'+
+          '<span style="font-size:.82rem;font-weight:700;color:var(--warn);">✨ 장인의 손길</span>'+
+          '<span style="font-size:.65rem;padding:1px 6px;border-radius:6px;background:rgba(255,183,0,.15);color:var(--warn);font-weight:600;">선택</span>'+
+        '</div>'+
+        '<div style="font-size:.68rem;color:var(--text-muted);margin-top:2px;">'+(((inv['artisan']||0)>0)?'보유 '+inv['artisan']+'개 · 사용 시 비행 테스트 100% 통과 보장':'보유 없음 — 없어도 제작 가능, 재료 탭에서 구매')+'</div>'+
       '</label>'+
     '</div>'+
     '<button onclick="startCraft()" style="width:100%;margin-top:8px;padding:12px;border-radius:10px;border:none;font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer;background:var(--primary);color:#fff;">🏸 제작 시작 → 비행 테스트</button>'+
