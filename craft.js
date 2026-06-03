@@ -62,9 +62,9 @@ async function _smRenderCraftTab(stockCash){
   return (
     // 서브탭 + 잔액 한 줄
     '<div style="display:flex;align-items:flex-end;border-bottom:1px solid var(--border);margin-bottom:14px;">'+
-      '<button onclick="window._smCraftTab=\'market\';renderStockMarketPage();" style="flex:1;padding:9px 4px 8px;border:none;border-bottom:2px solid '+(subTab==='market'?'var(--primary)':'transparent')+';margin-bottom:-1px;background:none;font-family:inherit;font-size:.78rem;font-weight:'+(subTab==='market'?'700':'500')+';color:'+(subTab==='market'?'var(--primary)':'var(--text-muted)')+';cursor:pointer;transition:color .15s;">🪶 재료</button>'+
-      '<button onclick="window._smCraftTab=\'workshop\';renderStockMarketPage();" style="flex:1;padding:9px 4px 8px;border:none;border-bottom:2px solid '+(subTab==='workshop'?'var(--primary)':'transparent')+';margin-bottom:-1px;background:none;font-family:inherit;font-size:.78rem;font-weight:'+(subTab==='workshop'?'700':'500')+';color:'+(subTab==='workshop'?'var(--primary)':'var(--text-muted)')+';cursor:pointer;transition:color .15s;">🔨 공방</button>'+
-      '<button onclick="window._smCraftTab=\'inventory\';renderStockMarketPage();" style="flex:1;padding:9px 4px 8px;border:none;border-bottom:2px solid '+(subTab==='inventory'?'var(--primary)':'transparent')+';margin-bottom:-1px;background:none;font-family:inherit;font-size:.78rem;font-weight:'+(subTab==='inventory'?'700':'500')+';color:'+(subTab==='inventory'?'var(--primary)':'var(--text-muted)')+';cursor:pointer;transition:color .15s;">🎒 인벤토리</button>'+
+      '<button onclick="window._smCraftTab=\'market\';renderStockMarketPage();" style="flex:1;padding:9px 4px 8px;border:none;border-bottom:2px solid '+(subTab==='market'?'var(--primary)':'transparent')+';margin-bottom:-1px;background:none;font-family:inherit;font-size:.78rem;font-weight:'+(subTab==='market'?'700':'500')+';color:'+(subTab==='market'?'var(--primary)':'var(--text-muted)')+';cursor:pointer;transition:color .15s;">재료</button>'+
+      '<button onclick="window._smCraftTab=\'workshop\';renderStockMarketPage();" style="flex:1;padding:9px 4px 8px;border:none;border-bottom:2px solid '+(subTab==='workshop'?'var(--primary)':'transparent')+';margin-bottom:-1px;background:none;font-family:inherit;font-size:.78rem;font-weight:'+(subTab==='workshop'?'700':'500')+';color:'+(subTab==='workshop'?'var(--primary)':'var(--text-muted)')+';cursor:pointer;transition:color .15s;">공방</button>'+
+      '<button onclick="window._smCraftTab=\'inventory\';renderStockMarketPage();" style="flex:1;padding:9px 4px 8px;border:none;border-bottom:2px solid '+(subTab==='inventory'?'var(--primary)':'transparent')+';margin-bottom:-1px;background:none;font-family:inherit;font-size:.78rem;font-weight:'+(subTab==='inventory'?'700':'500')+';color:'+(subTab==='inventory'?'var(--primary)':'var(--text-muted)')+';cursor:pointer;transition:color .15s;">인벤토리</button>'+
     '</div>'+
     (subTab==='market'?_renderMarketShop(inv,cash,_items):
      subTab==='workshop'?_renderWorkshop(inv,myShuttles,myDefective):
@@ -76,21 +76,25 @@ async function _smRenderCraftTab(stockCash){
 function _renderMarketShop(inv,cash,items){
   const craftItems=items.filter(i=>i.category==='craft');
   const specialItems=items.filter(i=>i.category==='special');
-  // 아이템별 이미지 매핑 (images/craft 폴더 기준)
+  // 아이템별 이미지 매핑 (없으면 이모지 사용)
   const ITEM_IMGS={
     feather_bundle:'/images/craft/feather_4.png',
-    artisan_craft:'/images/craft/feather_cork_thread_tape.png',
-    recycle:'/images/craft/feather_cork_thread_tape.png',
   };
+  function iconBox(item){
+    const src=ITEM_IMGS[item.id];
+    if(!src) return '<div style="width:44px;height:44px;border-radius:12px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">'+item.icon+'</div>';
+    return '<div style="width:44px;height:44px;border-radius:12px;background:var(--bg3);border:1px solid var(--border);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;">'
+      +'<img src="'+src+'" style="width:36px;height:36px;object-fit:contain;" '
+      +'onload="this.parentElement.querySelector(\'span\')&&(this.parentElement.querySelector(\'span\').style.display=\'none\')" '
+      +'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
+      +'<span style="display:none;font-size:1.4rem;align-items:center;justify-content:center;">'+item.icon+'</span>'
+      +'</div>';
+  }
   function itemCard(item){
     const owned=inv[item.craftItem]||0;
-    const imgSrc=ITEM_IMGS[item.id];
-    const iconEl=imgSrc
-      ?'<img src="'+imgSrc+'" style="width:44px;height:44px;object-fit:contain;border-radius:12px;background:var(--bg3);border:1px solid var(--border);padding:4px;flex-shrink:0;" onerror="this.outerHTML=\'<div style=width:44px;height:44px;border-radius:12px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0>'+item.icon+'</div>\'">'
-      :'<div style="width:44px;height:44px;border-radius:12px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">'+item.icon+'</div>';
     return '<div class="card" style="padding:12px;margin-bottom:6px;">'+
       '<div style="display:flex;align-items:center;gap:10px;">'+
-        iconEl+
+        iconBox(item)+
         '<div style="flex:1;min-width:0;">'+
           '<div style="font-size:.87rem;font-weight:700;">'+item.name+'</div>'+
           '<div style="font-size:.68rem;color:var(--text-muted);line-height:1.3;">'+item.desc+'</div>'+
