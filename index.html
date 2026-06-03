@@ -129,6 +129,10 @@
         style="background:var(--bg3);border:1px solid var(--border);color:var(--text-muted);border-radius:16px;padding:4px 10px;font-size:.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;font-family:inherit;">
         <span id="dm-icon-app">🌙</span>
       </button>
+      <button onclick="navigateTo('settings')" id="btn-header-settings"
+        style="background:var(--bg3);border:1px solid var(--border);color:var(--text-muted);border-radius:16px;padding:4px 10px;font-size:.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;font-family:inherit;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96a7.02 7.02 0 00-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.37 1.04.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+      </button>
     </div>
   </header>
   <div class="app-body">
@@ -518,6 +522,16 @@
   <nav class="bottom-nav" id="bottom-nav"></nav>
 </div>
 
+<!-- 증권거래소 오버레이 -->
+<div id="page-stockmarket" style="display:none;position:fixed;top:calc(52px + env(safe-area-inset-top,0px));left:0;right:0;bottom:0;background:var(--bg);z-index:150;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+  <div id="stockmarket-content"></div>
+</div>
+
+<!-- 증권통장 상세 오버레이 -->
+<div id="page-stockdetail" style="display:none;position:fixed;top:calc(52px + env(safe-area-inset-top,0px));left:0;right:0;bottom:0;background:var(--bg);z-index:150;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+  <div id="stockdetail-content"></div>
+</div>
+
 <!-- 경기등록 모달 -->
 <div class="modal-overlay" id="modal-register">
   <div class="modal" style="max-height:90vh;overflow-y:auto;">
@@ -705,6 +719,7 @@
 <script src="tournament.js?v=1775267349" defer></script>
 <script src="balance.js?v=1775267349" defer></script>
 <script src="settings.js?v=1775267349" defer></script>
+<script src="stockmarket.js?v=1775267349" defer></script>
 
 <!-- 점수판 모달 -->
 <div id="modal-scoreboard" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;z-index:9000;flex-direction:column;font-family:inherit;user-select:none;">
