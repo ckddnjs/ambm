@@ -707,16 +707,16 @@ function showPlayerCard(userId, userName){
   });
   const wr=g>0?Math.round(w/g*100):0;
   const diff=scored-conceded;
-  // CI 세부 계산
+  // CI 세부 계산 (calcCI와 동일하게 각 항목 개별 반올림 후 합산)
   const _wr=g>0?w/g:0;
   const _conf=g>0?g/(g+15):0;
   const _adjWR=_wr*_conf;
-  const _wrScore=_adjWR*200;
+  const _wrScore=Math.round(_adjWR*200);
   const _avgDiff=g>0?diff/g:0;
-  const _diffScore=_avgDiff*5;
+  const _diffScore=Math.round(_avgDiff*5);
   const _gamesBonus=Math.min(g,30);
   const _closeBonus=closeWins;
-  const ci=Math.round(1000+_wrScore+_diffScore+_gamesBonus+_closeBonus);
+  const ci=1000+_wrScore+_diffScore+_gamesBonus+_closeBonus;
   const avgDiff=g>0?((diff/g)>=0?'+':'')+((diff/g).toFixed(1)):'-';
 
   // 최근 5경기 도트
@@ -811,16 +811,16 @@ function showPlayerCard(userId, userName){
           <div style="text-align:center;padding:12px 10px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;">
             <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:3px;letter-spacing:.3px;">종합 점수</div>
             <div style="font-family:'Black Han Sans',sans-serif;font-size:2rem;color:#5BA4F5;line-height:1.1;">${ci}</div>
-            <div style="font-size:.68rem;color:var(--text-muted);margin-top:5px;"><span style="color:var(--text);">1000</span><span style="color:#4CAF50;"> +${Math.round(_wrScore)}</span><span style="color:#F5A623;"> ${Math.round(_diffScore)>=0?'+':''}${Math.round(_diffScore)}</span><span style="color:#9C6FE4;"> +${_gamesBonus}</span><span style="color:#E0634A;"> +${_closeBonus}</span> = <strong style="color:#5BA4F5;">${ci}</strong></div>
+            <div style="font-size:.68rem;color:var(--text-muted);margin-top:5px;"><span style="color:var(--text);">1000</span><span style="color:#4CAF50;"> +${_wrScore}</span><span style="color:#F5A623;"> ${_diffScore>=0?'+':''}${_diffScore}</span><span style="color:#9C6FE4;"> +${_gamesBonus}</span><span style="color:#E0634A;"> +${_closeBonus}</span> = <strong style="color:#5BA4F5;">${ci}</strong></div>
           </div>
           <div style="font-size:.72rem;font-weight:700;color:var(--text-muted);letter-spacing:.5px;margin-bottom:2px;">점수 구성</div>
           ${[
             [1,'기본점수','1,000점','모든 선수의 시작값','#4B9EF5','var(--text)'],
-            [2,'보정 승률',`+${Math.round(_wrScore)}점`,
-              `승률 = ${w}승 ÷ ${g}경기 = ${wr}%<br>신뢰도(경기수 보정) = (${g}÷(${g}+15)) = ${Math.round(_conf*100)}%<br>보정승률점수 = ${wr}% × ${Math.round(_conf*100)}% × 200 = +${Math.round(_wrScore)}점`,
+            [2,'보정 승률',`+${_wrScore}점`,
+              `승률 = ${w}승 ÷ ${g}경기 = ${wr}%<br>신뢰도(경기수 보정) = (${g}÷(${g}+15)) = ${Math.round(_conf*100)}%<br>보정승률점수 = ${wr}% × ${Math.round(_conf*100)}% × 200 = +${_wrScore}점`,
               '#4CAF50','#4CAF50'],
-            [3,'평균 득실',`${_diffScore>=0?'+':''}${Math.round(_diffScore)}점`,
-              `누적 득실 ${diff>0?'+':''}${diff} ÷ ${g}경기 = 평균 ${_avgDiff>=0?'+':''}${_avgDiff.toFixed(1)}<br>평균 득실 × 5 = ${_diffScore>=0?'+':''}${Math.round(_diffScore)}점`,
+            [3,'평균 득실',`${_diffScore>=0?'+':''}${_diffScore}점`,
+              `누적 득실 ${diff>0?'+':''}${diff} ÷ ${g}경기 = 평균 ${_avgDiff>=0?'+':''}${_avgDiff.toFixed(1)}<br>평균 득실 × 5 = ${_diffScore>=0?'+':''}${_diffScore}점`,
               '#F5A623','#F5A623'],
             [4,'참가 경기',`+${_gamesBonus}점`,
               `${g}경기 × 1점 (최대 30점)`,'#9C6FE4','#9C6FE4'],
