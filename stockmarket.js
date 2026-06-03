@@ -12,48 +12,38 @@ async function renderStockMarketPage(){
 
   const tab=window._smTab||'market';
 
-  // 캐시 보장 — 대시보드 미방문 시 직접 로드
-  if(!window._allMatchesCache||!window._allMatchesCache.length){
-    const{data:m}=await sb.from('matches').select('id,match_type,match_date,a1_id,a1_name,a2_id,a2_name,b1_id,b1_name,b2_id,b2_name,score_a,score_b,status,created_at').eq('status','approved');
-    window._allMatchesCache=m||[];
-  }
-  if(!window._profilesCache||!window._profilesCache.length){
-    const{data:u}=await sb.from('profiles').select('*').eq('status','approved');
-    window._profilesCache=u||[];
+  // ── 1. 캐시 보장 — matches & profiles 병렬 로드 (없을 때만) ──
+  {
+    const toFetch=[];
+    if(!window._allMatchesCache?.length)
+      toFetch.push(sb.from('matches').select('id,match_type,match_date,a1_id,a1_name,a2_id,a2_name,b1_id,b1_name,b2_id,b2_name,score_a,score_b,status,created_at').eq('status','approved').then(({data:m})=>{window._allMatchesCache=m||[];}));
+    if(!window._profilesCache?.length)
+      toFetch.push(sb.from('profiles').select('*').eq('status','approved').then(({data:u})=>{window._profilesCache=u||[];}));
+    if(toFetch.length) await Promise.all(toFetch);
   }
 
   const allM=window._allMatchesCache||[];
   const users=(window._profilesCache||[]).filter(u=>u.status==='approved'&&!u.exclude_stats);
 
-  // 데이터 먼저 로드
-  const [portfolioRes, allPortfolioRes, walletRes, transferLogsRes, tradeLogsRes, sellPnlRes] = await Promise.all([
+  // ── 2. 내 기본 데이터 (항상 필요) ──
+  const [portfolioRes,walletRes]=await Promise.all([
     sb.from('stock_portfolio').select('*').eq('user_id',ME.id),
-    sb.from('stock_portfolio').select('stock_user_id,user_id'),
     sb.from('stock_wallets').select('*').eq('user_id',ME.id).maybeSingle(),
-    sb.from('wallet_transfers').select('dir,amt').eq('user_id',ME.id),
-    // 매매내역 표시용 (최근 100건)
-    sb.from('stock_trades').select('action,name,qty,price,total,cost,pnl,created_at').eq('user_id',ME.id)
-      .order('created_at',{ascending:false}).limit(100),
-    // 트레이딩 수익 계산용 전체 매도 pnl (건수 제한 없음)
-    sb.from('stock_trades').select('pnl').eq('user_id',ME.id).eq('action','sell'),
   ]);
   const portfolio=portfolioRes.data||[];
-  const allPortfolioRows=allPortfolioRes.data||[];
   const walletRow=walletRes.data;
   const cash=walletRow?.cash??2000;
-  if(!walletRow) sb.from('stock_wallets').insert({user_id:ME.id,cash:2000});
-  const tradeLogs=tradeLogsRes.data||[];
-  // 전체 실현손익 (건수 제한 없는 완전한 합산)
-  const allRealizedPnl=(sellPnlRes.data||[]).reduce((s,r)=>s+(r.pnl||0),0);
+  if(!walletRow) await sb.from('stock_wallets').insert({user_id:ME.id,cash:2000});
 
-  // 순수익 = 총자산 - 초기자금 - 순이체입금
-  // 순이체입금 = (예금→증권) - (증권→예금)
-  // 예: 2000 입금 후 500 출금 → 순이체=1500, 실제 수익만 profit에 반영
-  const netTransferIn=(transferLogsRes.data||[]).reduce((s,r)=>
-    s+(r.dir==='sav2sm'?r.amt:(r.dir==='sm2sav'?-r.amt:0))
-  ,0);
-
-  const stocks=_smCalcStocks(users,allM,allPortfolioRows);
+  // ── 3. stocks 계산 — allPortfolio 30초 캐시 ──
+  const _now=Date.now();
+  if(!window._smAllPortfolioCache||(_now-(window._smAllPortfolioCacheTime||0))>30000){
+    const{data:ap}=await sb.from('stock_portfolio').select('stock_user_id,user_id');
+    window._smAllPortfolioCache=ap||[];
+    window._smAllPortfolioCacheTime=_now;
+  }
+  const stocks=_smCalcStocks(users,allM,window._smAllPortfolioCache);
+  window._smStocksCache=stocks;
 
   const totalStock=portfolio.reduce((s,p)=>{
     const st=stocks.find(x=>x.id===p.stock_user_id);
@@ -61,31 +51,48 @@ async function renderStockMarketPage(){
   },0);
   const totalAsset=cash+totalStock;
 
+  // ── 4. 탭별 필요한 데이터만 로드 ──
   let tabContent='';
-  window._smStocksCache=stocks;
-  if(tab==='market') tabContent=_smRenderMarket(stocks,portfolio,cash);
-  else if(tab==='portfolio') tabContent=_smRenderPortfolio(stocks,portfolio,cash,totalAsset,netTransferIn,tradeLogs,allRealizedPnl);
-  else if(tab==='ranking') tabContent=await _smRenderRanking(stocks);
-  else if(tab==='news') tabContent=await _smRenderNews(stocks);
+  if(tab==='market'){
+    tabContent=_smRenderMarket(stocks,portfolio,cash);
+  } else if(tab==='portfolio'){
+    const [tradeLogsRes,sellPnlRes]=await Promise.all([
+      sb.from('stock_trades').select('action,name,qty,price,total,cost,pnl,created_at').eq('user_id',ME.id).order('created_at',{ascending:false}).limit(100),
+      sb.from('stock_trades').select('pnl').eq('user_id',ME.id).eq('action','sell'),
+    ]);
+    const tradeLogs=tradeLogsRes.data||[];
+    const allRealizedPnl=(sellPnlRes.data||[]).reduce((s,r)=>s+(r.pnl||0),0);
+    tabContent=_smRenderPortfolio(stocks,portfolio,cash,totalAsset,0,tradeLogs,allRealizedPnl);
+  } else if(tab==='ranking'){
+    tabContent=await _smRenderRanking(stocks);
+  } else if(tab==='news'){
+    tabContent=await _smRenderNews(stocks);
+  } else if(tab==='craft'){
+    const{data:savW}=await sb.from('savings_wallets').select('cash').eq('user_id',ME.id).maybeSingle();
+    tabContent=await _smRenderCraftTab(Math.floor(Number(savW?.cash??0)));
+  }
 
   el.innerHTML=
     '<div style="padding:0 0 16px;">'+
-      '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px 10px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10;">'+
-        '<button onclick="navigateTo(\'dashboard\')" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:0;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px;margin-right:2px;">‹</button>'+
-        '<div style="flex:1;">'+
-          '<div style="font-size:.95rem;font-weight:700;">📈 새벽민턴 증권거래소</div>'+
-          '<div style="font-size:.65rem;color:var(--text-muted);">새벽민턴 증권거래소 · 초기자금 2,000P</div>'+
+      '<div style="position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--border);">'+
+        '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px 10px;">'+
+          '<button onclick="navigateTo(\'dashboard\')" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:0;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px;margin-right:2px;">‹</button>'+
+          '<div style="flex:1;">'+
+            '<div style="font-size:.95rem;font-weight:700;">📈 새벽민턴 증권거래소</div>'+
+            '<div style="font-size:.65rem;color:var(--text-muted);">새벽민턴 증권거래소 · 초기자금 2,000P</div>'+
+          '</div>'+
+          '<div style="text-align:right;">'+
+            '<div style="font-size:.6rem;color:var(--text-muted);">총 자산</div>'+
+            '<div style="font-weight:800;font-size:.95rem;color:#FFD600;">'+totalAsset.toLocaleString()+'p</div>'+
+          '</div>'+
         '</div>'+
-        '<div style="text-align:right;">'+
-          '<div style="font-size:.6rem;color:var(--text-muted);">총 자산</div>'+
-          '<div style="font-weight:800;font-size:.95rem;color:#FFD600;">'+totalAsset.toLocaleString()+'p</div>'+
+        '<div style="display:flex;padding:0 14px 8px;gap:0;">'+
+          '<button onclick="window._smTab=\'market\';window._smSelected=null;renderStockMarketPage();" style="flex:1;padding:7px 4px;border-radius:10px 0 0 10px;border:1px solid var(--border);font-family:inherit;font-size:.76rem;font-weight:700;cursor:pointer;'+(tab==='market'?'background:var(--primary);color:#fff;border-color:var(--primary);':'background:var(--bg3);color:var(--text-muted);')+'">종목</button>'+
+          '<button onclick="window._smTab=\'portfolio\';renderStockMarketPage();" style="flex:1;padding:7px 4px;border:1px solid var(--border);border-left:none;font-family:inherit;font-size:.76rem;font-weight:700;cursor:pointer;'+(tab==='portfolio'?'background:var(--primary);color:#fff;border-color:var(--primary);':'background:var(--bg3);color:var(--text-muted);')+'">잔고</button>'+
+          '<button onclick="window._smTab=\'news\';renderStockMarketPage();" style="flex:1;padding:7px 4px;border:1px solid var(--border);border-left:none;font-family:inherit;font-size:.76rem;font-weight:700;cursor:pointer;'+(tab==='news'?'background:var(--primary);color:#fff;border-color:var(--primary);':'background:var(--bg3);color:var(--text-muted);')+'">뉴스</button>'+
+          '<button onclick="window._smTab=\'ranking\';renderStockMarketPage();" style="flex:1;padding:7px 4px;border:1px solid var(--border);border-left:none;font-family:inherit;font-size:.76rem;font-weight:700;cursor:pointer;'+(tab==='ranking'?'background:var(--primary);color:#fff;border-color:var(--primary);':'background:var(--bg3);color:var(--text-muted);')+'">랭킹</button>'+
+          '<button onclick="window._smTab=\'craft\';window._smCraftTab=window._smCraftTab||\'market\';renderStockMarketPage();" style="flex:1;padding:7px 4px;border-radius:0 10px 10px 0;border:1px solid var(--border);border-left:none;font-family:inherit;font-size:.76rem;font-weight:700;cursor:pointer;'+(tab==='craft'?'background:var(--primary);color:#fff;border-color:var(--primary);':'background:var(--bg3);color:var(--text-muted);')+'">제작</button>'+
         '</div>'+
-      '</div>'+
-      '<div style="display:flex;padding:8px 14px 0;gap:0;">'+
-        '<button onclick="window._smTab=\'market\';window._smSelected=null;renderStockMarketPage();" style="flex:1;padding:7px 4px;border-radius:10px 0 0 10px;border:1px solid var(--border);font-family:inherit;font-size:.76rem;font-weight:700;cursor:pointer;'+(tab==='market'?'background:var(--primary);color:#fff;border-color:var(--primary);':'background:var(--bg3);color:var(--text-muted);')+'">종목</button>'+
-        '<button onclick="window._smTab=\'portfolio\';renderStockMarketPage();" style="flex:1;padding:7px 4px;border:1px solid var(--border);border-left:none;font-family:inherit;font-size:.76rem;font-weight:700;cursor:pointer;'+(tab==='portfolio'?'background:var(--primary);color:#fff;border-color:var(--primary);':'background:var(--bg3);color:var(--text-muted);')+'">잔고</button>'+
-        '<button onclick="window._smTab=\'news\';renderStockMarketPage();" style="flex:1;padding:7px 4px;border:1px solid var(--border);border-left:none;font-family:inherit;font-size:.76rem;font-weight:700;cursor:pointer;'+(tab==='news'?'background:var(--primary);color:#fff;border-color:var(--primary);':'background:var(--bg3);color:var(--text-muted);')+'">뉴스</button>'+
-        '<button onclick="window._smTab=\'ranking\';renderStockMarketPage();" style="flex:1;padding:7px 4px;border-radius:0 10px 10px 0;border:1px solid var(--border);border-left:none;font-family:inherit;font-size:.76rem;font-weight:700;cursor:pointer;'+(tab==='ranking'?'background:var(--primary);color:#fff;border-color:var(--primary);':'background:var(--bg3);color:var(--text-muted);')+'">랭킹</button>'+
       '</div>'+
       '<div style="padding:10px 14px 0;">'+tabContent+'</div>'+
     '</div>';
@@ -362,27 +369,6 @@ function _smRenderPortfolio(stocks,portfolio,cash,totalAsset,netTransferIn=0,tra
       +'<span>💵 현금 '+cash.toLocaleString()+'p</span><span>📊 보유주식 '+(totalAsset-cash).toLocaleString()+'p</span>'
     +'</div>'
   +'</div>'
-  // 예금 가져오기 카드
-  +'<div onclick="smTransfer(\'sav2sm\')" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,rgba(79,195,247,.1),rgba(79,195,247,.03));border:1px solid rgba(79,195,247,.25);margin-bottom:6px;cursor:pointer;">'
-    +'<div style="display:flex;align-items:center;gap:10px;">'
-      +'<span style="font-size:1.3rem;">🏦</span>'
-      +'<div>'
-        +'<div style="font-size:.85rem;font-weight:700;color:#4FC3F7;">예금 → 증권 이체</div>'
-        +'<div style="font-size:.68rem;color:var(--text-muted);margin-top:1px;">예금에서 증권 계좌로 입금</div>'
-      +'</div>'
-    +'</div>'
-    +'<span style="font-size:1.1rem;color:rgba(79,195,247,.6);">›</span>'
-  +'</div>'
-  +'<div onclick="smTransfer(\'sm2sav\')" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,rgba(255,183,0,.08),rgba(255,183,0,.02));border:1px solid rgba(255,183,0,.2);margin-bottom:14px;cursor:pointer;">'
-    +'<div style="display:flex;align-items:center;gap:10px;">'
-      +'<span style="font-size:1.3rem;">📤</span>'
-      +'<div>'
-        +'<div style="font-size:.85rem;font-weight:700;color:#FFB300;">증권 → 예금 이체</div>'
-        +'<div style="font-size:.68rem;color:var(--text-muted);margin-top:1px;">증권 현금을 예금으로 출금</div>'
-      +'</div>'
-    +'</div>'
-    +'<span style="font-size:1.1rem;color:rgba(255,183,0,.5);">›</span>'
-  +'</div>'
   // 보유 종목 헤더
   +(portfolio.length
     ?'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
@@ -484,11 +470,10 @@ function _smRefreshTradeList(){
 }
 
 async function _smRenderRanking(stocks){
-  const [{data:trades},{data:ports},{data:wallets},{data:transferLogs}]=await Promise.all([
+  // allPortfolio는 캐시 활용 (renderStockMarketPage에서 30초 캐시)
+  const [{data:trades},{data:ports}]=await Promise.all([
     sb.from('stock_trades').select('user_id,pnl').eq('action','sell'),
     sb.from('stock_portfolio').select('*'),
-    sb.from('stock_wallets').select('user_id,cash'),
-    sb.from('wallet_transfers').select('user_id,dir,amt'),
   ]);
   const allUsers=window._profilesCache||[];
 
@@ -506,15 +491,6 @@ async function _smRenderRanking(stocks){
     const val=st?st.price*p.shares:0;
     stockValMap[p.user_id]=(stockValMap[p.user_id]||0)+val;
   });
-
-  // 유저별 순이체액
-  const transferInMap={};
-  (transferLogs||[]).forEach(r=>{
-    const amt=r.dir==='sav2sm'?r.amt:(r.dir==='sm2sav'?-r.amt:0);
-    if(amt!==0) transferInMap[r.user_id]=(transferInMap[r.user_id]||0)+amt;
-  });
-
-  const walletMap=Object.fromEntries((wallets||[]).map(w=>[w.user_id,w.cash??2000]));
 
   // 유저별 미실현 손익 계산
   const unrealizedMap={};
@@ -573,26 +549,41 @@ async function _smRenderRanking(stocks){
   return notice+tradingRows;
 }
 async function smBuy(stockUserId,stockName,price){
+  if(window._smTxBusy){toast('처리 중입니다. 잠시 후 다시 시도하세요','warning');return;}
   showConfirm({icon:'📈',title:stockName+' 매수',msg:'',okLabel:'매수',okClass:'btn-primary',
     onOk:async function(){
-      const qty=parseInt(document.getElementById('sm-qty')?.value||'1');
-      if(!qty||qty<1){toast('수량을 입력해주세요','error');return;}
-      const total=price*qty;
-      const {data:w,error:_e0}=await sb.from('stock_wallets').select('cash').eq('user_id',ME.id).maybeSingle();
-      const cash=w?.cash??2000;
-      if(total>cash){toast('현금 부족 (필요 '+total+'P, 보유 '+cash+'P)','error');return;}
-      const {data:ex,error:_e1}=await sb.from('stock_portfolio').select('*').eq('user_id',ME.id).eq('stock_user_id',stockUserId).single();
-      if(ex){
-        const ns=ex.shares+qty;
-        await sb.from('stock_portfolio').update({shares:ns,avg_price:Math.round((ex.avg_price*ex.shares+price*qty)/ns)}).eq('id',ex.id);
-      } else {
-        await sb.from('stock_portfolio').insert({user_id:ME.id,stock_user_id:stockUserId,shares:qty,avg_price:price});
+      if(window._smTxBusy) return;
+      window._smTxBusy=true;
+      try{
+        const qty=parseInt(document.getElementById('sm-qty')?.value||'1');
+        if(!qty||qty<1){toast('수량을 입력해주세요','error');return;}
+        const total=price*qty;
+        // 최신 잔액 재조회 (다이얼로그 열린 사이 변경 반영)
+        const {data:w}=await sb.from('stock_wallets').select('cash').eq('user_id',ME.id).maybeSingle();
+        const cash=w?.cash??0;
+        if(total>cash){toast('현금 부족 (필요 '+total.toLocaleString()+'P, 보유 '+cash.toLocaleString()+'P)','error');return;}
+        // 잔액 차감 — cash >= total 조건부 업데이트 (동시 요청 이중 차감 방지)
+        const {data:deducted}=await sb.from('stock_wallets')
+          .update({cash:cash-total})
+          .eq('user_id',ME.id)
+          .gte('cash',total)
+          .select('cash');
+        if(!deducted||!deducted.length){toast('현금이 부족합니다 (잔액 변동)','error');return;}
+        // 포트폴리오 업데이트
+        const {data:ex}=await sb.from('stock_portfolio').select('*').eq('user_id',ME.id).eq('stock_user_id',stockUserId).maybeSingle();
+        if(ex){
+          const ns=ex.shares+qty;
+          await sb.from('stock_portfolio').update({shares:ns,avg_price:Math.round((ex.avg_price*ex.shares+price*qty)/ns)}).eq('id',ex.id);
+        } else {
+          await sb.from('stock_portfolio').insert({user_id:ME.id,stock_user_id:stockUserId,shares:qty,avg_price:price});
+        }
+        await sb.from('stock_trades').insert({user_id:ME.id,action:'buy',name:stockName,qty,price,total});
+        if(typeof _walletCache!=='undefined') _walletCache=null;
+        toast(stockName+' '+qty+'주 매수! -'+total.toLocaleString()+'P','success');
+        renderStockMarketPage();
+      }finally{
+        window._smTxBusy=false;
       }
-      await sb.from('stock_wallets').upsert({user_id:ME.id,cash:cash-total});
-      await sb.from('stock_trades').insert({user_id:ME.id,action:'buy',name:stockName,qty,price,total});
-      if(typeof _walletCache!=='undefined') _walletCache=null;
-      toast(stockName+' '+qty+'주 매수! -'+total+'P','success');
-      renderStockMarketPage();
     }
   });
   setTimeout(function(){
@@ -618,23 +609,41 @@ async function smBuy(stockUserId,stockName,price){
 }
 
 async function smSell(stockUserId,stockName,price,held){
+  if(window._smTxBusy){toast('처리 중입니다. 잠시 후 다시 시도하세요','warning');return;}
   showConfirm({icon:'📉',title:stockName+' 매도',msg:'',okLabel:'매도',okClass:'btn-danger',
     onOk:async function(){
-      const qty=parseInt(document.getElementById('sm-sell-qty')?.value||'1');
-      if(!qty||qty<1||qty>held){toast('수량이 올바르지 않습니다','error');return;}
-      const total=price*qty;
-      const {data:ex,error:_e0}=await sb.from('stock_portfolio').select('*').eq('user_id',ME.id).eq('stock_user_id',stockUserId).single();
-      if(!ex){toast('보유 종목 없음','error');return;}
-      const {data:w,error:_e1}=await sb.from('stock_wallets').select('cash').eq('user_id',ME.id).maybeSingle();
-      if(qty>=ex.shares) await sb.from('stock_portfolio').delete().eq('id',ex.id);
-      else await sb.from('stock_portfolio').update({shares:ex.shares-qty}).eq('id',ex.id);
-      await sb.from('stock_wallets').update({cash:(w?.cash||0)+total}).eq('user_id',ME.id);
-      const costBasis=(ex.avg_price||0)*qty;
-      const realizedPnl=total-costBasis;
-      await sb.from('stock_trades').insert({user_id:ME.id,action:'sell',name:stockName,qty,price,total,cost:costBasis,pnl:realizedPnl});
-      if(typeof _walletCache!=='undefined') _walletCache=null;
-      toast(stockName+' '+qty+'주 매도! +'+total+'P','success');
-      renderStockMarketPage();
+      if(window._smTxBusy) return;
+      window._smTxBusy=true;
+      try{
+        const qty=parseInt(document.getElementById('sm-sell-qty')?.value||'1');
+        if(!qty||qty<1||qty>held){toast('수량이 올바르지 않습니다','error');return;}
+        const total=price*qty;
+        // 최신 보유 수량 재조회 (중복 매도 방지)
+        const {data:ex}=await sb.from('stock_portfolio').select('*').eq('user_id',ME.id).eq('stock_user_id',stockUserId).maybeSingle();
+        if(!ex||ex.shares<qty){toast('보유 수량이 부족합니다','error');return;}
+        const {data:w}=await sb.from('stock_wallets').select('cash').eq('user_id',ME.id).maybeSingle();
+        // 포트폴리오 차감 — shares >= qty 조건부 업데이트 (중복 매도 방지)
+        if(qty>=ex.shares){
+          const {data:del}=await sb.from('stock_portfolio').delete().eq('id',ex.id).eq('user_id',ME.id).select('id');
+          if(!del||!del.length){toast('매도 처리 중 오류 (중복 요청 가능성)','error');return;}
+        } else {
+          const {data:upd}=await sb.from('stock_portfolio')
+            .update({shares:ex.shares-qty})
+            .eq('id',ex.id)
+            .gte('shares',qty)
+            .select('shares');
+          if(!upd||!upd.length){toast('매도 처리 중 오류 (중복 요청 가능성)','error');return;}
+        }
+        await sb.from('stock_wallets').update({cash:(w?.cash||0)+total}).eq('user_id',ME.id);
+        const costBasis=(ex.avg_price||0)*qty;
+        const realizedPnl=total-costBasis;
+        await sb.from('stock_trades').insert({user_id:ME.id,action:'sell',name:stockName,qty,price,total,cost:costBasis,pnl:realizedPnl});
+        if(typeof _walletCache!=='undefined') _walletCache=null;
+        toast(stockName+' '+qty+'주 매도! +'+total.toLocaleString()+'P','success');
+        renderStockMarketPage();
+      }finally{
+        window._smTxBusy=false;
+      }
     }
   });
   setTimeout(function(){
