@@ -1538,13 +1538,19 @@ async function renderAdminPopupNotice(){
       <!-- 활성화 토글 -->
       <div class="card" style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
         <span style="font-weight:700;font-size:.95rem;">공지 활성화</span>
-        <label style="position:relative;display:inline-block;width:48px;height:26px;cursor:pointer;">
-          <input type="checkbox" id="popup-enabled" ${cfg.enabled?'checked':''} style="opacity:0;width:0;height:0;">
-          <span id="popup-toggle-track" onclick="document.getElementById('popup-enabled').click();this.parentElement.querySelector('input').dispatchEvent(new Event('change'));"
-            style="position:absolute;inset:0;border-radius:13px;background:${cfg.enabled?'var(--primary)':'var(--bg3)'};border:1px solid var(--border);transition:.2s;">
-            <span style="position:absolute;top:3px;left:${cfg.enabled?'24px':'3px'};width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3);"></span>
-          </span>
-        </label>
+        <div style="position:relative;display:inline-block;width:48px;height:26px;cursor:pointer;" onclick="
+          var cb=document.getElementById('popup-enabled');
+          cb.checked=!cb.checked;
+          var track=document.getElementById('popup-toggle-track');
+          var thumb=document.getElementById('popup-toggle-thumb');
+          if(cb.checked){track.style.background='var(--primary)';thumb.style.left='24px';}
+          else{track.style.background='var(--bg3)';thumb.style.left='3px';}
+        ">
+          <input type="checkbox" id="popup-enabled" ${cfg.enabled?'checked':''} style="display:none;">
+          <div id="popup-toggle-track" style="position:absolute;inset:0;border-radius:13px;background:${cfg.enabled?'var(--primary)':'var(--bg3)'};border:1px solid var(--border);transition:.2s;pointer-events:none;">
+            <div id="popup-toggle-thumb" style="position:absolute;top:3px;left:${cfg.enabled?'24px':'3px'};width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3);pointer-events:none;"></div>
+          </div>
+        </div>
       </div>
 
       <!-- 제목 -->
@@ -1579,13 +1585,7 @@ async function renderAdminPopupNotice(){
       <button onclick="adminResetMyPopupDismiss()" style="width:100%;margin-top:8px;padding:9px;border-radius:10px;border:1px dashed var(--border);background:none;color:var(--text-muted);font-family:inherit;font-size:.78rem;cursor:pointer;">🔄 내 다시보지않기 초기화 (테스트용)</button>
     </div>`;
 
-  // 토글 change 이벤트
-  document.getElementById('popup-enabled').addEventListener('change',function(){
-    const track=document.getElementById('popup-toggle-track');
-    const thumb=track.querySelector('span');
-    if(this.checked){track.style.background='var(--primary)';thumb.style.left='24px';}
-    else{track.style.background='var(--bg3)';thumb.style.left='3px';}
-  });
+
 }
 
 async function adminSavePopupNotice(){
