@@ -126,9 +126,19 @@ function _renderFeedSlice(){
   if(hasMoreLocal||hasMoreDB){
     const sentinel=document.createElement('div');
     sentinel.id='feed-sentinel';
-    sentinel.style.cssText='height:40px;margin-top:4px;display:flex;align-items:center;justify-content:center;';
-    if(!hasMoreLocal&&hasMoreDB) sentinel.innerHTML='<span style="font-size:.78rem;color:var(--text-muted);">불러오는 중...</span>';
+    sentinel.style.cssText='height:60px;';
     el.appendChild(sentinel);
+    // IntersectionObserver로 sentinel이 보이는 순간 자동 로드
+    _observeFeedSentinel(sentinel);
+  }
+}
+
+function _feedLoadNext(){
+  if(window._feedAllMatches&&window._feedAllMatches.length > _feedPage*PAGE){
+    _feedPage++;
+    _renderFeedSlice();
+  } else if(_feedHasMore && !_feedLoadingMore){
+    _feedFetchMore();
   }
 }
 
@@ -157,34 +167,23 @@ async function _feedFetchMore(){
   _renderFeedSlice();
 }
 
-let _feedScrollHandler=null;
-function _attachFeedScroll(){
-  const appBody=document.querySelector('.app-body');
-  if(!appBody) return;
-  _feedScrollHandler=()=>{
-    const sentinel=document.getElementById('feed-sentinel');
-    if(!sentinel||!window._feedAllMatches) return;
-    const bodyRect=appBody.getBoundingClientRect();
-    const sentRect=sentinel.getBoundingClientRect();
-    if(sentRect.top < bodyRect.bottom + 300){
-      // 로컬 데이터가 남아있으면 페이지만 증가
-      if(window._feedAllMatches.length > _feedPage*PAGE){
-        _feedPage++;
-        _renderFeedSlice();
-      } else if(_feedHasMore && !_feedLoadingMore){
-        // 로컬 소진 → DB에서 추가 fetch
-        _feedFetchMore();
-      }
+let _feedObserver=null;
+function _observeFeedSentinel(sentinel){
+  // 기존 observer 해제
+  if(_feedObserver){ _feedObserver.disconnect(); _feedObserver=null; }
+  _feedObserver=new IntersectionObserver((entries)=>{
+    if(entries[0].isIntersecting){
+      _feedObserver.disconnect();
+      _feedObserver=null;
+      _feedLoadNext();
     }
-  };
-  appBody.addEventListener('scroll',_feedScrollHandler,{passive:true});
-  setTimeout(_feedScrollHandler, 100);
+  },{threshold:0.1});
+  _feedObserver.observe(sentinel);
 }
+// 하위 호환용 — navigateTo에서 호출됨
+function _attachFeedScroll(){ /* IntersectionObserver 방식으로 대체, 호출 무시 */ }
 function _detachFeedScroll(){
-  if(!_feedScrollHandler) return;
-  const appBody=document.querySelector('.app-body');
-  if(appBody) appBody.removeEventListener('scroll',_feedScrollHandler);
-  _feedScrollHandler=null;
+  if(_feedObserver){ _feedObserver.disconnect(); _feedObserver=null; }
 }
 
 function loadMoreFeed(){ _feedPage++; _renderFeedSlice(); }
@@ -418,4 +417,3 @@ async function openMatchDetail(id,isAdmin=false){
   document.getElementById('modal-match-actions').innerHTML=acts;
   openModal('modal-match');
 }
-
