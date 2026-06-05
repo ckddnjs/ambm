@@ -1041,7 +1041,17 @@ function renderPartner(allMatches){
   const list=Object.values(partners).filter(p=>p.games>0);
   if(!list.length){el.innerHTML=`<div class="empty-state" style="padding:20px 0;"><div class="empty-icon" style="font-size:2rem;">🤝</div><div>파트너 기록 없음</div></div>`;return;}
   list.sort((a,b)=>(b.games>0?b.wins/b.games:0)-(a.games>0?a.wins/a.games:0)||b.wins-a.wins||b.games-a.games);
-  el.innerHTML=list.map((p,i)=>{
+  window._partnerFullList=list;
+  window._partnerShowCount=5;
+  _renderPartnerRows();
+}
+function _renderPartnerRows(){
+  const el=document.getElementById('partner-list');
+  if(!el) return;
+  const list=window._partnerFullList||[];
+  const count=window._partnerShowCount||5;
+  const visible=list.slice(0,count);
+  const rows=visible.map((p,i)=>{
     const wr=p.games>0?Math.round(p.wins/p.games*100):0;
     const isBest=i===0;
     return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
@@ -1059,6 +1069,11 @@ function renderPartner(allMatches){
       </div>
     </div>`;
   }).join('');
+  const remaining=list.length-count;
+  const moreBtn=remaining>0
+    ?`<button onclick="window._partnerShowCount+=5;_renderPartnerRows();" style="width:100%;margin-top:10px;padding:9px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:.84rem;font-family:inherit;cursor:pointer;">더보기 (${Math.min(5,remaining)}명 더) ▾</button>`
+    :'';
+  el.innerHTML=rows+moreBtn;
 }
 
 /* ── SCATTER PLOT ── */

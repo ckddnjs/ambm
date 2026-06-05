@@ -7,7 +7,7 @@ function switchAdminTab(tab){
     const m=el.getAttribute('onclick')?.match(/switchAdminTab\('(\w+)'\)/);
     el.classList.toggle('active', m&&m[1]===tab);
   });
-  switch(tab){case 'pending':renderAdminPending();break;case 'members':renderAdminMembers();break;case 'logs':renderAdminLogs();break;case 'tournamentImport':renderAdminTournamentImport();break;case 'matchDelete':renderAdminMatchDelete();break;case 'craft':renderAdminCraft();break;}
+  switch(tab){case 'pending':renderAdminPending();break;case 'members':renderAdminMembers();break;case 'logs':renderAdminLogs();break;case 'tournamentImport':renderAdminTournamentImport();break;case 'matchDelete':renderAdminMatchDelete();break;case 'craft':renderAdminCraft();break;case 'tradingHalt':renderAdminTradingHalt();break;case 'popupNotice':renderAdminPopupNotice();break;}
 }
 async function renderAdminPending(){
   const el=document.getElementById('admin-content');
@@ -1387,3 +1387,273 @@ async function adminCraftSaveConfig(){
   window._marketFlightRate=flightRate;
 }
 
+
+/* ══════════════════════════════════════════
+   ⏸ 거래 정지 시간대 관리
+══════════════════════════════════════════ */
+const _DAYS_KO=['일','월','화','수','목','금','토'];
+
+async function renderAdminTradingHalt(){
+  const el=document.getElementById('admin-content');
+  el.innerHTML=`<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:.82rem;">불러오는 중...</div>`;
+  const {data}=await sb.from('app_settings').select('value').eq('key','trading_halt').maybeSingle();
+  let halts=[];
+  try{halts=JSON.parse(data?.value||'[]');}catch(e){}
+
+  _renderTradingHaltUI(halts);
+}
+
+function _renderTradingHaltUI(halts){
+  const el=document.getElementById('admin-content');
+
+  const dayOpts=_DAYS_KO.map((d,i)=>`<option value="${i}">${d}요일</option>`).join('');
+  const timeOpts=Array.from({length:48},(_,i)=>{
+    const h=String(Math.floor(i/2)).padStart(2,'0');
+    const m=i%2===0?'00':'30';
+    return `<option value="${h}:${m}">${h}:${m}</option>`;
+  }).join('');
+
+  const haltRows=halts.length
+    ?halts.map((h,i)=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--bg2);border-radius:10px;margin-bottom:6px;">
+        <div style="flex:1;font-size:.88rem;">
+          <span style="font-weight:700;color:var(--danger);">⏸</span>
+          <span style="margin-left:6px;">${_DAYS_KO[h.startDay]}요일 ${h.startTime} ~ ${_DAYS_KO[h.endDay]}요일 ${h.endTime}</span>
+        </div>
+        <button onclick="adminRemoveTradingHalt(${i})" style="background:none;border:none;color:var(--danger);font-size:1rem;cursor:pointer;padding:2px 6px;">✕</button>
+      </div>`).join('')
+    :`<div style="text-align:center;padding:16px 0;color:var(--text-muted);font-size:.82rem;">설정된 거래 정지 구간이 없습니다</div>`;
+
+  el.innerHTML=`
+    <div style="padding-bottom:24px;">
+      <div style="font-size:.82rem;color:var(--text-muted);margin-bottom:16px;line-height:1.6;">
+        설정한 시간대에는 이용자의 <b style="color:var(--danger);">매수·매도가 차단</b>됩니다.<br>
+        셔틀콕 제작소는 시간대 제한 없이 이용 가능합니다.
+      </div>
+
+      <!-- 현재 정지 구간 목록 -->
+      <div style="font-size:.82rem;font-weight:700;color:var(--text-muted);margin-bottom:8px;">📋 현재 정지 구간 (${halts.length}건)</div>
+      <div id="halt-list">${haltRows}</div>
+
+      <div style="height:1px;background:var(--border);margin:20px 0;"></div>
+
+      <!-- 추가 폼 -->
+      <div style="font-size:.82rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;">➕ 정지 구간 추가</div>
+      <div class="card" style="padding:14px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div>
+            <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;">시작 요일</div>
+            <select id="halt-start-day" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;">${dayOpts}</select>
+          </div>
+          <div>
+            <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;">시작 시각</div>
+            <select id="halt-start-time" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;">${timeOpts}</select>
+          </div>
+          <div>
+            <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;">종료 요일</div>
+            <select id="halt-end-day" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;">${dayOpts}</select>
+          </div>
+          <div>
+            <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;">종료 시각</div>
+            <select id="halt-end-time" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;">${timeOpts}</select>
+          </div>
+        </div>
+        <button onclick="adminAddTradingHalt()" style="width:100%;padding:10px;border-radius:10px;border:none;background:var(--danger);color:#fff;font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;">⏸ 구간 추가</button>
+      </div>
+    </div>`;
+  // 전역에 현재 halts 저장
+  window._adminHalts=halts;
+}
+
+async function adminAddTradingHalt(){
+  const startDay=parseInt(document.getElementById('halt-start-day')?.value??0);
+  const startTime=document.getElementById('halt-start-time')?.value||'00:00';
+  const endDay=parseInt(document.getElementById('halt-end-day')?.value??0);
+  const endTime=document.getElementById('halt-end-time')?.value||'00:00';
+  const halts=[...(window._adminHalts||[]),{startDay,startTime,endDay,endTime}];
+  await sb.from('app_settings').upsert({key:'trading_halt',value:JSON.stringify(halts)},{onConflict:'key'});
+  window._adminHalts=halts;
+  addLog('trading_halt_updated',ME.id);
+  toast('✅ 거래 정지 구간이 추가됐습니다','success');
+  _renderTradingHaltUI(halts);
+}
+
+async function adminRemoveTradingHalt(idx){
+  const halts=(window._adminHalts||[]).filter((_,i)=>i!==idx);
+  await sb.from('app_settings').upsert({key:'trading_halt',value:JSON.stringify(halts)},{onConflict:'key'});
+  window._adminHalts=halts;
+  addLog('trading_halt_updated',ME.id);
+  toast('정지 구간이 삭제됐습니다','success');
+  _renderTradingHaltUI(halts);
+}
+
+/* 거래 정지 여부 체크 — smBuy/smSell에서 호출 */
+async function checkTradingHalt(){
+  const {data}=await sb.from('app_settings').select('value').eq('key','trading_halt').maybeSingle();
+  let halts=[];
+  try{halts=JSON.parse(data?.value||'[]');}catch(e){}
+  if(!halts.length) return false;
+  // KST(UTC+9) 명시 — 기기 시간대 설정과 무관하게 한국 시각 기준으로 판단
+  const nowKST=new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Seoul'}));
+  const curDay=nowKST.getDay();
+  const curMin=nowKST.getHours()*60+nowKST.getMinutes();
+  return halts.some(h=>{
+    const startMin=parseInt(h.startTime.split(':')[0])*60+parseInt(h.startTime.split(':')[1]);
+    const endMin=parseInt(h.endTime.split(':')[0])*60+parseInt(h.endTime.split(':')[1]);
+    // 같은 주 내 구간 (시작요일~종료요일)
+    if(h.startDay<=h.endDay){
+      if(curDay<h.startDay||curDay>h.endDay) return false;
+      if(curDay===h.startDay&&curMin<startMin) return false;
+      if(curDay===h.endDay&&curMin>=endMin) return false;
+      return true;
+    } else {
+      // 주를 넘어가는 구간 (예: 금~월)
+      if(curDay>h.endDay&&curDay<h.startDay) return false;
+      if(curDay===h.startDay&&curMin<startMin) return false;
+      if(curDay===h.endDay&&curMin>=endMin) return false;
+      return true;
+    }
+  });
+}
+
+/* ══════════════════════════════════════════
+   📢 팝업 공지 관리
+══════════════════════════════════════════ */
+async function renderAdminPopupNotice(){
+  const el=document.getElementById('admin-content');
+  el.innerHTML=`<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:.82rem;">불러오는 중...</div>`;
+  const {data}=await sb.from('app_settings').select('value').eq('key','popup_notice').maybeSingle();
+  let cfg={enabled:false,title:'',body:'',startDate:'',endDate:''};
+  try{cfg={...cfg,...JSON.parse(data?.value||'{}')};}catch(e){}
+
+  // KST 기준 오늘 날짜
+  const today=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Seoul'});
+
+  el.innerHTML=`
+    <div style="padding-bottom:24px;">
+      <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:16px;line-height:1.6;">
+        로그인 시 또는 앱 진입 시 회원에게 팝업으로 표시됩니다.
+      </div>
+
+      <!-- 활성화 토글 -->
+      <div class="card" style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <span style="font-weight:700;font-size:.95rem;">공지 활성화</span>
+        <label style="position:relative;display:inline-block;width:48px;height:26px;cursor:pointer;">
+          <input type="checkbox" id="popup-enabled" ${cfg.enabled?'checked':''} style="opacity:0;width:0;height:0;">
+          <span id="popup-toggle-track" onclick="document.getElementById('popup-enabled').click();this.parentElement.querySelector('input').dispatchEvent(new Event('change'));"
+            style="position:absolute;inset:0;border-radius:13px;background:${cfg.enabled?'var(--primary)':'var(--bg3)'};border:1px solid var(--border);transition:.2s;">
+            <span style="position:absolute;top:3px;left:${cfg.enabled?'24px':'3px'};width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3);"></span>
+          </span>
+        </label>
+      </div>
+
+      <!-- 제목 -->
+      <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:5px;">제목</div>
+      <input id="popup-title" type="text" value="${escHtml(cfg.title)}" placeholder="공지 제목"
+        style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-family:inherit;font-size:.88rem;box-sizing:border-box;margin-bottom:12px;">
+
+      <!-- 내용 -->
+      <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:5px;">내용</div>
+      <textarea id="popup-body" rows="5" placeholder="공지 내용을 입력하세요"
+        style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-family:inherit;font-size:.88rem;box-sizing:border-box;resize:vertical;margin-bottom:12px;">${escHtml(cfg.body)}</textarea>
+
+      <!-- 날짜 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:5px;">시작일</div>
+          <input id="popup-start" type="date" value="${cfg.startDate||today}"
+            style="width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-family:inherit;font-size:.85rem;box-sizing:border-box;">
+        </div>
+        <div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:5px;">종료일</div>
+          <input id="popup-end" type="date" value="${cfg.endDate||today}"
+            style="width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-family:inherit;font-size:.85rem;box-sizing:border-box;">
+        </div>
+      </div>
+
+      <!-- 버튼 -->
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px;">
+        <button onclick="adminSavePopupNotice()" style="padding:12px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer;">💾 저장</button>
+        <button onclick="adminPreviewPopup()" style="padding:12px 16px;border-radius:10px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-family:inherit;font-size:.88rem;cursor:pointer;">미리보기</button>
+      </div>
+      <button onclick="adminResetMyPopupDismiss()" style="width:100%;margin-top:8px;padding:9px;border-radius:10px;border:1px dashed var(--border);background:none;color:var(--text-muted);font-family:inherit;font-size:.78rem;cursor:pointer;">🔄 내 다시보지않기 초기화 (테스트용)</button>
+    </div>`;
+
+  // 토글 change 이벤트
+  document.getElementById('popup-enabled').addEventListener('change',function(){
+    const track=document.getElementById('popup-toggle-track');
+    const thumb=track.querySelector('span');
+    if(this.checked){track.style.background='var(--primary)';thumb.style.left='24px';}
+    else{track.style.background='var(--bg3)';thumb.style.left='3px';}
+  });
+}
+
+async function adminSavePopupNotice(){
+  const enabled=document.getElementById('popup-enabled')?.checked||false;
+  const title=(document.getElementById('popup-title')?.value||'').trim();
+  const body=(document.getElementById('popup-body')?.value||'').trim();
+  const startDate=document.getElementById('popup-start')?.value||'';
+  const endDate=document.getElementById('popup-end')?.value||'';
+  if(enabled&&!title){toast('제목을 입력해주세요','error');return;}
+  if(enabled&&!body){toast('내용을 입력해주세요','error');return;}
+  const cfg={enabled,title,body,startDate,endDate};
+  await sb.from('app_settings').upsert({key:'popup_notice',value:JSON.stringify(cfg)},{onConflict:'key'});
+  addLog('popup_notice_updated',ME.id);
+  toast('✅ 팝업 공지가 저장됐습니다','success');
+}
+
+function adminPreviewPopup(){
+  const title=(document.getElementById('popup-title')?.value||'').trim()||'(제목 없음)';
+  const body=(document.getElementById('popup-body')?.value||'').trim()||'(내용 없음)';
+  _showPopupNoticeModal({title,body});
+}
+
+function adminResetMyPopupDismiss(){
+  localStorage.removeItem('popup_dismissed');
+  toast('초기화됐습니다. 다음 앱 진입 시 팝업이 다시 표시됩니다','success');
+}
+
+/* 앱 진입 시 팝업 체크 — core.js showApp()에서 호출 */
+async function checkAndShowPopupNotice(){
+  try{
+    const {data}=await sb.from('app_settings').select('value').eq('key','popup_notice').maybeSingle();
+    let cfg={enabled:false};
+    try{cfg=JSON.parse(data?.value||'{}');}catch(e){}
+    if(!cfg.enabled||!cfg.title) return;
+    // 날짜 범위 체크
+    // KST 기준 오늘 날짜
+    const today=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Seoul'});
+    if(cfg.startDate&&today<cfg.startDate) return;
+    if(cfg.endDate&&today>cfg.endDate) return;
+    // 다시보지않기 체크 (dismissKey = title+startDate)
+    const dismissKey='popup_dismissed_'+btoa(encodeURIComponent(cfg.title+(cfg.startDate||'')));
+    if(localStorage.getItem(dismissKey)) return;
+    _showPopupNoticeModal(cfg, dismissKey);
+  }catch(e){console.warn('popup check err',e);}
+}
+
+function _showPopupNoticeModal(cfg, dismissKey){
+  const existing=document.getElementById('popup-notice-overlay');
+  if(existing) existing.remove();
+  const overlay=document.createElement('div');
+  overlay.id='popup-notice-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.innerHTML=`
+    <div style="background:var(--surface,var(--bg));border-radius:20px;padding:0;width:100%;max-width:380px;box-shadow:0 12px 40px rgba(0,0,0,.5);overflow:hidden;">
+      <!-- 헤더 -->
+      <div style="background:var(--primary);padding:16px 20px;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:1.1rem;">📢</span>
+        <span style="font-weight:700;font-size:.95rem;color:#fff;flex:1;">${escHtml(cfg.title)}</span>
+      </div>
+      <!-- 본문 -->
+      <div style="padding:18px 20px;white-space:pre-wrap;font-size:.88rem;line-height:1.75;color:var(--text);">${escHtml(cfg.body)}</div>
+      <!-- 푸터 -->
+      <div style="padding:12px 20px 16px;display:flex;flex-direction:column;gap:8px;">
+        <button onclick="document.getElementById('popup-notice-overlay').remove();"
+          style="width:100%;padding:12px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer;">확인</button>
+        ${dismissKey?`<button onclick="localStorage.setItem('${dismissKey}','1');document.getElementById('popup-notice-overlay').remove();"
+          style="width:100%;padding:9px;border-radius:10px;border:1px dashed var(--border);background:none;color:var(--text-muted);font-family:inherit;font-size:.78rem;cursor:pointer;">🔕 다시 보지 않기</button>`:''}
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}

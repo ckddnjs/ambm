@@ -433,6 +433,8 @@ function initApp(){
   // 실제 대시보드 엔트리 (여기서부터 정상 동작)
   window.history.pushState({page:'dashboard'},'','#dashboard');
   goHome();
+  // 팝업 공지 체크 (약간 지연 — 페이지 렌더 완료 후)
+  setTimeout(()=>{if(typeof checkAndShowPopupNotice==='function') checkAndShowPopupNotice();},800);
 }
 function refreshHeader(){if(!ME) return; const el=document.getElementById('hdr-name'); if(el) el.textContent=ME.name;}
 
