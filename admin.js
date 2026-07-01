@@ -7,7 +7,7 @@ function switchAdminTab(tab){
     const m=el.getAttribute('onclick')?.match(/switchAdminTab\('(\w+)'\)/);
     el.classList.toggle('active', m&&m[1]===tab);
   });
-  switch(tab){case 'pending':renderAdminPending();break;case 'members':renderAdminMembers();break;case 'logs':renderAdminLogs();break;case 'tournamentImport':renderAdminTournamentImport();break;case 'matchDelete':renderAdminMatchDelete();break;case 'craft':renderAdminCraft();break;case 'tradingHalt':renderAdminTradingHalt();break;case 'popupNotice':renderAdminPopupNotice();break;}
+  switch(tab){case 'pending':renderAdminPending();break;case 'members':renderAdminMembers();break;case 'logs':renderAdminLogs();break;case 'tournamentImport':renderAdminTournamentImport();break;case 'matchDelete':renderAdminMatchDelete();break;case 'craft':renderAdminCraft();break;case 'tradingHalt':renderAdminTradingHalt();break;case 'popupNotice':renderAdminPopupNotice();break;case 'seasonClose':renderAdminSeasonClose();break;}
 }
 async function renderAdminPending(){
   const el=document.getElementById('admin-content');
@@ -1512,6 +1512,111 @@ async function checkTradingHalt(){
       if(curDay===h.startDay&&curMin<startMin) return false;
       if(curDay===h.endDay&&curMin>=endMin) return false;
       return true;
+    }
+  });
+}
+
+/* ══════════════════════════════════════════
+   🏁 시즌 마감 — 주식 청산·거래내역 초기화·새 시즌 시작
+   /api/admin/close-season 호출 (서비스 키). dryRun으로 미리보기 필수.
+══════════════════════════════════════════ */
+async function renderAdminSeasonClose(){
+  const el=document.getElementById('admin-content');
+  el.innerHTML=`<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:.82rem;">불러오는 중...</div>`;
+  const [ssRes,csRes]=await Promise.all([
+    sb.from('app_settings').select('value').eq('key','season_start').maybeSingle(),
+    sb.from('app_settings').select('value').eq('key','current_season').maybeSingle(),
+  ]);
+  const curStart=ssRes.data?.value||'(없음 · 전체기간)';
+  const curSeason=parseInt(csRes.data?.value||'1')||1;
+  // 기본 새 시즌 시작일 = 오늘(KST)
+  const nowKST=new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Seoul'}));
+  const todayISO=`${nowKST.getFullYear()}-${String(nowKST.getMonth()+1).padStart(2,'0')}-${String(nowKST.getDate()).padStart(2,'0')}`;
+
+  el.innerHTML=`
+    <div style="padding-bottom:24px;">
+      <div style="font-size:.82rem;color:var(--text-muted);margin-bottom:16px;line-height:1.7;">
+        시즌을 마감하면 아래가 <b style="color:var(--danger);">한 번에</b> 실행됩니다.<br>
+        ① 모든 회원의 <b>보유 주식을 현재가로 강제 매도</b>해 현금(포인트) 환급<br>
+        ② <b>거래내역 아카이브</b> 후 초기화 (주식 트레이딩 랭킹 리셋)<br>
+        ③ 새 시즌 시작일 설정 → 랭킹·주가가 <b>새 시즌 경기</b>만 반영<br>
+        <span style="color:var(--accent);">현금 잔액과 제작소·상점 아이템은 유지됩니다.</span>
+      </div>
+
+      <div class="card" style="padding:14px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:8px;">
+          <span style="color:var(--text-muted);">현재 시즌</span><b>시즌 ${curSeason}</b>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.85rem;">
+          <span style="color:var(--text-muted);">현재 컷오프</span><b>${curStart}</b>
+        </div>
+      </div>
+
+      <div class="card" style="padding:14px;">
+        <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:6px;">새 시즌 시작일 (이 날짜 이후 경기부터 랭킹 집계)</div>
+        <input id="season-new-start" type="date" value="${todayISO}" style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-family:inherit;font-size:.9rem;margin-bottom:12px;">
+        <button onclick="adminSeasonPreview()" id="season-preview-btn" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--primary);background:var(--bg3);color:var(--primary);font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;">🔍 미리보기 (청산액 계산 · 실행 안 함)</button>
+      </div>
+
+      <div id="season-preview-result" style="margin-top:14px;"></div>
+    </div>`;
+}
+
+async function _seasonCall(dryRun){
+  const newSeasonStart=document.getElementById('season-new-start')?.value;
+  if(!newSeasonStart){toast('새 시즌 시작일을 선택하세요','error');return null;}
+  const session=await sb.auth.getSession();
+  const token=session.data.session?.access_token;
+  const res=await fetch('/api/admin/close-season',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({newSeasonStart,dryRun}),
+  });
+  const json=await res.json();
+  if(!res.ok){toast('실패: '+(json.error||res.status),'error');return null;}
+  return json;
+}
+
+async function adminSeasonPreview(){
+  const btn=document.getElementById('season-preview-btn');
+  if(btn){btn.disabled=true;btn.textContent='계산 중...';}
+  try{
+    const r=await _seasonCall(true);
+    if(!r) return;
+    const rows=(r.refunds||[]).map(x=>
+      `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:.84rem;">
+        <span>${escHtml(x.name)}</span><b style="color:var(--accent);">+${(x.refund||0).toLocaleString()}p</b>
+      </div>`).join('')||'<div style="text-align:center;padding:14px 0;color:var(--text-muted);font-size:.82rem;">청산할 보유 주식이 없습니다</div>';
+    document.getElementById('season-preview-result').innerHTML=`
+      <div class="card" style="padding:14px;border:1px solid var(--primary);">
+        <div style="font-size:.82rem;font-weight:700;margin-bottom:10px;">🔍 미리보기 결과 (아직 실행되지 않음)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;font-size:.8rem;">
+          <div style="background:var(--bg2);border-radius:8px;padding:9px;"><div style="color:var(--text-muted);margin-bottom:3px;">청산 대상</div><b>${r.holderCount}명 · ${r.portfolioRows}건</b></div>
+          <div style="background:var(--bg2);border-radius:8px;padding:9px;"><div style="color:var(--text-muted);margin-bottom:3px;">총 환급액</div><b style="color:var(--accent);">${(r.totalRefund||0).toLocaleString()}p</b></div>
+        </div>
+        <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:8px;">시즌 ${r.currentSeason} → ${r.newSeason} · 새 컷오프 ${r.newSeasonStart}</div>
+        <div style="max-height:260px;overflow-y:auto;margin-bottom:14px;">${rows}</div>
+        <button onclick="adminSeasonExecute()" style="width:100%;padding:12px;border-radius:10px;border:none;background:var(--danger);color:#fff;font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer;">🏁 시즌 마감 실행 (되돌릴 수 없음)</button>
+      </div>`;
+  } finally {
+    if(btn){btn.disabled=false;btn.textContent='🔍 미리보기 (청산액 계산 · 실행 안 함)';}
+  }
+}
+
+async function adminSeasonExecute(){
+  const newStart=document.getElementById('season-new-start')?.value;
+  showConfirm({icon:'🏁',title:'시즌 마감 실행',
+    msg:`정말 실행할까요?\n\n· 모든 보유 주식이 청산됩니다\n· 거래내역이 초기화됩니다\n· 새 시즌(${newStart})이 시작됩니다\n\n이 작업은 되돌릴 수 없습니다.`,
+    okLabel:'실행',okClass:'btn-danger',
+    onOk:async function(){
+      const r=await _seasonCall(false);
+      if(!r) return;
+      window._seasonStart=r.newSeasonStart; // 즉시 반영
+      // 캐시 무효화 — 다음 렌더에서 새 시즌 기준 재계산
+      window._smStocksCache=null;window._smAllPortfolioCache=null;window._smAllPortfolioCacheTime=0;
+      addLog('season_close',ME.id);
+      toast(`✅ 시즌 ${r.currentSeason} 마감 완료 · ${r.holderCount}명 총 ${(r.totalRefund||0).toLocaleString()}p 환급`,'success');
+      renderAdminSeasonClose();
     }
   });
 }

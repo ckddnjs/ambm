@@ -420,6 +420,7 @@ function _startWeatherInterval(){
 
 function initApp(){
   refreshHeader();buildNav();
+  ensureSeasonStart(); // 시즌 컷오프 미리 로드 (랭킹·주가 집계용)
   document.getElementById('reg-date').value=todayStr();
   const commWriteBtn=document.getElementById('btn-comm-write');
   if(commWriteBtn) commWriteBtn.style.display=(ME?.role==='admin'||ME?.role==='writer')?'':'none';
@@ -629,6 +630,28 @@ function calcCI(wins, games, diff, closeWins=0){
   const gamesBonus = Math.min(games, GAMES_BONUS_CAP) * GAMES_BONUS;
   const closeWinBonus = (closeWins||0) * CLOSE_WIN_BONUS;
   return BASE_RATING + wrScore + diffScore + gamesBonus + closeWinBonus;
+}
+
+/* ══════════════════════════════════════════
+   🏁 시즌 — 날짜 컷오프 기반
+   랭킹·CI·주가는 season_start(YYYY-MM-DD) 이후 승인경기만 집계.
+   피드(경기 기록)는 전체 히스토리 유지 → inSeason 미적용.
+   season_start가 비어있으면(''): 전체 기간 = 모든 경기 통과.
+══════════════════════════════════════════ */
+window._seasonStart=window._seasonStart; // undefined=미로드, ''=전체기간
+async function ensureSeasonStart(){
+  if(window._seasonStart!==undefined) return window._seasonStart;
+  try{
+    const {data}=await sb.from('app_settings').select('value').eq('key','season_start').maybeSingle();
+    window._seasonStart=data?.value||'';
+  }catch(e){ window._seasonStart=''; }
+  return window._seasonStart;
+}
+/** 경기가 현재 시즌(컷오프 이후)에 속하는지 — match_date는 'YYYY-MM-DD'라 문자열 비교로 충분 */
+function inSeason(m){
+  const ss=window._seasonStart||'';
+  if(!ss) return true;
+  return String(m&&m.match_date||'')>=ss;
 }
 
 /** 하위 호환: SABCD 등급 → 수치 기반 등급 표시 */

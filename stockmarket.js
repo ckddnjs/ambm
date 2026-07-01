@@ -10,6 +10,8 @@ async function renderStockMarketPage(){
   if(!el) return;
   el.innerHTML='<div style="text-align:center;padding:40px 0;"><div class="spinner" style="margin:0 auto;"></div></div>';
 
+  await ensureSeasonStart(); // 시즌 컷오프 보장 (주가 집계에 사용)
+
   const tab=window._smTab||'market';
 
   // ── 1. 캐시 보장 — matches & profiles 병렬 로드 (없을 때만) ──
@@ -101,7 +103,7 @@ async function renderStockMarketPage(){
 }
 
 function _smCalcStocks(users,allM,allPortfolio){
-  const approved=allM.filter(m=>m.status==='approved');
+  const approved=allM.filter(m=>m.status==='approved'&&inSeason(m)); // 시즌 경기만
   return users.map(u=>{
     const uM=approved.filter(m=>[m.a1_id,m.a2_id,m.b1_id,m.b2_id].includes(u.id));
     const games=uM.length;
@@ -142,7 +144,7 @@ function _smCalcStocks(users,allM,allPortfolio){
 
 /** 경기일 누적 구간마다 CI를 구해 주가( CI-900 ) 추이 */
 function _smSparklineCI(uid,allApproved){
-  const approvedSorted=[...allApproved].sort((a,b)=>{
+  const approvedSorted=[...allApproved].filter(inSeason).sort((a,b)=>{ // 시즌 경기만
     const d=String(a.match_date||'').localeCompare(String(b.match_date||''));
     if(d!==0) return d;
     return String(a.created_at||'').localeCompare(String(b.created_at||''));
@@ -669,6 +671,8 @@ async function renderStockDetailPage(){
   const el=document.getElementById('stockdetail-content');
   if(!el) return;
   el.innerHTML='<div style="text-align:center;padding:40px 0;"><div class="spinner" style="margin:0 auto;"></div></div>';
+
+  await ensureSeasonStart(); // 시즌 컷오프 보장
 
   // 매치 캐시 보장
   if(!window._allMatchesCache||!window._allMatchesCache.length){

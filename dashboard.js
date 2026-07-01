@@ -1,5 +1,6 @@
 /* ── DASHBOARD ── */
 async function renderDashboard(){
+  await ensureSeasonStart(); // 시즌 컷오프 보장 (랭킹·개인성적 집계용)
   const{data:prof}=await sb.from('profiles').select('*').eq('id',ME.id).single();
   if(prof) ME=prof;
   // 경기 캐시: 30초 이내면 재조회 생략
@@ -10,7 +11,7 @@ async function renderDashboard(){
     window._matchCacheTime=_now;
     window._profilesCache=null; // 경기 새로 불러오면 프로필도 갱신
   }
-  const myMatches=_allMatchesCache.filter(m=>[m.a1_id,m.a2_id,m.b1_id,m.b2_id].includes(ME.id));
+  const myMatches=_allMatchesCache.filter(m=>inSeason(m)&&[m.a1_id,m.a2_id,m.b1_id,m.b2_id].includes(ME.id)); // 시즌 경기만
   const stats=computeStats(myMatches,ME.id);
 
   // 전체 유저 통계로 순위 계산 (renderRankTable과 동일한 기준: 회원+비회원)
@@ -25,7 +26,7 @@ async function renderDashboard(){
   const uStats={};
   // 회원 초기화
   (allUsers||[]).filter(u=>!u.exclude_stats).forEach(u=>uStats[u.id]={id:u.id,games:0,wins:0,diff:0,scored:0,conceded:0,closeWins:0});
-  _allMatchesCache.forEach(m=>{
+  _allMatchesCache.filter(inSeason).forEach(m=>{ // 시즌 경기만
     const aWin=m.score_a>m.score_b;
     const isClose=Math.abs(m.score_a-m.score_b)<=3;
     // 회원 (id 기반)
@@ -321,7 +322,7 @@ function renderMyTypeStats(stats, allM){
   const adjustedWR=wr*confidence;
   const avgDiff=games>0?diff/games:0;
   // 접전 승리 집계 (점수차 3점 이내 승리)
-  const _myM=(allM||[]).filter(m=>[m.a1_id,m.a2_id,m.b1_id,m.b2_id].includes(ME?.id));
+  const _myM=(allM||[]).filter(m=>inSeason(m)&&[m.a1_id,m.a2_id,m.b1_id,m.b2_id].includes(ME?.id)); // 시즌 경기만
   let closeWins=0;
   _myM.forEach(m=>{const onA=[m.a1_id,m.a2_id].includes(ME?.id);const won=onA?(m.score_a>m.score_b):(m.score_b>m.score_a);if(won&&Math.abs(m.score_a-m.score_b)<=3)closeWins++;});
   const closeBonus=closeWins;
@@ -577,7 +578,7 @@ function renderMvpPodium(allMatches, users) {
   var guestModeNames = window._guestModeNamesCache||new Set();
 
   var uStats = {};
-  (allMatches||[]).filter(m=>m.status==='approved').forEach(m=>{
+  (allMatches||[]).filter(m=>m.status==='approved'&&inSeason(m)).forEach(m=>{ // 시즌 경기만
     var aWin=m.score_a>m.score_b;
     var isClose=Math.abs(m.score_a-m.score_b)<=3;
     // 회원 (id 기반)
@@ -868,6 +869,7 @@ function renderRankTable(allMatches){
   const guestModeNames=window._guestModeNamesCache||new Set();
   const userStats={};
   users.filter(u=>!u.exclude_stats).forEach(u=>{userStats[u.id]={id:u.id,name:u.name,games:0,wins:0,losses:0,scored:0,conceded:0,closeWins:0,isGuest:false,isGuestMode:false};});
+  allMatches=(allMatches||[]).filter(inSeason); // 시즌 경기만
   const filtered=rankTab==='all'?allMatches:allMatches.filter(m=>m.match_type===rankTab);
   filtered.forEach(m=>{
     const aWin=m.score_a>m.score_b;
@@ -1015,7 +1017,7 @@ function renderPartner(allMatches){
   if(!el) return;
   const sameType='doubles';
   const filtered=allMatches.filter(m=>{
-    if(m.status!=='approved') return false;
+    if(m.status!=='approved'||!inSeason(m)) return false; // 시즌 경기만
     if(partnerTab==='same') return m.match_type===sameType;
     return true;
   });
@@ -1080,7 +1082,7 @@ function _renderPartnerRows(){
 function renderScatter(){
   const canvas=document.getElementById('scatter-canvas');
   if(!canvas) return;
-  const allMatches=_allMatchesCache.filter(m=>m.status==='approved');
+  const allMatches=_allMatchesCache.filter(m=>m.status==='approved'&&inSeason(m)); // 시즌 경기만
   const guestModeNamesSet=new Set(JSON.parse(localStorage.getItem('guest_mode_names')||'[]'));
 
   // 회원+비회원 통계 집계 (게스트모드 제외)
