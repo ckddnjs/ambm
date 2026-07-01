@@ -1302,6 +1302,26 @@ async function _loadSeasonHistory(){
   return hist.sort((a,b)=>b.season-a.season); // 최신 시즌 먼저
 }
 
+// ISO(YYYY-MM-DD) 하루 전
+function _dayBeforeISO(iso){
+  if(!iso) return '';
+  const d=new Date(iso.slice(0,10)+'T00:00:00');
+  d.setDate(d.getDate()-1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+// 시즌 표시용 기간: 시작=첫 경기일(비어있을 때), 종료=경계 하루 전(=시즌 마감일)
+function _seasonRangeLabel(s, matches){
+  let start=s.start;
+  if(!start){
+    const dates=(matches||[])
+      .filter(m=>m.status==='approved'&&(!s.end||String(m.match_date||'').slice(0,10)<s.end))
+      .map(m=>String(m.match_date||'').slice(0,10)).filter(Boolean).sort();
+    start=dates[0]||'';
+  }
+  const endDisp=s.end?_dayBeforeISO(s.end):'';
+  return (start||'?')+' ~ '+(endDisp||'현재');
+}
+
 async function renderPastSeasonCard(){
   const card=document.getElementById('past-season-card');
   const list=document.getElementById('past-season-list');
@@ -1310,8 +1330,9 @@ async function renderPastSeasonCard(){
   try{ seasons=await _loadSeasonHistory(); }catch(e){ seasons=[]; }
   if(!seasons.length){ if(card) card.style.display='none'; return; }
   if(card) card.style.display='';
+  const matches=window._allMatchesCache||[];
   list.innerHTML=seasons.map(s=>{
-    const range=(s.start||'처음')+' ~ '+(s.end||'');
+    const range=_seasonRangeLabel(s, matches);
     return '<button onclick="openPastSeason('+s.season+')" style="padding:9px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;text-align:left;">'+
       '🏆 시즌 '+s.season+'<div style="font-size:.62rem;color:var(--text-muted);font-weight:400;margin-top:2px;">'+range+'</div></button>';
   }).join('');
@@ -1367,11 +1388,11 @@ async function openPastSeason(season){
   const inRange=m=>{const md=String(m.match_date||'').slice(0,10); return (!s.start||md>=s.start)&&(!s.end||md<s.end);};
   const matches=_allMatchesCache.filter(m=>m.status==='approved'&&inRange(m));
   const ranked=_computeSeasonRanking(matches, window._profilesCache||[]);
-  if(body) body.innerHTML=_pastSeasonHtml(ranked, s, matches.length);
+  const range=_seasonRangeLabel(s, _allMatchesCache);
+  if(body) body.innerHTML=_pastSeasonHtml(ranked, range, matches.length);
 }
 
-function _pastSeasonHtml(ranked, s, matchCount){
-  const range=(s.start||'처음')+' ~ '+(s.end||'');
+function _pastSeasonHtml(ranked, range, matchCount){
   if(!ranked.length){
     return '<div style="font-size:.72rem;color:var(--text-muted);text-align:center;margin-bottom:10px;">'+range+' · 경기 '+matchCount+'건</div>'+
       '<div style="text-align:center;padding:30px 0;color:var(--text-muted);font-size:.85rem;">5경기 이상 완료한 선수가 없습니다</div>';
