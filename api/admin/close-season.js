@@ -182,12 +182,25 @@ export default async function handler(req, res) {
     const { error: delPortErr } = await sb.from('stock_portfolio').delete().not('user_id', 'is', null);
     if (delPortErr) return res.status(500).json({ error: '포트폴리오 삭제 실패: ' + delPortErr.message });
 
-    // ── 10. 시즌 전환 ──
+    // ── 10. 시즌 경계 기록 (지난 시즌 랭킹 조회용) ──
+    // 마감되는 시즌 = [currentSeasonStart, newSeasonStart). start=''는 전체기간 시작.
+    const { data: histRow } = await sb.from('app_settings').select('value').eq('key', 'season_history').maybeSingle();
+    let history = [];
+    try { history = JSON.parse(histRow?.value || '[]'); } catch (e) { history = []; }
+    if (!Array.isArray(history)) history = [];
+    if (!history.some(h => h.season === currentSeason)) {
+      history.push({ season: currentSeason, start: currentSeasonStart || '', end: newSeasonStart });
+    }
+    history.sort((a, b) => a.season - b.season);
+    const { error: e0 } = await sb.from('app_settings')
+      .upsert({ key: 'season_history', value: JSON.stringify(history) }, { onConflict: 'key' });
+
+    // ── 11. 시즌 전환 ──
     const { error: e1 } = await sb.from('app_settings')
       .upsert({ key: 'season_start', value: newSeasonStart }, { onConflict: 'key' });
     const { error: e2 } = await sb.from('app_settings')
       .upsert({ key: 'current_season', value: String(currentSeason + 1) }, { onConflict: 'key' });
-    if (e1 || e2) return res.status(500).json({ error: '시즌 설정 갱신 실패: ' + (e1 || e2).message });
+    if (e0 || e1 || e2) return res.status(500).json({ error: '시즌 설정 갱신 실패: ' + (e0 || e1 || e2).message });
 
     // 감사 로그
     try {

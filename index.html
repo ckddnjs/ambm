@@ -178,6 +178,10 @@
         <div style="position:relative;width:100%;"><canvas id="scatter-canvas" style="width:100%;display:block;"></canvas></div>
         <div style="font-size:.72rem;color:var(--text-muted);margin-top:6px;text-align:center;">X축: 승률(%) · Y축: 평균 득실차 · 전체 경기 기준</div>
       </div>
+      <div class="card" id="past-season-card">
+        <div class="card-title">📜 지난 시즌 기록</div>
+        <div id="past-season-list" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+      </div>
     </div>
 
     <!-- 경기내역 -->
@@ -612,6 +616,15 @@
     <div class="modal-title" id="modal-match-title">경기 상세</div>
     <div id="modal-match-body"></div>
     <div class="modal-actions" id="modal-match-actions"></div>
+  </div>
+</div>
+
+<!-- 지난 시즌 랭킹 모달 -->
+<div class="modal-overlay" id="modal-past-season">
+  <div class="modal" style="max-height:90vh;overflow-y:auto;">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="past-season-title">📜 지난 시즌</div>
+    <div id="past-season-body"></div>
   </div>
 </div>
 
