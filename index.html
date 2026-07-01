@@ -26,6 +26,21 @@
 })();
 </script>
 
+<!-- 부팅용 크리티컬 CSS: app.css/JS 로드 전에도 로딩화면이 즉시 보이도록 (검정화면 방지).
+     #loading-screen은 body의 visibility:hidden 게이트와 무관하게 visibility:visible로 강제 노출 -->
+<style id="critical-boot">
+  html{background:#0C0D10}
+  html.pre-light{background:#F8FAFC}
+  #loading-screen{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#0C0D10;visibility:visible}
+  html.pre-light #loading-screen{background:#F8FAFC}
+  #loading-screen .ld-shuttle{font-size:4rem;animation:bootShuttle 1.2s ease-in-out infinite alternate}
+  #loading-screen .ld-title{font-family:'Black Han Sans',sans-serif;font-size:1.8rem;color:#4D9FFF;letter-spacing:1px}
+  #loading-screen .ld-sub{color:#94A3B8;font-size:.88rem;letter-spacing:.5px}
+  #loading-screen .spinner{width:32px;height:32px;border:3px solid rgba(255,255,255,.1);border-top-color:#4D9FFF;border-radius:50%;animation:bootSpin .8s linear infinite;margin-top:24px}
+  @keyframes bootShuttle{from{transform:translateX(-20px) rotate(-20deg)}to{transform:translateX(20px) rotate(20deg)}}
+  @keyframes bootSpin{to{transform:rotate(360deg)}}
+</style>
+
 <!-- OG 메타데이터 -->
 <meta property="og:url" content="https://ambm.vercel.app/">
 <meta property="og:title" content="새벽민턴 AM BADMINTON">
@@ -37,9 +52,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Black+Han+Sans&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <link rel="stylesheet" href="app.css?v=1775267349">
-  <script src="logo.js"></script>
+  <script src="logo.js" defer></script>
   <script>document.addEventListener("DOMContentLoaded",function(){if(window.AM_LOGO_B64){["login-logo","loading-logo"].forEach(function(id){var el=document.getElementById(id);if(el)el.src=window.AM_LOGO_B64;});}})</script>
 </head>
 <body>
