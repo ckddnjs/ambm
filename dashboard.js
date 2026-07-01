@@ -282,6 +282,7 @@ async function renderDashboard(){
   renderPartner(_allMatchesCache);
   setTimeout(()=>renderScatter(),100);
   renderPastSeasonCard();
+  renderSeasonOnboard(stats.total.games||0);
 }
 
 function computeStats(matches,userId){
@@ -1411,4 +1412,56 @@ function _pastSeasonHtml(ranked, range, matchCount){
     '</div>';
   }).join('');
   return '<div style="font-size:.72rem;color:var(--text-muted);text-align:center;margin-bottom:10px;">'+range+' · 경기 '+matchCount+'건 · 종합점수(CI) 순</div>'+rows;
+}
+
+/* ══════════════════════════════════════════
+   🏸 시즌 시작/신규 회원 온보딩 — 이번 시즌 0경기일 때 빈 통계 대신 표시
+══════════════════════════════════════════ */
+async function renderSeasonOnboard(myGames){
+  const el=document.getElementById('season-onboard');
+  if(!el) return;
+  const personalCards=['my-overview-card','trend-card','partner-card'].map(id=>document.getElementById(id));
+  if(myGames>0){
+    el.style.display='none';
+    personalCards.forEach(c=>{if(c)c.style.display='';});
+    return;
+  }
+  // 이번 시즌 0경기 → 개인 통계 카드 숨기고 온보딩 노출
+  personalCards.forEach(c=>{if(c)c.style.display='none';});
+  const seasonMatchCount=(window._allMatchesCache||[]).filter(m=>m.status==='approved'&&inSeason(m)).length;
+  const seasonNo=window._currentSeason||1;
+  // 시즌 전체가 0경기 + 컷오프 존재 → "새 시즌 시작", 아니면(다른 사람은 경기함) → "신규 환영"
+  const freshSeason=seasonMatchCount===0 && !!(window._seasonStart||'');
+  const title=freshSeason?('시즌 '+seasonNo+' 시작!'):('환영합니다, '+escHtml(ME?.name||'')+'님!');
+  const desc=freshSeason
+    ?'새 시즌이 열렸어요. 첫 경기를 등록하면 랭킹과 통계가 여기서부터 다시 쌓여요.'
+    :'아직 등록된 이번 시즌 경기가 없어요. 첫 경기를 등록하고 랭킹에 합류해보세요.';
+
+  // 기본 카드 즉시 렌더 (CTA 지연 없음)
+  el.style.display='';
+  el.innerHTML=
+    '<div class="card green-glow" style="text-align:center;padding:26px 20px;">'+
+      '<div style="font-size:2.6rem;margin-bottom:6px;">🏸</div>'+
+      '<div style="font-family:\'Black Han Sans\',sans-serif;font-size:1.3rem;color:var(--primary);margin-bottom:8px;">'+title+'</div>'+
+      '<div style="font-size:.85rem;color:var(--text-muted);line-height:1.6;margin-bottom:18px;">'+desc+'</div>'+
+      '<button onclick="navigateTo(\'register\')" style="padding:13px 28px;border-radius:12px;border:none;background:var(--primary);color:#fff;font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer;">🏸 경기 등록하기</button>'+
+      '<div id="onboard-recap"></div>'+
+    '</div>';
+
+  // (선택) 지난 시즌 내 성적 회고 — 비동기로 채움
+  if(freshSeason){
+    try{
+      const seasons=await _loadSeasonHistory();
+      const prev=seasons&&seasons.length?seasons[0]:null;
+      if(prev){
+        const inRange=m=>{const md=String(m.match_date||'').slice(0,10);return (!prev.start||md>=prev.start)&&(!prev.end||md<prev.end);};
+        const mine=(window._allMatchesCache||[]).filter(m=>m.status==='approved'&&inRange(m)&&[m.a1_id,m.a2_id,m.b1_id,m.b2_id].includes(ME?.id));
+        const recapEl=document.getElementById('onboard-recap');
+        if(mine.length&&recapEl){
+          let w=0; mine.forEach(m=>{const onA=[m.a1_id,m.a2_id].includes(ME.id);if(onA?(m.score_a>m.score_b):(m.score_b>m.score_a))w++;});
+          recapEl.innerHTML='<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:.76rem;color:var(--text-muted);">지난 시즌 '+prev.season+': '+mine.length+'경기 '+w+'승 '+(mine.length-w)+'패 · 승률 '+Math.round(w/mine.length*100)+'%</div>';
+        }
+      }
+    }catch(e){}
+  }
 }

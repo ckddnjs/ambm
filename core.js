@@ -642,9 +642,11 @@ window._seasonStart=window._seasonStart; // undefined=미로드, ''=전체기간
 async function ensureSeasonStart(){
   if(window._seasonStart!==undefined) return window._seasonStart;
   try{
-    const {data}=await sb.from('app_settings').select('value').eq('key','season_start').maybeSingle();
-    window._seasonStart=data?.value||'';
-  }catch(e){ window._seasonStart=''; }
+    const {data}=await sb.from('app_settings').select('key,value').in('key',['season_start','current_season']);
+    const map={}; (data||[]).forEach(r=>{map[r.key]=r.value;});
+    window._seasonStart=map.season_start||'';
+    window._currentSeason=parseInt(map.current_season||'1')||1;
+  }catch(e){ window._seasonStart=''; window._currentSeason=1; }
   return window._seasonStart;
 }
 /** 경기가 현재 시즌(컷오프 이후)에 속하는지 — match_date는 'YYYY-MM-DD'라 문자열 비교로 충분 */

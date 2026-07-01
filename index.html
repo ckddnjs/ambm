@@ -157,8 +157,9 @@
       <div class="mb-2">
         <div class="page-title" id="dash-hello">안녕하세요 👋</div>
       </div>
+      <div id="season-onboard" style="display:none;"></div>
       <div class="card green-glow" id="my-overview-card"></div>
-      <div class="card">
+      <div class="card" id="trend-card">
         <div class="card-title">📈 변동 추이</div>
         <div class="sub-tabs" style="margin-bottom:10px;">
           <button class="sub-tab active" onclick="switchTrendTab('ci')" id="trend-tab-ci">종합</button>
@@ -168,7 +169,7 @@
         <div style="position:relative;width:100%;"><canvas id="wr-trend-canvas" style="width:100%;display:block;"></canvas></div>
         <div id="wr-trend-empty" style="display:none;text-align:center;padding:20px;color:var(--text-muted);font-size:.85rem;">경기 기록이 없습니다</div>
       </div>
-      <div class="card">
+      <div class="card" id="partner-card">
         <div class="card-title">🤝 베스트 파트너</div>
         <div id="partner-list"></div>
       </div>
