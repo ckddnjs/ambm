@@ -11,6 +11,30 @@ function _anWr(o){ return o.games > 0 ? Math.round(o.wins / o.games * 100) : 0; 
 /* 분석 대상 화면표기(내/이름) — _anRenderBody에서 갱신 */
 let _anWho = '내';
 
+/* ── 인라인 SVG 아이콘 (feather 스타일, currentColor/stroke) ── */
+function _anIcon(name, size, color){
+  const s = size || 18, c = color || 'currentColor';
+  const A = inner => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex-shrink:0;">${inner}</svg>`;
+  switch(name){
+    case 'chart':    return A('<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>');
+    case 'users':    return A('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>');
+    case 'user':     return A('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>');
+    case 'target':   return A('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.6" fill="' + c + '" stroke="none"/>');
+    case 'flame':    return A('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>');
+    case 'trending': return A('<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>');
+    case 'calendar': return A('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>');
+    default:         return '';
+  }
+}
+/* 카드 제목 (아이콘 + 텍스트) */
+function _anTitle(icon, color, text){
+  return `<div class="card-title" style="display:flex;align-items:center;gap:8px;">${_anIcon(icon, 18, color)}<span>${text}</span></div>`;
+}
+/* 헤드라인 원형 아이콘 배지 */
+function _anIconBadge(icon, color, bg){
+  return `<div style="width:44px;height:44px;border-radius:12px;background:${bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${_anIcon(icon, 24, color)}</div>`;
+}
+
 /* 특정 대상(targetId)의 시즌 경기 통계 집계 — inRange: 시즌 필터 술어 */
 function _anAggregate(inRange, targetId){
   const meId = targetId || ME?.id;
@@ -166,11 +190,11 @@ function _anRenderShell(){
 
   wrap.innerHTML = `
     <div class="card" style="padding:12px 14px;margin-bottom:12px;">
-      <div style="font-size:.72rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;letter-spacing:.3px;">👤 분석 대상</div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;letter-spacing:.3px;">${_anIcon('user', 13, 'var(--text-muted)')}<span>분석 대상</span></div>
       ${_anPlayerSelectHtml()}
     </div>
     <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:4px;-webkit-overflow-scrolling:touch;">${pills}</div>
-    <div style="font-size:.74rem;color:var(--text-muted);margin-bottom:12px;padding-left:2px;">📅 ${range}</div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:.74rem;color:var(--text-muted);margin-bottom:12px;padding-left:2px;">${_anIcon('calendar', 13, 'var(--text-muted)')}<span>${range}</span></div>
     <div id="analysis-body"></div>`;
 
   _anRenderBody();
@@ -211,10 +235,10 @@ function _anRenderBody(){
     body.innerHTML = `
       <div class="card">
         <div class="empty-state" style="padding:40px 0;">
-          <div class="empty-icon" style="font-size:2.6rem;">📊</div>
+          <div style="display:flex;justify-content:center;opacity:.45;margin-bottom:6px;">${_anIcon('chart', 40, 'var(--text-muted)')}</div>
           <div style="margin-top:8px;font-weight:700;">${subject} 경기 기록이 없어요</div>
           <div style="font-size:.82rem;color:var(--text-muted);margin-top:6px;">${isMe && isCurrent ? '경기를 등록하거나 지난 시즌을 선택해 보세요.' : '다른 시즌을 선택해 보세요.'}</div>
-          ${isMe && isCurrent ? `<button class="btn btn-primary" style="margin-top:16px;" onclick="navigateTo('register')">✍️ 경기 등록하러 가기</button>` : ''}
+          ${isMe && isCurrent ? `<button class="btn btn-primary" style="margin-top:16px;" onclick="navigateTo('register')">경기 등록하러 가기</button>` : ''}
         </div>
       </div>`;
     return;
@@ -266,10 +290,10 @@ function _anMomentumCard(series){
   return `
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
-      <div class="card-title" style="margin:0;">📈 최근 ${n}경기 흐름</div>
+      <div class="card-title" style="margin:0;display:flex;align-items:center;gap:8px;">${_anIcon('trending', 18, 'var(--accent)')}<span>최근 ${n}경기 흐름</span></div>
       <div style="font-family:'Black Han Sans',sans-serif;font-size:1.15rem;color:${col};line-height:1;">${netStr}</div>
     </div>
-    <div style="font-size:.74rem;color:var(--text-muted);margin:3px 0 8px;">승리 = 상승 📈 · 패배 = 하락 📉 &nbsp;·&nbsp; ${w}승 ${l}패</div>
+    <div style="font-size:.74rem;color:var(--text-muted);margin:3px 0 8px;">승리 = 상승 · 패배 = 하락 &nbsp;·&nbsp; ${w}승 ${l}패</div>
     <canvas id="an-momentum-canvas" style="width:100%;display:block;"></canvas>
   </div>`;
 }
@@ -354,7 +378,7 @@ function _anSummaryCard(d, wr, avgDiff){
   const diffCol = avgDiff >= 0 ? 'var(--primary)' : 'var(--danger)';
   return `
   <div class="card">
-    <div class="card-title">📊 ${_anWho} 성적</div>
+    ${_anTitle('chart', 'var(--primary)', `${_anWho} 성적`)}
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">
       ${_anTile('경기', d.games, 'var(--text)')}
       ${_anTile('승', d.wins, 'var(--primary)')}
@@ -378,12 +402,12 @@ function _anTile(label, val, color){
 }
 
 /* ── 공통: 승률 수평 바 행 ── */
-function _anBarRow(rank, name, sub, wr, color, badge){
+function _anBarRow(rank, name, sub, wr, color){
   const isTop = rank === 1;
   return `
   <div style="padding:10px 0;border-bottom:1px solid var(--border);">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;">
-      <div style="width:26px;text-align:center;font-size:${isTop ? '1.25rem' : '.9rem'};font-weight:700;color:${isTop ? color : 'var(--text-muted)'};">${isTop ? (badge || '🥇') : rank}</div>
+      <div style="width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.82rem;font-weight:800;flex-shrink:0;color:${isTop ? '#fff' : 'var(--text-muted)'};background:${isTop ? color : 'var(--bg2)'};">${rank}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-weight:700;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</div>
         <div style="font-size:.74rem;color:var(--text-muted);margin-top:1px;">${sub}</div>
@@ -406,10 +430,10 @@ function _anBestPartnerCard(partnerList){
   const best = use[0];
   return `
   <div class="card">
-    <div class="card-title">🤝 베스트 파트너</div>
+    ${_anTitle('users', 'var(--accent)', '베스트 파트너')}
     <div style="font-size:.76rem;color:var(--text-muted);margin:-4px 0 8px;">함께 뛰었을 때 승률이 가장 높은 파트너</div>
     ${best ? `<div style="background:linear-gradient(135deg,rgba(0,212,170,.14),rgba(0,212,170,.03));border:1px solid rgba(0,212,170,.3);border-radius:12px;padding:12px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;">
-      <div style="font-size:2rem;">🏅</div>
+      ${_anIconBadge('users', 'var(--accent)', 'rgba(0,212,170,.15)')}
       <div style="flex:1;min-width:0;">
         <div style="font-size:.72rem;color:var(--accent);font-weight:700;">환상의 콤비</div>
         <div style="font-weight:800;font-size:1.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${best.name}</div>
@@ -420,7 +444,7 @@ function _anBestPartnerCard(partnerList){
         <div style="font-size:.68rem;color:var(--text-dim);">승률</div>
       </div>
     </div>` : ''}
-    ${use.map((p,i) => _anBarRow(i+1, p.name, `${p.games}경기 · ${p.wins}승 ${p.games - p.wins}패`, _anWr(p), 'var(--accent)', '🏅')).join('')}
+    ${use.map((p,i) => _anBarRow(i+1, p.name, `${p.games}경기 · ${p.wins}승 ${p.games - p.wins}패`, _anWr(p), 'var(--accent)')).join('')}
     ${_anThreshNote(partnerList, ranked, '함께 뛴')}
   </div>`;
 }
@@ -433,10 +457,10 @@ function _anPreyCard(oppList){
   const top = prey[0];
   return `
   <div class="card">
-    <div class="card-title">😋 먹잇감</div>
+    ${_anTitle('target', 'var(--primary)', '먹잇감')}
     <div style="font-size:.76rem;color:var(--text-muted);margin:-4px 0 8px;">유독 강한, 상대전적에서 앞서는 선수</div>
     ${top ? `<div style="background:linear-gradient(135deg,rgba(77,159,255,.14),rgba(77,159,255,.03));border:1px solid rgba(77,159,255,.3);border-radius:12px;padding:12px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;">
-      <div style="font-size:2rem;">🍗</div>
+      ${_anIconBadge('target', 'var(--primary)', 'rgba(77,159,255,.15)')}
       <div style="flex:1;min-width:0;">
         <div style="font-size:.72rem;color:var(--primary);font-weight:700;">가장 만만한 상대</div>
         <div style="font-weight:800;font-size:1.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${top.name}</div>
@@ -446,8 +470,8 @@ function _anPreyCard(oppList){
         <div style="font-family:'Black Han Sans',sans-serif;font-size:1.7rem;color:var(--primary);line-height:1;">${_anWr(top)}%</div>
         <div style="font-size:.68rem;color:var(--text-dim);">${_anWho} 승률</div>
       </div>
-    </div>` : `<div class="empty-state" style="padding:16px 0;font-size:.85rem;color:var(--text-muted);">아직 우위를 점한 상대가 없어요 🥲</div>`}
-    ${prey.map((o,i) => _anBarRow(i+1, o.name, `상대 ${o.games}회 · ${o.wins}승 ${o.games - o.wins}패`, _anWr(o), 'var(--primary)', '🍗')).join('')}
+    </div>` : `<div class="empty-state" style="padding:16px 0;font-size:.85rem;color:var(--text-muted);">아직 상대전적에서 앞서는 선수가 없어요</div>`}
+    ${prey.map((o,i) => _anBarRow(i+1, o.name, `상대 ${o.games}회 · ${o.wins}승 ${o.games - o.wins}패`, _anWr(o), 'var(--primary)')).join('')}
   </div>`;
 }
 
@@ -459,10 +483,10 @@ function _anNemesisCard(oppList){
   const top = nem[0];
   return `
   <div class="card">
-    <div class="card-title">😈 천적</div>
+    ${_anTitle('flame', 'var(--danger)', '천적')}
     <div style="font-size:.76rem;color:var(--text-muted);margin:-4px 0 8px;">유독 약한, 상대전적에서 뒤지는 선수</div>
     ${top ? `<div style="background:linear-gradient(135deg,rgba(255,107,107,.14),rgba(255,107,107,.03));border:1px solid rgba(255,107,107,.3);border-radius:12px;padding:12px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;">
-      <div style="font-size:2rem;">💀</div>
+      ${_anIconBadge('flame', 'var(--danger)', 'rgba(255,107,107,.15)')}
       <div style="flex:1;min-width:0;">
         <div style="font-size:.72rem;color:var(--danger);font-weight:700;">넘기 힘든 벽</div>
         <div style="font-weight:800;font-size:1.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${top.name}</div>
@@ -472,8 +496,8 @@ function _anNemesisCard(oppList){
         <div style="font-family:'Black Han Sans',sans-serif;font-size:1.7rem;color:var(--danger);line-height:1;">${_anWr(top)}%</div>
         <div style="font-size:.68rem;color:var(--text-dim);">${_anWho} 승률</div>
       </div>
-    </div>` : `<div class="empty-state" style="padding:16px 0;font-size:.85rem;color:var(--text-muted);">천적이 없네요! 최강자 👑</div>`}
-    ${nem.map((o,i) => _anBarRow(i+1, o.name, `상대 ${o.games}회 · ${o.wins}승 ${o.games - o.wins}패`, _anWr(o), 'var(--danger)', '💀')).join('')}
+    </div>` : `<div class="empty-state" style="padding:16px 0;font-size:.85rem;color:var(--text-muted);">천적이 없습니다 — 최강자!</div>`}
+    ${nem.map((o,i) => _anBarRow(i+1, o.name, `상대 ${o.games}회 · ${o.wins}승 ${o.games - o.wins}패`, _anWr(o), 'var(--danger)')).join('')}
   </div>`;
 }
 
@@ -504,7 +528,7 @@ function _anDivergingCard(oppList){
 
   return `
   <div class="card">
-    <div class="card-title">📈 상대전적 분포</div>
+    ${_anTitle('chart', 'var(--text-muted)', '상대전적 분포')}
     <div style="font-size:.76rem;color:var(--text-muted);margin:-4px 0 10px;">중앙선(50%) 기준 — 오른쪽 파랑은 우세(먹잇감), 왼쪽 빨강은 열세(천적)</div>
     ${rows}
     <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--text-dim);margin-top:8px;padding:0 42px 0 72px;">
