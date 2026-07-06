@@ -209,6 +209,7 @@
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
           <button id="btn-batch-register" class="btn btn-ghost btn-sm" onclick="toggleBatchPanel()" style="display:none;border:1px solid var(--border);color:var(--text-muted);font-size:.78rem;">📋 일괄등록</button>
+          <button class="btn btn-primary btn-sm" onclick="navigateTo('register')" style="font-size:.8rem;white-space:nowrap;">✍️ 경기 등록</button>
         </div>
       </div>
       <div id="feed-filters-wrap">
@@ -245,8 +246,20 @@
           <div class="page-title" style="margin-bottom:0;">✍️ 등록</div>
           <div class="page-sub" style="margin-bottom:0;">경기 기록 요청</div>
         </div>
+        <button class="btn btn-ghost btn-sm" onclick="navigateTo('feed')" style="border:1px solid var(--border);color:var(--text-muted);font-size:.78rem;">← 기록</button>
       </div>
       <div id="register-inline-content"></div>
+    </div>
+
+    <!-- 시즌 경기 분석 페이지 -->
+    <div class="page" id="page-analysis">
+      <div class="flex-between mb-2">
+        <div style="display:flex;align-items:baseline;gap:8px;">
+          <div class="page-title" style="margin-bottom:0;">📊 분석</div>
+          <div class="page-sub" style="margin-bottom:0;">이번 시즌 경기 분석</div>
+        </div>
+      </div>
+      <div id="analysis-inline-content"></div>
     </div>
 
     <!-- 관리자 -->
@@ -747,6 +760,7 @@
 <script src="dashboard.js?v=1775267349" defer></script>
 <script src="feed.js?v=1775267349" defer></script>
 <script src="register.js?v=1775267349" defer></script>
+  <script src="analysis.js?v=1775267349" defer></script>
 <script src="admin.js?v=1775267349" defer></script>
 <script src="community.js?v=1775267349" defer></script>
 <script src="tournament.js?v=1775267349" defer></script>

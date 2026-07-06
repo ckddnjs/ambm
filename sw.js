@@ -1,4 +1,4 @@
-const CACHE = 'ambm-v11';
+const CACHE = 'ambm-v12';
 const STATIC = [
   '/',
   '/index.html',
@@ -7,6 +7,7 @@ const STATIC = [
   '/dashboard.js',
   '/feed.js',
   '/register.js',
+  '/analysis.js',
   '/admin.js',
   '/community.js',
   '/tournament.js',

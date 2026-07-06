@@ -448,20 +448,21 @@ const NAV_ICONS={
   admin:`<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>`,
   settings:`<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96a7.02 7.02 0 00-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.37 1.04.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>`,
   register:`<svg width="26" height="26" viewBox="0 0 24 24" fill="#fff"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>`,
+  analysis:`<svg width="26" height="26" viewBox="0 0 24 24" fill="#fff"><path d="M5 21V9h3v12H5zm5.5 0V3h3v18h-3zM16 21v-8h3v8h-3z"/></svg>`,
   stockmarket:`<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>`,
 };
 
 const USER_NAVS=[
   {id:'dashboard',label:'홈'},
   {id:'feed',label:'기록'},
-  {id:'register',label:'등록',fab:true},
+  {id:'analysis',label:'분석',fab:true},
   {id:'community',label:'소식'},
   {id:'stockmarket',label:'거래소'},
 ];
 const ADMIN_NAVS=[
   {id:'dashboard',label:'홈'},
   {id:'feed',label:'기록'},
-  {id:'register',label:'등록',fab:true},
+  {id:'analysis',label:'분석',fab:true},
   {id:'community',label:'소식'},
   {id:'stockmarket',label:'거래소'},
   {id:'admin',label:'관리'},
@@ -470,7 +471,7 @@ function buildNav(){
   const navs=ME.role==='admin'?ADMIN_NAVS:USER_NAVS;
   document.getElementById('bottom-nav').innerHTML=navs.map(n=>{
     if(n.fab){
-      return `<button class="bottom-nav-item nav-fab" id="nav-${n.id}" onclick="navigateTo('register')">
+      return `<button class="bottom-nav-item nav-fab" id="nav-${n.id}" onclick="navigateTo('${n.id}')">
         <div class="nav-fab-circle">${NAV_ICONS[n.id]||''}</div>
         <span>${n.label}</span>
       </button>`;
@@ -519,6 +520,7 @@ function navigateTo(page){
       renderFeed();
       break;
     case 'register':renderRegisterPage();break;
+    case 'analysis':renderAnalysisPage();break;
     case 'admin':renderAdminPage();break;
     case 'tournament':renderTournamentPage();break;
     case 'bracket':navigateTo('tournament');break;
@@ -580,6 +582,7 @@ window.addEventListener('popstate',e=>{
     case 'dashboard':renderDashboard();break;
     case 'feed':window._feedAllMatches=null;renderFeed();break;
     case 'register':renderRegisterPage();break;
+    case 'analysis':renderAnalysisPage();break;
     case 'admin':renderAdminPage();break;
     case 'tournament':renderTournamentPage();break;
     case 'compare':renderComparePage();break;
@@ -606,16 +609,23 @@ async function _getApprovedUsers(forceRefresh=false){
 const BASE_RATING=1000, CONFIDENCE_DENOMINATOR=15, PD_WEIGHT=5,
       WR_WEIGHT=200, SYNERGY_WEIGHT=100, SYNERGY_CAP=50,
       H2H_WEIGHT=80, RECENT_WEIGHT=60, ELO_DIVISOR=400,
-      GAMES_BONUS=1, GAMES_BONUS_CAP=30, // 참가 경기당 가산점 (최대 30점)
+      GAMES_BONUS=1, GAMES_BONUS_CAP=30,     // 참가 경기 가산점 상한 (시즌1: 30점)
+      GAMES_BONUS_CAP_S2=50,                 // 시즌2부터 상한 (50점)
       CLOSE_WIN_BONUS=1, CLOSE_WIN_THRESHOLD=3; // 접전 승리 가산점 (점수차 3 이내, 상한 없음)
+
+/** 시즌별 참가경기 가산점 상한 — 시즌2 이상은 50점, 그 외(시즌1)는 30점 */
+function gamesCapForSeason(season){
+  return (season && season >= 2) ? GAMES_BONUS_CAP_S2 : GAMES_BONUS_CAP;
+}
 
 /** 개인 CI (Composite Index) 계산
  *  @param {number} wins      승리 수
  *  @param {number} games     총 경기 수
  *  @param {number} diff      누적 득실차
  *  @param {number} closeWins 점수차 3점 이내 접전 승리 수 (기본값 0)
+ *  @param {number} [season]  집계 대상 시즌 번호 (생략 시 현재 시즌 기준 상한 적용)
  */
-function calcCI(wins, games, diff, closeWins=0){
+function calcCI(wins, games, diff, closeWins=0, season){
   if(games===0) return BASE_RATING;
   const wr = wins / games;
   // 경기수 신뢰도 (경기수가 적을수록 0에 가까움)
@@ -627,7 +637,8 @@ function calcCI(wins, games, diff, closeWins=0){
   // 각 항목을 정수로 반올림한 뒤 합산 (표시값과 일치)
   const wrScore = Math.round(adjustedWR * WR_WEIGHT);
   const diffScore = Math.round(avgDiff * PD_WEIGHT);
-  const gamesBonus = Math.min(games, GAMES_BONUS_CAP) * GAMES_BONUS;
+  const cap = gamesCapForSeason(season == null ? window._currentSeason : season);
+  const gamesBonus = Math.min(games, cap) * GAMES_BONUS;
   const closeWinBonus = (closeWins||0) * CLOSE_WIN_BONUS;
   return BASE_RATING + wrScore + diffScore + gamesBonus + closeWinBonus;
 }

@@ -331,7 +331,8 @@ function renderMyTypeStats(stats, allM){
   // calcCI와 동일하게 각 항목 Math.round 후 합산
   const wrScore=Math.round(adjustedWR*200);
   const diffScore=Math.round(avgDiff*5);
-  const gamesBonus=Math.min(games,30)*1;
+  const _gamesCap=gamesCapForSeason(window._currentSeason);
+  const gamesBonus=Math.min(games,_gamesCap)*1;
   const ci=calcCI(wins,games,diff,closeWins);
 
   const wrPct=Math.round(wr*100);
@@ -387,7 +388,7 @@ function renderMyTypeStats(stats, allM){
       )}
 
       ${row(4,'참가 경기',`+${gamesBonus}점`,
-        `${games}경기 × 1점 (최대 30점)`,
+        `${games}경기 × 1점 (최대 ${_gamesCap}점)`,
         '#9C6FE4'
       )}
 
@@ -685,9 +686,9 @@ function showPlayerCard(userId, userName){
   const profile=window._profilesCache?.find(u=>u.id===userId)||null;
   const allM=window._allMatchesCache||[];
 
-  // 해당 유저 경기 목록 (날짜 내림차순)
+  // 해당 유저 경기 목록 — 현재 시즌 경기만 (모든 스탯 시즌 기준, 날짜 내림차순)
   const userMatches=allM.filter(m=>
-    [m.a1_id,m.a2_id,m.b1_id,m.b2_id].includes(userId)
+    inSeason(m) && [m.a1_id,m.a2_id,m.b1_id,m.b2_id].includes(userId)
   ).map(m=>{
     const onA=[m.a1_id,m.a2_id].includes(userId);
     const won=(m.score_a>m.score_b)===onA;
@@ -710,17 +711,21 @@ function showPlayerCard(userId, userName){
   });
   const wr=g>0?Math.round(w/g*100):0;
   const diff=scored-conceded;
-  // CI 세부 계산 (calcCI와 동일하게 각 항목 개별 반올림 후 합산)
+  const avgDiff=g>0?((diff/g)>=0?'+':'')+((diff/g).toFixed(1)):'-';
+
+  // 모든 스탯이 시즌 기준이므로 시즌 표기 변수는 커리어 변수와 동일 (산정 내역 템플릿 호환용)
+  const sg=g, sw=w, sWr=wr, sDiff=diff, sCloseWins=closeWins;
+  // 종합점수(CI) — 랭킹과 동일 공식 (각 항목 개별 반올림 후 합산)
   const _wr=g>0?w/g:0;
   const _conf=g>0?g/(g+15):0;
   const _adjWR=_wr*_conf;
   const _wrScore=Math.round(_adjWR*200);
   const _avgDiff=g>0?diff/g:0;
   const _diffScore=Math.round(_avgDiff*5);
-  const _gamesBonus=Math.min(g,30);
+  const _gamesCap=gamesCapForSeason(window._currentSeason);
+  const _gamesBonus=Math.min(g,_gamesCap);
   const _closeBonus=closeWins;
   const ci=1000+_wrScore+_diffScore+_gamesBonus+_closeBonus;
-  const avgDiff=g>0?((diff/g)>=0?'+':'')+((diff/g).toFixed(1)):'-';
 
   // 최근 5경기 도트
   const recent5=[...userMatches].slice(0,5).reverse();
@@ -773,10 +778,11 @@ function showPlayerCard(userId, userName){
             <span style="font-family:'Black Han Sans',sans-serif;font-size:1.4rem;color:var(--text);">${userName}</span>
             ${streakBadge}
           </div>
-          ${g>=5?`<div style="font-size:.78rem;color:var(--primary);font-weight:700;margin-top:3px;">종합 ${ci}점</div>`:`<div style="font-size:.76rem;color:var(--text-muted);margin-top:3px;">5경기 미만</div>`}
+          ${sg>=5?`<div style="font-size:.78rem;color:var(--primary);font-weight:700;margin-top:3px;">이번 시즌 종합 ${ci}점</div>`:`<div style="font-size:.76rem;color:var(--text-muted);margin-top:3px;">이번 시즌 ${sg}/5경기 (랭킹 미반영)</div>`}
         </div>
       </div>
-      <div style="height:1px;background:var(--border);margin-bottom:16px;"></div>
+      <div style="height:1px;background:var(--border);margin-bottom:14px;"></div>
+      <div style="font-size:.72rem;font-weight:700;color:var(--text-muted);letter-spacing:.3px;margin-bottom:8px;">📅 이번 시즌 기록</div>
       <!-- 스탯 그리드 -->
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;">
         ${[['경기',g],['승',w],['패',l],['승률',wr+'%']].map(([lb,vl])=>`
@@ -799,7 +805,7 @@ function showPlayerCard(userId, userName){
         <div style="display:flex;gap:6px;align-items:center;">${dotHTML}</div>
       </div>`:''}
       <!-- CI 산정 내역 (토글) -->
-      ${g>=1?`
+      ${sg>=1?`
       <div style="margin-bottom:14px;">
         <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.ci-toggle-icon').textContent=this.nextElementSibling.style.display==='none'?'▼':'▲';"
           style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;cursor:pointer;font-family:inherit;color:var(--text);">
@@ -812,7 +818,7 @@ function showPlayerCard(userId, userName){
         <div style="display:none;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;padding:12px 14px;">
           <!-- 종합점수 상단 -->
           <div style="text-align:center;padding:12px 10px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;">
-            <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:3px;letter-spacing:.3px;">종합 점수</div>
+            <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:3px;letter-spacing:.3px;">이번 시즌 종합 점수</div>
             <div style="font-family:'Black Han Sans',sans-serif;font-size:2rem;color:#5BA4F5;line-height:1.1;">${ci}</div>
             <div style="font-size:.68rem;color:var(--text-muted);margin-top:5px;"><span style="color:var(--text);">1000</span><span style="color:#4CAF50;"> +${_wrScore}</span><span style="color:#F5A623;"> ${_diffScore>=0?'+':''}${_diffScore}</span><span style="color:#9C6FE4;"> +${_gamesBonus}</span><span style="color:#E0634A;"> +${_closeBonus}</span> = <strong style="color:#5BA4F5;">${ci}</strong></div>
           </div>
@@ -820,15 +826,15 @@ function showPlayerCard(userId, userName){
           ${[
             [1,'기본점수','1,000점','모든 선수의 시작값','#4B9EF5','var(--text)'],
             [2,'보정 승률',`+${_wrScore}점`,
-              `승률 = ${w}승 ÷ ${g}경기 = ${wr}%<br>신뢰도(경기수 보정) = (${g}÷(${g}+15)) = ${Math.round(_conf*100)}%<br>보정승률점수 = ${wr}% × ${Math.round(_conf*100)}% × 200 = +${_wrScore}점`,
+              `승률 = ${sw}승 ÷ ${sg}경기 = ${sWr}%<br>신뢰도(경기수 보정) = (${sg}÷(${sg}+15)) = ${Math.round(_conf*100)}%<br>보정승률점수 = ${sWr}% × ${Math.round(_conf*100)}% × 200 = +${_wrScore}점`,
               '#4CAF50','#4CAF50'],
             [3,'평균 득실',`${_diffScore>=0?'+':''}${_diffScore}점`,
-              `누적 득실 ${diff>0?'+':''}${diff} ÷ ${g}경기 = 평균 ${_avgDiff>=0?'+':''}${_avgDiff.toFixed(1)}<br>평균 득실 × 5 = ${_diffScore>=0?'+':''}${_diffScore}점`,
+              `누적 득실 ${sDiff>0?'+':''}${sDiff} ÷ ${sg}경기 = 평균 ${_avgDiff>=0?'+':''}${_avgDiff.toFixed(1)}<br>평균 득실 × 5 = ${_diffScore>=0?'+':''}${_diffScore}점`,
               '#F5A623','#F5A623'],
             [4,'참가 경기',`+${_gamesBonus}점`,
-              `${g}경기 × 1점 (최대 30점)`,'#9C6FE4','#9C6FE4'],
+              `${sg}경기 × 1점 (최대 ${_gamesCap}점)`,'#9C6FE4','#9C6FE4'],
             [5,'접전 클러치',`+${_closeBonus}점`,
-              `${closeWins}회 접전 승리 × 1점 (점수차 3점 이내)`,'#E0634A','#E0634A'],
+              `${sCloseWins}회 접전 승리 × 1점 (점수차 3점 이내)`,'#E0634A','#E0634A'],
           ].map(([num,label,val,desc,badgeColor,valColor])=>`
             <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
               <div style="width:26px;height:26px;border-radius:50%;background:${badgeColor};display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
@@ -842,7 +848,7 @@ function showPlayerCard(userId, userName){
                 <div style="font-size:.7rem;color:var(--text-muted);margin-top:3px;line-height:1.6;">${desc}</div>
               </div>
             </div>`).join('')}
-          ${g<5?`<div style="font-size:.72rem;color:var(--text-muted);text-align:center;padding:8px 0;">⚠️ 5경기 이상부터 랭킹에 반영 (현재 ${g}/5경기)</div>`:''}
+          ${sg<5?`<div style="font-size:.72rem;color:var(--text-muted);text-align:center;padding:8px 0;">⚠️ 5경기 이상부터 랭킹에 반영 (이번 시즌 ${sg}/5경기)</div>`:''}
         </div>
       </div>`:''}
       <!-- 기록 보기 버튼 -->
@@ -1340,7 +1346,7 @@ async function renderPastSeasonCard(){
 }
 
 /** 날짜구간 경기로 회원+비회원 랭킹 집계 (renderMvpPodium와 동일 기준) */
-function _computeSeasonRanking(matches, users){
+function _computeSeasonRanking(matches, users, seasonNum){
   const excludeIds=new Set((users||[]).filter(u=>u.exclude_stats).map(u=>u.id));
   const userMap={}; (users||[]).forEach(u=>{ if(u.id&&u.name) userMap[u.id]=u; });
   const guestModeNames=window._guestModeNamesCache||new Set();
@@ -1362,7 +1368,7 @@ function _computeSeasonRanking(matches, users){
       st[key].games++; if(p.win){st[key].wins++;if(isClose)st[key].closeWins++;} st[key].scored+=p.s; st[key].conceded+=p.c;
     });
   });
-  const arr=Object.values(st).map(u=>{u.diff=u.scored-u.conceded;u.ci=calcCI(u.wins,u.games,u.diff,u.closeWins);u.wr=u.games>0?u.wins/u.games:0;return u;});
+  const arr=Object.values(st).map(u=>{u.diff=u.scored-u.conceded;u.ci=calcCI(u.wins,u.games,u.diff,u.closeWins,seasonNum);u.wr=u.games>0?u.wins/u.games:0;return u;});
   const wr=u=>u.wr;
   return arr.filter(u=>u.games>=5).sort((a,b)=>b.ci-a.ci||wr(b)-wr(a)||b.diff-a.diff||b.games-a.games);
 }
@@ -1388,7 +1394,7 @@ async function openPastSeason(season){
   }
   const inRange=m=>{const md=String(m.match_date||'').slice(0,10); return (!s.start||md>=s.start)&&(!s.end||md<s.end);};
   const matches=_allMatchesCache.filter(m=>m.status==='approved'&&inRange(m));
-  const ranked=_computeSeasonRanking(matches, window._profilesCache||[]);
+  const ranked=_computeSeasonRanking(matches, window._profilesCache||[], season);
   const range=_seasonRangeLabel(s, _allMatchesCache);
   if(body) body.innerHTML=_pastSeasonHtml(ranked, range, matches.length);
 }
