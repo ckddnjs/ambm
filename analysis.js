@@ -457,10 +457,10 @@ function _anPreyCard(oppList){
   const top = prey[0];
   return `
   <div class="card">
-    ${_anTitle('target', 'var(--primary)', '먹잇감')}
+    <div class="card-title" style="display:flex;align-items:center;gap:8px;"><span style="font-size:1.05rem;line-height:1;">🍗</span><span>먹잇감</span></div>
     <div style="font-size:.76rem;color:var(--text-muted);margin:-4px 0 8px;">유독 강한, 상대전적에서 앞서는 선수</div>
     ${top ? `<div style="background:linear-gradient(135deg,rgba(77,159,255,.14),rgba(77,159,255,.03));border:1px solid rgba(77,159,255,.3);border-radius:12px;padding:12px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;">
-      ${_anIconBadge('target', 'var(--primary)', 'rgba(77,159,255,.15)')}
+      <div style="width:44px;height:44px;border-radius:12px;background:rgba(77,159,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.6rem;">🍗</div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:.72rem;color:var(--primary);font-weight:700;">가장 만만한 상대</div>
         <div style="font-weight:800;font-size:1.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${top.name}</div>
