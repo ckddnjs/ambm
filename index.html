@@ -184,12 +184,17 @@
         <div class="card-title">🏆 전체 랭킹 <span style="font-size:.68rem;font-weight:400;color:var(--text-muted);">5경기 이상 반영</span></div>
         <div style="overflow-x:auto"><div id="rank-table-wrap"></div></div>
       </div>
+      <div class="card" id="bump-card">
+        <div class="card-title">📈 순위 이동 <span style="font-size:.68rem;font-weight:400;color:var(--text-muted);">주간 톱10 · CI 기준</span></div>
+        <div id="bump-wrap" style="width:100%;"></div>
+        <div style="font-size:.72rem;color:var(--text-muted);margin-top:6px;text-align:center;">이번 시즌 주간 순위 변화 · 이름/선 터치 시 강조 · 5경기 이상</div>
+      </div>
       <div class="card" id="train-card" style="display:none;">
         <div class="flex-between" style="margin-bottom:4px;">
           <div class="card-title" style="margin:0;">🚂 연승열차</div>
           <span id="train-count" style="font-size:.7rem;color:var(--text-muted);"></span>
         </div>
-        <div style="font-size:.7rem;color:var(--text-muted);margin-bottom:6px;">전체 경기 기준 · 3연승부터 발차 · 함께 진 순간 운행 종료</div>
+        <div style="font-size:.7rem;color:var(--text-muted);margin-bottom:6px;">이번 시즌 기준 · 3연승부터 발차 · 함께 진 순간 운행 종료</div>
         <div id="train-wrap"></div>
       </div>
       <div class="card" id="past-season-card">
@@ -755,7 +760,7 @@
 
 <script src="utils.js?v=1775267349" defer></script>
 <script src="core.js?v=1775267349" defer></script>
-<script src="dashboard.js?v=1783757957" defer></script>
+<script src="dashboard.js?v=1783758394" defer></script>
 <script src="feed.js?v=1775267349" defer></script>
 <script src="register.js?v=1775267349" defer></script>
   <script src="analysis.js?v=1775267349" defer></script>

@@ -280,6 +280,7 @@ async function renderDashboard(){
   }
   renderMvpPodium(_allMatchesCache, window._profilesCache||[]);
   renderPartner(_allMatchesCache);
+  renderBump();
   renderStreakTrain();
   renderPastSeasonCard();
   renderSeasonOnboard(stats.total.games||0);
@@ -1503,7 +1504,7 @@ function _tSmoke(col){
 }
 function renderStreakTrain(){
   const card=document.getElementById('train-card'); if(!card) return;
-  const ms=(window._allMatchesCache||[]).filter(m=>m.status==='approved');
+  const ms=(window._allMatchesCache||[]).filter(m=>m.status==='approved'&&inSeason(m));
   if(!ms.length){ card.style.display='none'; return; }
   if(card.dataset.drawn===String(ms.length)) return;   // 데이터 변동 시에만 다시 그림 (펼침 상태 보존)
 
@@ -1611,4 +1612,119 @@ function renderStreakTrain(){
       </div>
     </div>`;
   }).join('');
+}
+
+/* ── 📈 순위 이동 범프차트: 이번 시즌 주간 누적 CI 순위 톱10 (hsdTV 이식, RP→CI) ── */
+function _bumpStats(wk){
+  const users=window._profilesCache||[];
+  const guestModeNames=window._guestModeNamesCache||new Set();
+  const excluded=new Set(users.filter(u=>u.exclude_stats).map(u=>u.id));
+  const st={};
+  users.filter(u=>!u.exclude_stats).forEach(u=>{st[u.id]={id:u.id,name:u.name,av:u.avatar_url||'',games:0,wins:0,scored:0,conceded:0,closeWins:0};});
+  wk.forEach(m=>{
+    const aWin=m.score_a>m.score_b, close=Math.abs(m.score_a-m.score_b)<=3;
+    [{id:m.a1_id,name:m.a1_name,win:aWin,s:m.score_a,c:m.score_b},{id:m.a2_id,name:m.a2_name,win:aWin,s:m.score_a,c:m.score_b},
+     {id:m.b1_id,name:m.b1_name,win:!aWin,s:m.score_b,c:m.score_a},{id:m.b2_id,name:m.b2_name,win:!aWin,s:m.score_b,c:m.score_a}]
+    .forEach(p=>{
+      let key=null;
+      if(p.id){ if(excluded.has(p.id)||!st[p.id]) return; key=p.id; }
+      else if(p.name&&!guestModeNames.has(p.name)){ key='g:'+p.name; st[key]=st[key]||{id:key,name:p.name,av:'',games:0,wins:0,scored:0,conceded:0,closeWins:0}; }
+      else return;
+      const u=st[key]; u.games++;
+      if(p.win){ u.wins++; if(close) u.closeWins++; }
+      u.scored+=p.s; u.conceded+=p.c;
+    });
+  });
+  Object.values(st).forEach(u=>{u.diff=u.scored-u.conceded;u.ci=calcCI(u.wins,u.games,u.diff,u.closeWins);});
+  return st;
+}
+function renderBump(){
+  const wrap=document.getElementById('bump-wrap');
+  if(!wrap) return;
+  const matches=(window._allMatchesCache||[]).filter(m=>m.status==='approved'&&m.match_date&&inSeason(m));
+  if(!matches.length){wrap.innerHTML='<div style="font-size:.8rem;color:var(--text-muted);text-align:center;padding:20px 0;">이번 시즌 경기가 아직 없어요</div>';return;}
+
+  const TOPN=10, OUT=TOPN+1;               // OUT = "10위 밖" 행
+  const monday=d=>{const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x;};
+  const thisMon=monday(new Date());
+  let weekStarts=[];
+  for(let i=7;i>=0;i--){const s=new Date(thisMon);s.setDate(s.getDate()-7*i);weekStarts.push(s);}
+  // 시즌 시작(예: 7/1) 이전 주는 제외 — 시즌 첫 주부터 그린다
+  const ss=window._seasonStart||'';
+  if(ss){
+    const sd=new Date(ss+'T00:00:00');
+    weekStarts=weekStarts.filter(ws=>{const we=new Date(ws);we.setDate(we.getDate()+7);return we>sd;});
+  }
+  if(!weekStarts.length) weekStarts=[thisMon];
+  const WEEKS=weekStarts.length;
+
+  const ciSort=(a,b)=>{
+    const wr=u=>u.games>0?u.wins/u.games:0;
+    return (b.ci-a.ci)||(wr(b)-wr(a))||(b.diff-a.diff)||(b.games-a.games)||String(b.id).localeCompare(String(a.id));
+  };
+  const nameOf={}, avatarOf={};
+  const weekRank=weekStarts.map(ws=>{
+    const end=new Date(ws); end.setDate(end.getDate()+7);
+    const wk=matches.filter(m=>new Date(m.match_date)<end);
+    const arr=Object.values(_bumpStats(wk)).filter(u=>u.games>=5).sort(ciSort);
+    const rank={};
+    arr.forEach((p,i)=>{rank[p.id]=i+1; nameOf[p.id]=p.name||''; if(p.av) avatarOf[p.id]=p.av;});
+    return rank;
+  });
+
+  const last=weekRank[weekRank.length-1];
+  const top=Object.keys(last).filter(id=>last[id]<=TOPN).sort((a,b)=>last[a]-last[b]);
+  if(!top.length){wrap.innerHTML='<div style="font-size:.8rem;color:var(--text-muted);text-align:center;padding:20px 0;">5경기 이상 회원이 아직 없어요</div>';return;}
+
+  const PAL=['#4D9FFF','#38C8FF','#FFC091','#FF8AB3','#C6A5FF','#FFE14A','#6FE8C8','#FF9A6B','#9FE870','#D9E85C'];
+  const W=wrap.offsetWidth||330, rowH=26;
+  const pad={l:26,r:92,t:12,b:26};
+  const H=pad.t+pad.b+rowH*OUT;
+  const cw=W-pad.l-pad.r;
+  const xOf=i=>pad.l+(WEEKS===1?cw/2:cw*i/(WEEKS-1));
+  const yOf=r=>pad.t+rowH*(Math.min(r,OUT)-1)+rowH/2;
+  const hl=wrap.dataset.hl||'';
+
+  let svg='';
+  for(let r=1;r<=OUT;r++){
+    svg+=`<line x1="${pad.l}" y1="${yOf(r)}" x2="${W-pad.r+8}" y2="${yOf(r)}" stroke="var(--border)" stroke-width="1" ${r===OUT?'stroke-dasharray="3 4"':''} opacity=".55"/>`;
+    svg+=`<text x="${pad.l-7}" y="${yOf(r)+3.5}" text-anchor="end" font-size="10" fill="var(--text-dim)">${r===OUT?'밖':r}</text>`;
+  }
+  weekStarts.forEach((ws,i)=>{
+    if(WEEKS<=4||i%2===(WEEKS%2?0:1)||i===WEEKS-1){
+      svg+=`<text x="${xOf(i)}" y="${H-8}" text-anchor="middle" font-size="9.5" fill="var(--text-dim)">${ws.getMonth()+1}/${ws.getDate()}</text>`;
+    }
+  });
+  const order=hl?top.filter(id=>id!==hl).concat(top.includes(hl)?[hl]:[]):top;
+  order.forEach(id=>{
+    const c=PAL[top.indexOf(id)%PAL.length];
+    const dim=hl&&id!==hl;
+    const pts=weekRank.map((wr2,i)=>({x:xOf(i),y:yOf(wr2[id]||OUT),out:!wr2[id]||wr2[id]>TOPN}));
+    const path=pts.map((p,i)=>(i?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1)).join(' ');
+    svg+=`<g opacity="${dim?.18:1}" style="cursor:pointer" onclick="_bumpHl('${String(id).replace(/'/g,'')}')">`;
+    svg+=`<path d="${path}" fill="none" stroke="${c}" stroke-width="${hl&&id===hl?3.4:2.4}" stroke-linejoin="round" stroke-linecap="round"/>`;
+    pts.forEach(p=>{svg+=p.out
+      ?`<circle cx="${p.x}" cy="${p.y}" r="3" fill="var(--bg2)" stroke="${c}" stroke-width="1.4" stroke-dasharray="2 2"/>`
+      :`<circle cx="${p.x}" cy="${p.y}" r="3.6" fill="var(--bg2)" stroke="${c}" stroke-width="2"/>`;});
+    const lp=pts[pts.length-1];
+    const ax=W-pad.r+18, av=avatarOf[id];
+    const ci_='bmpc_'+top.indexOf(id);
+    if(av){
+      svg+=`<clipPath id="${ci_}"><circle cx="${ax}" cy="${lp.y}" r="8"/></clipPath>`;
+      svg+=`<circle cx="${ax}" cy="${lp.y}" r="9" fill="none" stroke="${c}" stroke-width="1.6"/>`;
+      svg+=`<image href="${av}" x="${ax-8}" y="${lp.y-8}" width="16" height="16" clip-path="url(#${ci_})" preserveAspectRatio="xMidYMid slice"/>`;
+    }else{
+      svg+=`<circle cx="${ax}" cy="${lp.y}" r="8" fill="${c}" opacity=".9"/>`;
+      svg+=`<text x="${ax}" y="${lp.y+3.2}" text-anchor="middle" font-size="8.5" font-weight="800" fill="#0C0D10">${escHtml((nameOf[id]||'?').slice(0,1))}</text>`;
+    }
+    svg+=`<text x="${ax+13}" y="${lp.y+3.5}" font-size="10.5" font-weight="700" fill="${c}">${escHtml((nameOf[id]||'').slice(0,4))}</text>`;
+    svg+=`</g>`;
+  });
+  wrap.innerHTML=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block;">${svg}</svg>`;
+}
+function _bumpHl(id){
+  const wrap=document.getElementById('bump-wrap');
+  if(!wrap) return;
+  wrap.dataset.hl=(wrap.dataset.hl===id?'':id);
+  renderBump();
 }
