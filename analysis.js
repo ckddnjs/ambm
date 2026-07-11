@@ -222,12 +222,12 @@ function _anRenderShell(){
   const range  = selOpt ? _anRangeLabel(selOpt) : '';
 
   const main = window._anMainTab || 'all';
-  const mtab = (key,label) => `<button onclick="_anSetMainTab('${key}')" style="flex:1;padding:11px 0;border:none;border-radius:11px;font-family:inherit;font-size:.9rem;font-weight:800;cursor:pointer;${main===key?'background:var(--primary);color:#fff;':'background:var(--bg2);color:var(--text-muted);'}">${label}</button>`;
+  const mtab = (key,icon,label) => `<button onclick="_anSetMainTab('${key}')" style="flex:1;padding:11px 0;border:none;border-radius:11px;font-family:inherit;font-size:.9rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;${main===key?'background:var(--primary);color:#fff;':'background:var(--bg2);color:var(--text-muted);'}">${_anIcon(icon,15)}<span>${label}</span></button>`;
 
   wrap.innerHTML = `
     <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:4px;-webkit-overflow-scrolling:touch;">${pills}</div>
     <div style="display:flex;align-items:center;gap:5px;font-size:.74rem;color:var(--text-muted);margin-bottom:10px;padding-left:2px;">${_anIcon('calendar', 13, 'var(--text-muted)')}<span>${range}</span></div>
-    <div style="display:flex;gap:6px;margin-bottom:12px;">${mtab('all','📊 시즌 전체')}${mtab('person','👤 개인별')}</div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;">${mtab('all','chart','전체')}${mtab('person','user','개인별')}</div>
     ${main === 'person' ? `<div class="card" style="padding:12px 14px;margin-bottom:12px;">
       <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;letter-spacing:.3px;">${_anIcon('user', 13, 'var(--text-muted)')}<span>분석 대상</span></div>
       ${_anPlayerSelectHtml()}
