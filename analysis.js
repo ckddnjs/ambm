@@ -916,19 +916,33 @@ function _anPersonTiles(d, wr, avgDiff, seqAll){
     for(let i=seqAll.length-1; i>=0 && seqAll[i].won===lastWin; i--) streak++;
     if(!lastWin) streak = -streak;
   }
-  const stTxt = !streak ? '-' : streak > 0 ? streak+'연승' : (-streak)+'연패';
-  const stCol = !streak ? 'var(--text-muted)' : streak > 0 ? 'var(--primary)' : 'var(--danger)';
+  const stTxt = !streak ? '-' : streak > 0 ? '현재 '+streak+'연승' : '현재 '+(-streak)+'연패';
   const diffStr = (avgDiff>=0?'+':'')+avgDiff.toFixed(1);
-  const tile = (label, val, col, sub) => `<div class="stat-card" style="text-align:center;padding:12px 6px;min-width:0;">
+  const tile = (label, val, col, sub, valSize) => `<div class="stat-card" style="text-align:center;padding:12px 4px;min-width:0;">
     <div class="stat-label" style="margin-bottom:4px;">${label}</div>
-    <div style="font-family:'Black Han Sans',sans-serif;font-size:1.15rem;line-height:1;color:${col};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${val}</div>
-    ${sub?`<div style="font-size:.62rem;color:var(--text-muted);margin-top:4px;">${sub}</div>`:''}
+    <div style="font-family:'Black Han Sans',sans-serif;font-size:${valSize||'1.05rem'};line-height:1;color:${col};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px;">${val}</div>
+    ${sub?`<div style="font-size:.6rem;color:var(--text-muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${sub}</div>`:''}
   </div>`;
-  return `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px;">
-    ${tile('시즌 전적', d.wins+'승 '+d.losses+'패', 'var(--text)', d.games+'경기')}
-    ${tile('시즌 승률', wr+'%', wr>=50?'var(--primary)':'var(--text-muted)', '평균 득실 '+diffStr)}
-    ${tile('최근 '+recent.length+'경기', rw+'승 '+rl+'패', rw>=rl?'var(--primary)':'var(--danger)')}
-    ${tile('현재 흐름', stTxt, stCol, bestWin?'최장 '+bestWin+'연승':'')}
+  // 관계 요약: 베스트 파트너 · 먹잇감 · 천적 (2경기 이상)
+  const wrOf = x=>x.games?x.wins/x.games:0;
+  const net = x=>x.wins*2-x.games;
+  const ps = (d.partnerList||[]).filter(x=>x.games>=2).sort((a,b)=>wrOf(b)-wrOf(a)||net(b)-net(a));
+  const os = (d.oppList||[]).filter(x=>x.games>=2);
+  const bestP = ps[0]||null;
+  const prey = os.filter(x=>wrOf(x)>0.5).sort((a,b)=>wrOf(b)-wrOf(a)||net(b)-net(a))[0]||null;
+  const nem  = os.filter(x=>wrOf(x)<0.5).sort((a,b)=>wrOf(a)-wrOf(b)||net(a)-net(b))[0]||null;
+  const relTile = (label, x, col) => x
+    ? tile(label, escHtml(x.name), col, x.wins+'승'+(x.games-x.wins)+'패 · '+Math.round(wrOf(x)*100)+'%', '.95rem')
+    : tile(label, '-', 'var(--text-dim)', '2경기 이상 필요');
+  return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:8px;">
+    ${tile('시즌 전적', d.wins+'승 '+d.losses+'패', 'var(--text)', d.games+'경기 · 평균 득실 '+diffStr)}
+    ${tile('시즌 승률', wr+'%', wr>=50?'var(--primary)':'var(--text-muted)', '최근 '+recent.length+'경기 '+rw+'승 '+rl+'패')}
+    ${tile('최장 연승', (bestWin||0)+'연승', bestWin?'var(--accent)':'var(--text-muted)', stTxt)}
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px;">
+    ${relTile('🤝 베스트 파트너', bestP, 'var(--accent)')}
+    ${relTile('🍗 먹잇감', prey, 'var(--primary)')}
+    ${relTile('🔥 천적', nem, 'var(--danger)')}
   </div>`;
 }
 
