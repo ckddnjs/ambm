@@ -241,7 +241,7 @@ function _anSetMainTab(t){ window._anMainTab = t; _anRenderShell(); }
 /* 대상 변경 */
 function _anSelectPlayer(id){
   window._anTargetId = id;
-  window._anSeasonIdx = _anDefaultSeasonIdx(id); // 대상의 경기 있는 최신 시즌으로
+  // 시즌 선택은 사용자가 골라둔 그대로 유지 (대상 변경 시 자동 전환 안 함)
   _anRenderShell();
   document.querySelector('.app-body')?.scrollTo({top:0,behavior:'smooth'});
 }
