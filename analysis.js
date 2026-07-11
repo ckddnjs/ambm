@@ -139,7 +139,7 @@ function _anPlayerSelectHtml(){
 /* 분석 대상 선택 시트 (조합 선택과 동일한 3열 그리드) */
 function openAnalysisPicker(){
   const me = ME?.id, tid = window._anTargetId || me;
-  const list = (window._profilesCache || []).filter(u => u && u.id && u.name)
+  const list = (window._profilesCache || []).filter(u => u && u.id && u.name && !u.exclude_stats)
     .slice().sort((a,b)=>a.name.localeCompare(b.name,'ko'));
   const chip = u => `<div onclick="_anSelectPlayer('${u.id}');document.getElementById('an-picker')?.remove();" style="display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:9999px;border:1.5px solid ${u.id===tid?'var(--primary)':'var(--border)'};background:${u.id===tid?'rgba(77,159,255,.14)':'var(--bg2)'};cursor:pointer;min-width:0;">
       ${u.avatar_url
