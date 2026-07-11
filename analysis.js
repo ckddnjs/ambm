@@ -132,8 +132,8 @@ function _anPlayerSelectHtml(){
     : `<span style="width:30px;height:30px;border-radius:50%;background:var(--primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;flex-shrink:0;">${escHtml((cur?.name||'?').slice(0,1))}</span>`;
   return `<button onclick="openAnalysisPicker()" style="width:100%;display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg2);cursor:pointer;font-family:inherit;">
     ${av}
-    <span style="flex:1;text-align:left;font-size:.95rem;font-weight:800;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(nm)}</span>
-    <span style="color:var(--text-muted);font-size:.8rem;">바꾸기 ▾</span>
+    <span style="flex:1;text-align:left;font-size:.85rem;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(nm)}</span>
+    <span style="color:var(--text-muted);font-size:.72rem;">바꾸기 ▾</span>
   </button>`;
 }
 /* 분석 대상 선택 시트 (조합 선택과 동일한 3열 그리드) */
@@ -141,18 +141,12 @@ function openAnalysisPicker(){
   const me = ME?.id, tid = window._anTargetId || me;
   const list = (window._profilesCache || []).filter(u => u && u.id && u.name)
     .slice().sort((a,b)=>a.name.localeCompare(b.name,'ko'));
-  const males = list.filter(u=>u.gender==='male');
-  const females = list.filter(u=>u.gender==='female');
-  const etc = list.filter(u=>u.gender!=='male'&&u.gender!=='female');
   const chip = u => `<div onclick="_anSelectPlayer('${u.id}');document.getElementById('an-picker')?.remove();" style="display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:9999px;border:1.5px solid ${u.id===tid?'var(--primary)':'var(--border)'};background:${u.id===tid?'rgba(77,159,255,.14)':'var(--bg2)'};cursor:pointer;min-width:0;">
       ${u.avatar_url
         ? `<img src="${u.avatar_url}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
         : `<span style="width:34px;height:34px;border-radius:50%;background:var(--primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;flex-shrink:0;">${escHtml(u.name.slice(0,1))}</span>`}
       <span style="font-size:.85rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(u.name)}${u.id===me?' (나)':''}</span>
     </div>`;
-  const group = (title,arr) => arr.length ? `
-    <div style="font-size:.9rem;font-weight:800;margin:12px 0 8px;">${title} ${arr.length}명</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">${arr.map(chip).join('')}</div>` : '';
   const ov = document.createElement('div');
   ov.id = 'an-picker';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:400;display:flex;align-items:flex-end;justify-content:center;';
@@ -164,9 +158,7 @@ function openAnalysisPicker(){
       <button onclick="document.getElementById('an-picker').remove()" style="margin-left:auto;background:var(--bg2);border:1px solid var(--border);border-radius:50%;width:30px;height:30px;color:var(--text-muted);font-size:.9rem;cursor:pointer;line-height:1;">✕</button>
     </div>
     <div style="overflow-y:auto;padding-bottom:10px;">
-      ${group('🙋‍♂️ 남자',males)}
-      ${group('🙋‍♀️ 여자',females)}
-      ${group('👤 기타',etc)}
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px;">${list.map(chip).join('')}</div>
     </div>
   </div>`;
   document.body.appendChild(ov);
