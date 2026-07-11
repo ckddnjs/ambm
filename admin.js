@@ -1231,17 +1231,15 @@ async function renderAdminCraft(){
 
   // 교환 요청 + 설정 병렬 로드
   const [logsRes, priceRes, configRes, profilesRes]=await Promise.all([
-    sb.from('logs').select('*').eq('action','shuttle_exchange_request').order('created_at',{ascending:false}),
+    sb.from('shuttle_exchange_requests').select('*').order('created_at',{ascending:false}),
     sb.from('app_settings').select('value').eq('key','market_prices').maybeSingle(),
     sb.from('app_settings').select('value').eq('key','market_config').maybeSingle(),
     sb.from('profiles').select('id,name').eq('status','approved'),
   ]);
 
   const requests=(logsRes.data||[]).map(r=>{
-    let note={};
-    try{note=JSON.parse(r.note||'{}');}catch(e){}
     const user=(profilesRes.data||[]).find(u=>u.id===r.user_id);
-    return {...r, note, userName: note.userName||user?.name||r.user_id.slice(0,8)};
+    return {...r, userName: r.user_name||user?.name||String(r.user_id).slice(0,8)};
   });
 
   let prices={};
@@ -1249,8 +1247,8 @@ async function renderAdminCraft(){
   let flightRate=40;
   try{flightRate=JSON.parse(configRes.data?.value||'{}').flight_rate??40;}catch(e){}
 
-  const pending=requests.filter(r=>r.note.status==='pending');
-  const done=requests.filter(r=>r.note.status!=='pending');
+  const pending=requests.filter(r=>r.status==='pending');
+  const done=requests.filter(r=>r.status!=='pending');
 
   // 아이템 정의 (craft.js의 MARKET_ITEMS와 동일)
   const ITEMS=[
@@ -1268,13 +1266,13 @@ async function renderAdminCraft(){
       <div class="card" style="padding:12px;margin-bottom:8px;border-left:3px solid var(--accent);">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
           <div style="flex:1;min-width:0;">
-            <div style="font-size:.9rem;font-weight:700;">${escHtml(r.userName)} <span style="font-size:.75rem;color:var(--text-muted);">· ${r.note.qty||1}개 요청</span></div>
-            ${r.note.memo?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px;">📝 ${escHtml(r.note.memo)}</div>`:''}
+            <div style="font-size:.9rem;font-weight:700;">${escHtml(r.userName)} <span style="font-size:.75rem;color:var(--text-muted);">· ${r.qty||1}개 요청</span></div>
+            ${r.memo?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px;">📝 ${escHtml(r.memo)}</div>`:''}
             <div style="font-size:.68rem;color:var(--text-dim);margin-top:3px;">${new Date(r.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0;">
-            <button class="btn btn-success btn-sm" onclick="adminCraftApprove('${r.id}','${r.user_id}',${r.note.qty||1})">✅ 승인</button>
-            <button class="btn btn-danger btn-sm" onclick="adminCraftReject('${r.id}','${r.user_id}',${r.note.qty||1})">❌ 반려</button>
+            <button class="btn btn-success btn-sm" onclick="adminCraftApprove('${r.id}')">✅ 승인</button>
+            <button class="btn btn-danger btn-sm" onclick="adminCraftReject('${r.id}')">❌ 반려</button>
           </div>
         </div>
       </div>`).join('')
@@ -1284,8 +1282,8 @@ async function renderAdminCraft(){
     ?`<details style="margin-top:4px;"><summary style="font-size:.78rem;color:var(--text-muted);cursor:pointer;padding:6px 0;">처리 완료 ${done.length}건 보기</summary><div style="margin-top:8px;">`+
       done.slice(0,20).map(r=>`
         <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">
-          <span style="font-size:.85rem;">${r.note.status==='approved'?'✅':'❌'}</span>
-          <div style="flex:1;font-size:.82rem;">${escHtml(r.userName)} · ${r.note.qty||1}개</div>
+          <span style="font-size:.85rem;">${r.status==='approved'?'✅':'❌'}</span>
+          <div style="flex:1;font-size:.82rem;">${escHtml(r.userName)} · ${r.qty||1}개</div>
           <div style="font-size:.68rem;color:var(--text-muted);">${new Date(r.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
         </div>`).join('')+
       '</div></details>'
@@ -1332,33 +1330,25 @@ async function renderAdminCraft(){
     </div>`;
 }
 
-async function adminCraftApprove(logId, userId, qty){
-  showConfirm({icon:'✅',title:'교환 승인',msg:`셔틀콕 ${qty}개 교환을 승인하시겠습니까?<br><span style="font-size:.78rem;color:var(--text-muted);">실물 지급 후 승인하세요.</span>`,okLabel:'승인',okClass:'btn-success',
+async function adminCraftApprove(reqId){
+  showConfirm({icon:'✅',title:'교환 승인',msg:`이 교환 요청을 승인하시겠습니까?<br><span style="font-size:.78rem;color:var(--text-muted);">실물 지급 후 승인하세요.</span>`,okLabel:'승인',okClass:'btn-success',
     onOk:async()=>{
-      // 로그 note의 status를 approved로 업데이트
-      const {data:log}=await sb.from('logs').select('note').eq('id',logId).maybeSingle();
-      let note={};try{note=JSON.parse(log?.note||'{}');}catch(e){}
-      note.status='approved';
-      await sb.from('logs').update({note:JSON.stringify(note)}).eq('id',logId);
-      addLog('shuttle_exchange_approved',ME.id,JSON.stringify({targetUser:userId,qty}));
-      toast(`✅ 교환 승인 완료 (${qty}개)`,'success');
+      const {error}=await sb.rpc('exchange_approve',{p_id:reqId});
+      if(error){toast('승인 실패: '+error.message,'error');return;}
+      addLog('교환 승인: '+reqId,ME.id);
+      toast('✅ 교환 승인 완료','success');
       renderAdminCraft();
     }
   });
 }
 
-async function adminCraftReject(logId, userId, qty){
-  showConfirm({icon:'❌',title:'교환 반려',msg:`교환 요청을 반려하고 셔틀콕 ${qty}개를 인벤토리에 복구합니다.`,okLabel:'반려',okClass:'btn-danger',
+async function adminCraftReject(reqId){
+  showConfirm({icon:'❌',title:'교환 반려',msg:`교환 요청을 반려하고 셔틀콕을 인벤토리에 복구합니다.`,okLabel:'반려',okClass:'btn-danger',
     onOk:async()=>{
-      // 로그 status 업데이트
-      const {data:log}=await sb.from('logs').select('note').eq('id',logId).maybeSingle();
-      let note={};try{note=JSON.parse(log?.note||'{}');}catch(e){}
-      note.status='rejected';
-      await sb.from('logs').update({note:JSON.stringify(note)}).eq('id',logId);
-      // 인벤토리 복구 — 직접 쓰기 봉쇄됐으므로 admin 게이트 RPC로 (남의 인벤 변경)
-      await sb.rpc('admin_restore_shuttles',{p_uid:userId,p_qty:qty});
-      addLog('shuttle_exchange_rejected',ME.id,JSON.stringify({targetUser:userId,qty}));
-      toast(`반려 완료. 셔틀콕 ${qty}개 복구됨`,'success');
+      const {data:r,error}=await sb.rpc('exchange_reject',{p_id:reqId});
+      if(error){toast('반려 실패: '+error.message,'error');return;}
+      addLog('교환 반려: '+reqId,ME.id);
+      toast(`반려 완료. 셔틀콕 ${r?.restored||''}개 복구됨`,'success');
       renderAdminCraft();
     }
   });
