@@ -23,6 +23,10 @@ function _anIcon(name, size, color){
     case 'flame':    return A('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>');
     case 'trending': return A('<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>');
     case 'calendar': return A('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>');
+    case 'trophy':   return A('<path d="M6 9a6 6 0 0 0 12 0V3H6z"/><path d="M6 5H3a1 1 0 0 0-1 1c0 2.5 1.5 4 4 4"/><path d="M18 5h3a1 1 0 0 1 1 1c0 2.5-1.5 4-4 4"/><line x1="12" y1="15" x2="12" y2="18"/><path d="M8 21h8"/><path d="M10 18h4v3h-4z"/>');
+    case 'zap':      return A('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>');
+    case 'run':      return A('<circle cx="14" cy="4.5" r="2"/><path d="M5 20l3.5-6 3-2-1-5 4 3 3 1"/><path d="M10.5 12 14 15l1 6"/>');
+    case 'medal':    return A('<circle cx="12" cy="15" r="5"/><path d="M8.5 10.5 6 3h4l2 5 2-5h4l-2.5 7.5"/>');
     default:         return '';
   }
 }
@@ -221,13 +225,13 @@ function _anRenderShell(){
   const mtab = (key,label) => `<button onclick="_anSetMainTab('${key}')" style="flex:1;padding:11px 0;border:none;border-radius:11px;font-family:inherit;font-size:.9rem;font-weight:800;cursor:pointer;${main===key?'background:var(--primary);color:#fff;':'background:var(--bg2);color:var(--text-muted);'}">${label}</button>`;
 
   wrap.innerHTML = `
+    <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:4px;-webkit-overflow-scrolling:touch;">${pills}</div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:.74rem;color:var(--text-muted);margin-bottom:10px;padding-left:2px;">${_anIcon('calendar', 13, 'var(--text-muted)')}<span>${range}</span></div>
     <div style="display:flex;gap:6px;margin-bottom:12px;">${mtab('all','📊 시즌 전체')}${mtab('person','👤 개인별')}</div>
     ${main === 'person' ? `<div class="card" style="padding:12px 14px;margin-bottom:12px;">
       <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;letter-spacing:.3px;">${_anIcon('user', 13, 'var(--text-muted)')}<span>분석 대상</span></div>
       ${_anPlayerSelectHtml()}
     </div>` : ''}
-    <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:4px;-webkit-overflow-scrolling:touch;">${pills}</div>
-    <div style="display:flex;align-items:center;gap:5px;font-size:.74rem;color:var(--text-muted);margin-bottom:12px;padding-left:2px;">${_anIcon('calendar', 13, 'var(--text-muted)')}<span>${range}</span></div>
     <div id="analysis-body"></div>`;
 
   _anRenderBody();
@@ -713,25 +717,25 @@ function _anAwardsHTML(players){
   if(!list.length) return _anEmptyRow('데이터가 없어요');
   const stat=p=>{
     const wins=p.games.filter(g=>g.win).length;
-    let run=0,best=0,closeW=0,sum=0;
-    p.games.forEach(g=>{ run=g.win?run+1:0; best=Math.max(best,run); if(g.win&&g.diff<=2) closeW++; sum+=g.diff; });
-    return {p,wins,g:p.games.length,best,closeW,avg:p.games.length?sum/p.games.length:0,mates:p.partner.size};
+    let run=0,best=0,closeW=0,closeG=0,sum=0;
+    p.games.forEach(g=>{ run=g.win?run+1:0; best=Math.max(best,run); if(Math.abs(g.diff)<=2){ closeG++; if(g.win) closeW++; } sum+=g.diff; });
+    return {p,wins,g:p.games.length,best,closeW,closeG,avg:p.games.length?sum/p.games.length:0,mates:p.partner.size};
   };
   const S=list.map(stat);
   const top=(arr,fn)=>arr.reduce((a,x)=>fn(x)>fn(a)?x:a,arr[0]);
   const min10=S.filter(x=>x.g>=10);
   const defs=[
-    {e:'🏆',t:'다승왕', grad:'linear-gradient(135deg,#ffd45e2e,#ff9f2e1c)', s:top(S,x=>x.wins), v:x=>`${x.wins}승`},
-    {e:'🏃',t:'개근왕', grad:'linear-gradient(135deg,#4D9FFF2e,#4D9FFF12)', s:top(S,x=>x.g), v:x=>`${x.g}경기`},
-    {e:'🔥',t:'연승왕', grad:'linear-gradient(135deg,#ff52522e,#ff9f2e14)', s:top(S,x=>x.best), v:x=>`최장 ${x.best}연승`},
-    {e:'🎯',t:'접전왕', grad:'linear-gradient(135deg,#AB47BC2e,#AB47BC12)', s:top(S,x=>x.closeW), v:x=>`2점차 승 ${x.closeW}회`},
-    {e:'💪',t:'압도왕', grad:'linear-gradient(135deg,#00C8962e,#00C89612)', s:min10.length?top(min10,x=>x.avg):null, v:x=>`평균 ${x.avg>=0?'+':''}${x.avg.toFixed(1)}점`, note:'10경기↑'},
-    {e:'🤝',t:'마당발', grad:'linear-gradient(135deg,#F062922e,#F0629212)', s:top(S,x=>x.mates), v:x=>`파트너 ${x.mates}명`},
+    {ic:'trophy', col:'#FFB300', t:'다승왕', grad:'linear-gradient(135deg,#ffd45e2e,#ff9f2e1c)', s:top(S,x=>x.wins), v:x=>`${x.wins}승`},
+    {ic:'run',    col:'#4D9FFF', t:'개근왕', grad:'linear-gradient(135deg,#4D9FFF2e,#4D9FFF12)', s:top(S,x=>x.g), v:x=>`${x.g}경기`},
+    {ic:'flame',  col:'#FF5252', t:'연승왕', grad:'linear-gradient(135deg,#ff52522e,#ff9f2e14)', s:top(S,x=>x.best), v:x=>`최장 ${x.best}연승`},
+    {ic:'target', col:'#AB47BC', t:'접전왕', grad:'linear-gradient(135deg,#AB47BC2e,#AB47BC12)', s:top(S,x=>x.closeW), v:x=>`접전 ${x.closeG}번 중 ${x.closeW}승`, note:'2점차 이내'},
+    {ic:'zap',    col:'#00C896', t:'압도왕', grad:'linear-gradient(135deg,#00C8962e,#00C89612)', s:min10.length?top(min10,x=>x.avg):null, v:x=>`평균 ${x.avg>=0?'+':''}${x.avg.toFixed(1)}점`, note:'10경기↑'},
+    {ic:'users',  col:'#F06292', t:'마당발', grad:'linear-gradient(135deg,#F062922e,#F0629212)', s:top(S,x=>x.mates), v:x=>`파트너 ${x.mates}명`},
   ];
   const cards=defs.filter(d=>d.s).map(d=>`
     <div style="position:relative;overflow:hidden;border:1px solid var(--border);border-radius:14px;padding:11px 12px;background:${d.grad};">
-      <span style="position:absolute;right:-6px;bottom:-10px;font-size:3rem;opacity:.18;">${d.e}</span>
-      <div style="font-size:.68rem;font-weight:800;color:var(--text-muted);margin-bottom:7px;">${d.e} ${d.t}${d.note?` <span style="font-weight:600;">(${d.note})</span>`:''}</div>
+      <span style="position:absolute;right:-8px;bottom:-12px;opacity:.16;transform:rotate(-8deg);">${_anIcon(d.ic,64,d.col)}</span>
+      <div style="display:flex;align-items:center;gap:5px;font-size:.68rem;font-weight:800;color:var(--text-muted);margin-bottom:7px;">${_anIcon(d.ic,13,d.col)}<span>${d.t}${d.note?` <span style="font-weight:600;">(${d.note})</span>`:''}</span></div>
       <div style="display:flex;align-items:center;gap:7px;">
         ${_anAv(d.s.p,30)}
         <div style="min-width:0;">
