@@ -278,13 +278,12 @@ function _anRenderBody(){
 
   const series = _anRecentSeries(_anPredicateFor(opt), tid, 15);
 
+  window._anBody = { d, series };
+  const sub = window._anSubTab || 'partner';
   body.innerHTML =
-    _anSummaryCard(d, wr, avgDiff) +
-    _anMomentumCard(series) +
-    _anBestPartnerCard(d.partnerList) +
-    _anPreyCard(d.oppList) +
-    _anNemesisCard(d.oppList) +
-    _anDivergingCard(d.oppList);
+    _anOverviewCard(d, wr, avgDiff, series) +
+    _anSubTabsHtml(sub) +
+    `<div id="an-subbody">${sub === 'oppo' ? _anOppoPanel(d.oppList) : _anPartnerPanel(d.partnerList)}</div>`;
 
   // 캔버스는 DOM 삽입 후 그린다
   requestAnimationFrame(() => _anDrawMomentum(series));
@@ -400,7 +399,82 @@ function _anDrawMomentum(series){
   }
 }
 
-/* ── 1. 시즌 요약 ── */
+/* ── 서브탭: 파트너 / 상대 ── */
+function _anSubTabsHtml(active){
+  const tab = (key, label) => `<button onclick="_anSetSubTab('${key}')" style="flex:1;padding:10px 0;border:none;border-radius:10px;font-family:inherit;font-size:.88rem;font-weight:800;cursor:pointer;${active===key?'background:var(--primary);color:#fff;':'background:var(--bg2);color:var(--text-muted);'}">${label}</button>`;
+  return `<div style="display:flex;gap:6px;margin-bottom:12px;">${tab('partner','🤝 파트너')}${tab('oppo','⚔️ 상대')}</div>`;
+}
+function _anSetSubTab(key){
+  window._anSubTab = key;
+  const el = document.getElementById('an-subbody');
+  const b = window._anBody || {};
+  // 탭 버튼 스타일만 다시 그림 + 본문 교체 (요약/모멘텀은 유지 → 캔버스 재드로 불필요)
+  const tabsWrap = el?.previousElementSibling;
+  if(tabsWrap) tabsWrap.outerHTML = _anSubTabsHtml(key);
+  const el2 = document.getElementById('an-subbody');
+  if(el2) el2.innerHTML = key === 'oppo' ? _anOppoPanel(b.d?.oppList||[]) : _anPartnerPanel(b.d?.partnerList||[]);
+}
+
+/* ── 통합 요약 카드: 성적 + 최근 흐름 스파크라인 한 장 ── */
+function _anOverviewCard(d, wr, avgDiff, series){
+  const winPct  = d.games > 0 ? (d.wins / d.games * 100) : 0;
+  const diffStr = (avgDiff >= 0 ? '+' : '') + avgDiff.toFixed(1);
+  const diffCol = avgDiff >= 0 ? 'var(--primary)' : 'var(--danger)';
+  const n = series.length, sw = series.filter(x=>x.won).length, sl = n - sw, net = sw - sl;
+  const netStr = (net>0?'+':'') + net, netCol = net>0?'var(--accent)':net<0?'var(--danger)':'var(--text-muted)';
+  return `
+  <div class="card">
+    ${_anTitle('chart', 'var(--primary)', `${_anWho} 성적`)}
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0 12px;">
+      ${_anTile('경기', d.games, 'var(--text)')}
+      ${_anTile('승', d.wins, 'var(--primary)')}
+      ${_anTile('패', d.losses, 'var(--danger)')}
+      ${_anTile('승률', wr + '%', wr >= 50 ? 'var(--accent)' : 'var(--text-muted)')}
+    </div>
+    <div style="display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--bg2);margin-bottom:4px;">
+      <div style="width:${winPct}%;background:var(--primary);"></div>
+      <div style="width:${100 - winPct}%;background:var(--danger);opacity:.85;"></div>
+    </div>
+    <div style="font-size:.72rem;color:var(--text-muted);text-align:right;margin-bottom:14px;">평균 득실 <b style="color:${diffCol};">${diffStr}</b></div>
+    ${n ? `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div style="display:flex;align-items:center;gap:7px;font-size:.82rem;font-weight:800;color:var(--text-muted);">${_anIcon('trending', 15, 'var(--accent)')}<span>최근 ${n}경기 흐름</span></div>
+      <div style="font-size:.74rem;color:var(--text-muted);">${sw}승 ${sl}패 · <b style="color:${netCol};">${netStr}</b></div>
+    </div>
+    <canvas id="an-momentum-canvas" style="width:100%;display:block;"></canvas>` : ''}
+  </div>`;
+}
+
+/* ── 파트너 패널 ── */
+function _anPartnerPanel(partnerList){
+  return _anBestPartnerCard(partnerList);
+}
+
+/* ── 상대 패널: 먹잇감·천적 요약칩 + 상대전적 분포 ── */
+function _anOppoPanel(oppList){
+  const ranked = oppList.filter(o => o.games >= _AN_MIN_GAMES);
+  const prey = ranked.filter(o => _anWr(o) > 50).sort((a,b)=>_anWr(b)-_anWr(a)||b.games-a.games).slice(0,3);
+  const nem  = ranked.filter(o => _anWr(o) < 50).sort((a,b)=>_anWr(a)-_anWr(b)||b.games-a.games).slice(0,3);
+  const chip = (o, col) => `<div style="display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:10px;background:var(--bg2);">
+      <span style="flex:1;min-width:0;font-size:.85rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.name}</span>
+      <span style="font-size:.72rem;color:var(--text-muted);flex-shrink:0;">${o.wins}승 ${o.games-o.wins}패</span>
+      <span style="font-family:'Black Han Sans',sans-serif;font-size:1rem;color:${col};flex-shrink:0;min-width:38px;text-align:right;">${_anWr(o)}%</span>
+    </div>`;
+  const block = (title, arr, col, empty) => `
+    <div style="font-size:.8rem;font-weight:800;color:${col};margin-bottom:7px;">${title}</div>
+    ${arr.length ? `<div style="display:flex;flex-direction:column;gap:6px;">${arr.map(o=>chip(o,col)).join('')}</div>`
+      : `<div style="font-size:.8rem;color:var(--text-muted);padding:4px 0 2px;">${empty}</div>`}`;
+  return `
+  <div class="card">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div>${block('🍗 먹잇감 TOP3', prey, 'var(--primary)', '아직 없어요')}</div>
+      <div>${block('🔥 천적 TOP3', nem, 'var(--danger)', '천적 없음, 최강자!')}</div>
+    </div>
+  </div>
+  ${_anDivergingCard(oppList)}`;
+}
+
+/* ── 1. 시즌 요약 (구버전 — 미사용, 보존) ── */
 function _anSummaryCard(d, wr, avgDiff){
   const winPct  = d.games > 0 ? (d.wins / d.games * 100) : 0;
   const diffStr = (avgDiff >= 0 ? '+' : '') + avgDiff.toFixed(1);
@@ -563,7 +637,7 @@ function _anDivergingCard(oppList){
   return `
   <div class="card">
     ${_anTitle('chart', 'var(--text-muted)', '상대전적 분포')}
-    <div style="font-size:.76rem;color:var(--text-muted);margin:-4px 0 10px;">중앙선(50%) 기준 — 오른쪽 파랑은 우세(먹잇감), 왼쪽 빨강은 열세(천적)</div>
+    <div style="font-size:.74rem;color:var(--text-muted);margin:-4px 0 10px;">전체 상대 · 중앙 50% 기준 우세(파랑)/열세(빨강)</div>
     ${rows}
     <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--text-dim);margin-top:8px;padding:0 42px 0 72px;">
       <span>← 천적</span><span>50%</span><span>먹잇감 →</span>
