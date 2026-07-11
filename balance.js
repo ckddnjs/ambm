@@ -126,7 +126,6 @@ async function _balLoadAttendees(){
       const ci=Math.round(calcCI(u.wins,u.games,diff,u.closeWins));
       return {...u,diff,score:ci,ci};
     }).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
-    console.log('[bal] pool 완성: 정회원',Object.keys(stats).length,'명 + 비회원',Object.keys(guestStats).length,'명');
   }catch(e){
     console.error('[bal] load error',e);
     window._balUserPool=[];
