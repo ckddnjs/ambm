@@ -76,8 +76,16 @@ async function _renderFeedInner(forceNameQ, token){
     .order('match_date',{ascending:false})
     .order('created_at',{ascending:false});
 
-  // 검색어 있으면 전체 fetch (이름 필터는 클라이언트에서), 없으면 첫 배치만
-  if(_feedNameQ) q=q.limit(2000);
+  // 조합 검색 > 이름 검색 > 일반 배치 순으로 fetch 전략 결정
+  const pf=window._feedPairFilter||null;
+  if(pf){
+    // 조합 검색: 첫 번째 사람이 낀 경기를 서버에서 추린 뒤 클라에서 페어 조건 적용
+    q=q.or(`a1_id.eq.${pf.ids[0]},a2_id.eq.${pf.ids[0]},b1_id.eq.${pf.ids[0]},b2_id.eq.${pf.ids[0]}`).limit(2000);
+    if(pf.range!=='all'){
+      if(typeof ensureSeasonStart==='function') await ensureSeasonStart();
+      if(window._seasonStart) q=q.gte('match_date',window._seasonStart);
+    }
+  }else if(_feedNameQ) q=q.limit(2000);
   else q=q.range(0, _FEED_BATCH-1);
 
   let{data:matches,error:feedErr}=await q;
@@ -85,6 +93,16 @@ async function _renderFeedInner(forceNameQ, token){
   if(token!==_feedRenderToken) return;
   if(feedErr){ console.error('[Feed]',feedErr); matches=[]; }
   matches=matches||[];
+  if(pf){
+    const x=pf.ids[0], y=pf.ids[1];
+    matches=matches.filter(m=>{
+      const A=[m.a1_id,m.a2_id], B=[m.b1_id,m.b2_id];
+      return pf.mode==='vs'
+        ? ((A.includes(x)&&B.includes(y))||(B.includes(x)&&A.includes(y)))
+        : ((A.includes(x)&&A.includes(y))||(B.includes(x)&&B.includes(y)));
+    });
+  }
+  _renderPairBanner(pf,matches);
 
   // 날짜별 전체 카운트를 위해 전체 건수는 별도로 집계 (캐시 있으면 재사용)
   if(!window._feedFullCountByDate){
@@ -95,7 +113,7 @@ async function _renderFeedInner(forceNameQ, token){
     window._feedFullCountByDate=cnt;
   }
 
-  _feedHasMore=!_feedNameQ && matches.length===_FEED_BATCH;
+  _feedHasMore=!_feedNameQ && !pf && matches.length===_FEED_BATCH;
   _feedOffset=matches.length;
 
   if(_feedNameQ){
@@ -106,7 +124,7 @@ async function _renderFeedInner(forceNameQ, token){
   if(token!==_feedRenderToken) return;
 
   if(!matches.length){
-    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><div>${_feedNameQ?`'${rawName}' 검색 결과 없음`:'경기 내역 없음'}</div></div>`;
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><div>${pf?'이 조합의 경기가 없어요':(_feedNameQ?`'${rawName}' 검색 결과 없음`:'경기 내역 없음')}</div></div>`;
     return;
   }
   window._feedAllMatches=matches;
@@ -416,4 +434,116 @@ async function openMatchDetail(id,isAdmin=false){
   }
   document.getElementById('modal-match-actions').innerHTML=acts;
   openModal('modal-match');
+}
+
+/* ── 👥 조합 검색: 두 명 조합의 같은팀/맞대결 전적 + 경기 필터 (hsdTV 이식) ── */
+function openPairFeed(id1,id2,n1,n2){
+  window._feedPairFilter={ids:[id1,id2],names:[n1,n2],mode:'partner',range:'all'};
+  navigateTo('feed');
+}
+function _setPairOpt(k,v){
+  if(window._feedPairFilter){ window._feedPairFilter[k]=v; renderFeed(); }
+}
+function clearFeedPairFilter(){
+  window._feedPairFilter=null;
+  const banner=document.getElementById('feed-partner-banner');
+  if(banner) banner.style.display='none';
+  renderFeed();
+}
+async function openPairPicker(){
+  let users=window._profilesCache||[];
+  if(!users.length){
+    const {data}=await sb.from('profiles').select('id,name,avatar_url,status,exclude_stats,gender').eq('status','approved');
+    users=data||[]; window._profilesCache=users;
+  }
+  const list=[...users].filter(u=>u.name&&!u.exclude_stats).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  const males=list.filter(u=>u.gender==='male');
+  const females=list.filter(u=>u.gender==='female');
+  const etc=list.filter(u=>u.gender!=='male'&&u.gender!=='female');
+  window._ppSel=[];
+  const chip=u=>`<div id="pp-u-${u.id}" onclick="_ppPick('${u.id}')" style="display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:9999px;border:1.5px solid var(--border);background:var(--bg2);cursor:pointer;transition:all .12s;min-width:0;">
+      ${u.avatar_url
+        ?`<img src="${u.avatar_url}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+        :`<span style="width:34px;height:34px;border-radius:50%;background:var(--primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;flex-shrink:0;">${escHtml(u.name.slice(0,1))}</span>`}
+      <span style="font-size:.85rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(u.name)}</span>
+    </div>`;
+  const group=(title,arr)=>arr.length?`
+    <div style="font-size:.9rem;font-weight:800;margin:12px 0 8px;">${title} ${arr.length}명</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">${arr.map(chip).join('')}</div>`:'';
+  const ov=document.createElement('div');
+  ov.id='pair-picker';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:400;display:flex;align-items:flex-end;justify-content:center;';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  ov.innerHTML=`<div style="background:var(--bg);border-radius:18px 18px 0 0;width:100%;max-width:520px;max-height:78vh;display:flex;flex-direction:column;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));">
+    <div style="width:44px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 12px;"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+      <b style="font-size:1rem;">👥 조합 선택</b>
+      <span id="pp-hint" style="font-size:.72rem;color:var(--text-muted);">두 명을 골라주세요 (0/2)</span>
+      <button onclick="document.getElementById('pair-picker').remove()" style="margin-left:auto;background:var(--bg2);border:1px solid var(--border);border-radius:50%;width:30px;height:30px;color:var(--text-muted);font-size:.9rem;cursor:pointer;line-height:1;">✕</button>
+    </div>
+    <div style="overflow-y:auto;padding-bottom:10px;">
+      ${group('🙋‍♂️ 남자',males)}
+      ${group('🙋‍♀️ 여자',females)}
+      ${group('👤 기타',etc)}
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+}
+function _ppPick(id){
+  const sel=window._ppSel||[];
+  const i=sel.indexOf(id);
+  if(i>=0) sel.splice(i,1); else if(sel.length<2) sel.push(id);
+  window._ppSel=sel;
+  document.querySelectorAll('[id^="pp-u-"]').forEach(d=>{
+    const on=sel.includes(d.id.slice(5));
+    d.style.borderColor=on?'var(--primary)':'var(--border)';
+    d.style.background=on?'rgba(77,159,255,.14)':'var(--bg2)';
+  });
+  const hint=document.getElementById('pp-hint');
+  if(hint) hint.textContent=`두 명을 골라주세요 (${sel.length}/2)`;
+  if(sel.length===2){
+    const users=window._profilesCache||[];
+    const n=uid=>(users.find(u=>u.id===uid)||{}).name||'';
+    window._feedPairFilter={ids:[sel[0],sel[1]],names:[n(sel[0]),n(sel[1])],mode:'partner',range:'season'};
+    document.getElementById('pair-picker')?.remove();
+    renderFeed();
+  }
+}
+/* 조합 요약 배너 (전적·연승·모드/기간 토글) */
+function _renderPairBanner(pf,matches){
+  const b=document.getElementById('feed-partner-banner');
+  if(!b) return;
+  if(!pf){ b.style.display='none'; return; }
+  const x=pf.ids[0];
+  const ms=[...(matches||[])].filter(m=>m.status==='approved')
+    .sort((a,c)=>String(a.match_date).localeCompare(String(c.match_date))||String(a.created_at||'').localeCompare(String(c.created_at||'')));
+  let w=0,l=0,diff=0; const seq=[];
+  ms.forEach(m=>{
+    const inA=[m.a1_id,m.a2_id].includes(x);
+    const win=inA?(m.score_a>m.score_b):(m.score_b>m.score_a);
+    diff+=inA?(m.score_a-m.score_b):(m.score_b-m.score_a);
+    win?w++:l++; seq.push(win);
+  });
+  let streak=0;
+  for(let i=seq.length-1;i>=0;i--){ if(seq[i]) streak++; else break; }
+  const tot=w+l, wr=tot?Math.round(w/tot*100):0;
+  const g=streak>=10?'🚅':streak>=7?'🚄':streak>=5?'🚈':streak>=3?'🚂':'🔥';
+  const seg=on=>`style="padding:3px 10px;border-radius:8px;font-size:.68rem;font-weight:800;cursor:pointer;border:1px solid ${on?'var(--primary)':'var(--border)'};background:${on?'var(--primary)':'transparent'};color:${on?'#fff':'var(--text-muted)'};font-family:inherit;"`;
+  b.style.display='flex'; b.style.flexDirection='column'; b.style.alignItems='stretch';
+  b.innerHTML=`
+   <div style="display:flex;align-items:center;gap:8px;">
+     <b style="font-size:.88rem;">${escHtml(pf.names[0])} ${pf.mode==='vs'?'⚔️':'🤝'} ${escHtml(pf.names[1])}</b>
+     <span style="margin-left:auto;display:flex;gap:5px;">
+       <button ${seg(pf.mode!=='vs')} onclick="_setPairOpt('mode','partner')">같은 팀</button>
+       <button ${seg(pf.mode==='vs')} onclick="_setPairOpt('mode','vs')">맞대결</button>
+     </span>
+     <button onclick="clearFeedPairFilter()" style="background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:0 2px;">✕</button>
+   </div>
+   <div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:.78rem;flex-wrap:wrap;">
+     <span>${pf.mode==='vs'?escHtml(pf.names[0])+' 기준 ':''}<b>${tot}전 ${w}승 ${l}패</b> · 승률 <b>${wr}%</b> · 득실 ${diff>0?'+':''}${diff}${streak>=2?` · <b style="color:var(--primary);">${streak}연승 ${g}</b>`:''}</span>
+     <span style="margin-left:auto;display:flex;gap:5px;">
+       <button ${seg(pf.range!=='all')} onclick="_setPairOpt('range','season')">이번 시즌</button>
+       <button ${seg(pf.range==='all')} onclick="_setPairOpt('range','all')">전체 기간</button>
+     </span>
+   </div>`;
 }

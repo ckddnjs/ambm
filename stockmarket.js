@@ -563,29 +563,16 @@ async function smBuy(stockUserId,stockName,price){
       try{
         const qty=parseInt(document.getElementById('sm-qty')?.value||'1');
         if(!qty||qty<1){toast('수량을 입력해주세요','error');return;}
-        const total=price*qty;
-        // 최신 잔액 재조회 (다이얼로그 열린 사이 변경 반영)
-        const {data:w}=await sb.from('stock_wallets').select('cash').eq('user_id',ME.id).maybeSingle();
-        const cash=w?.cash??0;
-        if(total>cash){toast('현금 부족 (필요 '+total.toLocaleString()+'P, 보유 '+cash.toLocaleString()+'P)','error');return;}
-        // 잔액 차감 — cash >= total 조건부 업데이트 (동시 요청 이중 차감 방지)
-        const {data:deducted}=await sb.from('stock_wallets')
-          .update({cash:cash-total})
-          .eq('user_id',ME.id)
-          .gte('cash',total)
-          .select('cash');
-        if(!deducted||!deducted.length){toast('현금이 부족합니다 (잔액 변동)','error');return;}
-        // 포트폴리오 업데이트
-        const {data:ex}=await sb.from('stock_portfolio').select('*').eq('user_id',ME.id).eq('stock_user_id',stockUserId).maybeSingle();
-        if(ex){
-          const ns=ex.shares+qty;
-          await sb.from('stock_portfolio').update({shares:ns,avg_price:Math.round((ex.avg_price*ex.shares+price*qty)/ns)}).eq('id',ex.id);
-        } else {
-          await sb.from('stock_portfolio').insert({user_id:ME.id,stock_user_id:stockUserId,shares:qty,avg_price:price});
+        // 서버 검증 매수 — 가격·잔액을 서버(RPC)가 경기 데이터로 재계산 (sql/stock_trade_rpc.sql)
+        const {data:r,error}=await sb.rpc('stock_buy',{p_stock:stockUserId,p_qty:qty});
+        if(error){
+          const em=String(error.message||'');
+          if(/does not exist/i.test(em)){ await _smBuyLegacy(stockUserId,stockName,price,qty); return; } // RPC 미설치 시 임시 폴백
+          toast(em.includes('insufficient')?'현금이 부족합니다':em.includes('halted')?'⏸ 현재 거래 정지 시간입니다':em.includes('listed')?'상장 종목이 아닙니다 (5경기 미만)':'매수 실패: '+em,'error');
+          return;
         }
-        await sb.from('stock_trades').insert({user_id:ME.id,action:'buy',name:stockName,qty,price,total});
         if(typeof _walletCache!=='undefined') _walletCache=null;
-        toast(stockName+' '+qty+'주 매수! -'+total.toLocaleString()+'P','success');
+        toast(stockName+' '+qty+'주 매수! -'+Number(r?.total||price*qty).toLocaleString()+'P','success');
         renderStockMarketPage();
       }finally{
         window._smTxBusy=false;
@@ -627,29 +614,16 @@ async function smSell(stockUserId,stockName,price,held){
       try{
         const qty=parseInt(document.getElementById('sm-sell-qty')?.value||'1');
         if(!qty||qty<1||qty>held){toast('수량이 올바르지 않습니다','error');return;}
-        const total=price*qty;
-        // 최신 보유 수량 재조회 (중복 매도 방지)
-        const {data:ex}=await sb.from('stock_portfolio').select('*').eq('user_id',ME.id).eq('stock_user_id',stockUserId).maybeSingle();
-        if(!ex||ex.shares<qty){toast('보유 수량이 부족합니다','error');return;}
-        const {data:w}=await sb.from('stock_wallets').select('cash').eq('user_id',ME.id).maybeSingle();
-        // 포트폴리오 차감 — shares >= qty 조건부 업데이트 (중복 매도 방지)
-        if(qty>=ex.shares){
-          const {data:del}=await sb.from('stock_portfolio').delete().eq('id',ex.id).eq('user_id',ME.id).select('id');
-          if(!del||!del.length){toast('매도 처리 중 오류 (중복 요청 가능성)','error');return;}
-        } else {
-          const {data:upd}=await sb.from('stock_portfolio')
-            .update({shares:ex.shares-qty})
-            .eq('id',ex.id)
-            .gte('shares',qty)
-            .select('shares');
-          if(!upd||!upd.length){toast('매도 처리 중 오류 (중복 요청 가능성)','error');return;}
+        // 서버 검증 매도 — 보유·가격을 서버(RPC)가 재계산 (sql/stock_trade_rpc.sql)
+        const {data:r,error}=await sb.rpc('stock_sell',{p_stock:stockUserId,p_qty:qty});
+        if(error){
+          const em=String(error.message||'');
+          if(/does not exist/i.test(em)){ await _smSellLegacy(stockUserId,stockName,price,qty); return; } // RPC 미설치 시 임시 폴백
+          toast(em.includes('not enough')?'보유 수량이 부족합니다':em.includes('halted')?'⏸ 현재 거래 정지 시간입니다':em.includes('listed')?'상장 종목이 아닙니다':'매도 실패: '+em,'error');
+          return;
         }
-        await sb.from('stock_wallets').update({cash:(w?.cash||0)+total}).eq('user_id',ME.id);
-        const costBasis=(ex.avg_price||0)*qty;
-        const realizedPnl=total-costBasis;
-        await sb.from('stock_trades').insert({user_id:ME.id,action:'sell',name:stockName,qty,price,total,cost:costBasis,pnl:realizedPnl});
         if(typeof _walletCache!=='undefined') _walletCache=null;
-        toast(stockName+' '+qty+'주 매도! +'+total.toLocaleString()+'P','success');
+        toast(stockName+' '+qty+'주 매도! +'+Number(r?.total||price*qty).toLocaleString()+'P','success');
         renderStockMarketPage();
       }finally{
         window._smTxBusy=false;
@@ -974,4 +948,43 @@ async function smTransfer(dir){
           ' style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-family:inherit;font-size:.9rem;box-sizing:border-box;">'+
       '</div>';
   },30);
+}
+/* ── (임시 폴백) RPC 미설치 환경용 기존 클라이언트 거래 로직 — sql/stock_trade_rpc.sql 적용 후 제거 예정 ── */
+async function _smBuyLegacy(stockUserId,stockName,price,qty){
+  const total=price*qty;
+  const {data:w}=await sb.from('stock_wallets').select('cash').eq('user_id',ME.id).maybeSingle();
+  const cash=w?.cash??0;
+  if(total>cash){toast('현금 부족 (필요 '+total.toLocaleString()+'P, 보유 '+cash.toLocaleString()+'P)','error');return;}
+  const {data:deducted}=await sb.from('stock_wallets').update({cash:cash-total}).eq('user_id',ME.id).gte('cash',total).select('cash');
+  if(!deducted||!deducted.length){toast('현금이 부족합니다 (잔액 변동)','error');return;}
+  const {data:ex}=await sb.from('stock_portfolio').select('*').eq('user_id',ME.id).eq('stock_user_id',stockUserId).maybeSingle();
+  if(ex){
+    const ns=ex.shares+qty;
+    await sb.from('stock_portfolio').update({shares:ns,avg_price:Math.round((ex.avg_price*ex.shares+price*qty)/ns)}).eq('id',ex.id);
+  } else {
+    await sb.from('stock_portfolio').insert({user_id:ME.id,stock_user_id:stockUserId,shares:qty,avg_price:price});
+  }
+  await sb.from('stock_trades').insert({user_id:ME.id,action:'buy',name:stockName,qty,price,total});
+  if(typeof _walletCache!=='undefined') _walletCache=null;
+  toast(stockName+' '+qty+'주 매수! -'+total.toLocaleString()+'P','success');
+  renderStockMarketPage();
+}
+async function _smSellLegacy(stockUserId,stockName,price,qty){
+  const total=price*qty;
+  const {data:ex}=await sb.from('stock_portfolio').select('*').eq('user_id',ME.id).eq('stock_user_id',stockUserId).maybeSingle();
+  if(!ex||ex.shares<qty){toast('보유 수량이 부족합니다','error');return;}
+  const {data:w}=await sb.from('stock_wallets').select('cash').eq('user_id',ME.id).maybeSingle();
+  if(qty>=ex.shares){
+    const {data:del}=await sb.from('stock_portfolio').delete().eq('id',ex.id).eq('user_id',ME.id).select('id');
+    if(!del||!del.length){toast('매도 처리 중 오류 (중복 요청 가능성)','error');return;}
+  } else {
+    const {data:upd}=await sb.from('stock_portfolio').update({shares:ex.shares-qty}).eq('id',ex.id).gte('shares',qty).select('shares');
+    if(!upd||!upd.length){toast('매도 처리 중 오류 (중복 요청 가능성)','error');return;}
+  }
+  await sb.from('stock_wallets').update({cash:(w?.cash||0)+total}).eq('user_id',ME.id);
+  const costBasis=(ex.avg_price||0)*qty;
+  await sb.from('stock_trades').insert({user_id:ME.id,action:'sell',name:stockName,qty,price,total,cost:costBasis,pnl:total-costBasis});
+  if(typeof _walletCache!=='undefined') _walletCache=null;
+  toast(stockName+' '+qty+'주 매도! +'+total.toLocaleString()+'P','success');
+  renderStockMarketPage();
 }
