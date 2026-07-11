@@ -68,7 +68,7 @@ function _anAggregate(inRange, targetId){
     else    mate = (m.b1_id === meId) ? {id:m.b2_id, name:m.b2_name} : {id:m.b1_id, name:m.b1_name};
     const mkey = _anKey(mate.id, mate.name);
     if(mkey){
-      if(!partners[mkey]) partners[mkey] = {name: mate.name || '비회원', games:0, wins:0};
+      if(!partners[mkey]) partners[mkey] = {id: mate.id || null, name: mate.name || '비회원', games:0, wins:0};
       partners[mkey].games++; if(won) partners[mkey].wins++;
     }
 
@@ -79,7 +79,7 @@ function _anAggregate(inRange, targetId){
     oppTeam.forEach(o => {
       const okey = _anKey(o.id, o.name);
       if(!okey) return;
-      if(!opps[okey]) opps[okey] = {name: o.name || '비회원', games:0, wins:0};
+      if(!opps[okey]) opps[okey] = {id: o.id || null, name: o.name || '비회원', games:0, wins:0};
       opps[okey].games++; if(won) opps[okey].wins++;
     });
   });
@@ -291,12 +291,14 @@ function _anRenderBody(){
 
   const series = _anRecentSeries(_anPredicateFor(opt), tid, 15);
 
-  window._anBody = { d, series };
-  const sub = window._anSubTab || 'partner';
+  const seqAll = _anRecentSeries(_anPredicateFor(opt), tid, 100000);   // 시즌 전체 시퀀스
   body.innerHTML =
-    _anOverviewCard(d, wr, avgDiff, series) +
-    _anSubTabsHtml(sub) +
-    `<div id="an-subbody">${sub === 'oppo' ? _anOppoPanel(d.oppList) : _anPartnerPanel(d.partnerList)}</div>`;
+    _anPersonTiles(d, wr, avgDiff, seqAll) +
+    _anFlowCard(series) +
+    _anSpectrumCard('users', 'var(--accent)', '파트너 케미 스펙트럼', d.partnerList, '함께',
+      '같은 팀 2경기 이상 전원 · 가운데 50% 기준 좌우로 뻗어요', '안 맞아요', '잘 맞아요') +
+    _anSpectrumCard('target', 'var(--danger)', '상대 전적 스펙트럼', d.oppList, '상대',
+      '상대로 2경기 이상 전원 · 오른쪽일수록 내가 잡는 상대', '천적', '먹잇감');
 
   // 캔버스는 DOM 삽입 후 그린다
   requestAnimationFrame(() => _anDrawMomentum(series));
@@ -901,4 +903,94 @@ function _anMvpPodiumHTML(opt){
       +'</div></div></div>';
   });
   return '<div style="display:flex;align-items:flex-end;gap:5px;padding:0 2px;">'+cols.join('')+'</div>';
+}
+
+/* ═══ 👤 개인별 (hsdTV 시즌통계 개인 모티브) ═══ */
+function _anPersonTiles(d, wr, avgDiff, seqAll){
+  const recent = seqAll.slice(-15);
+  const rw = recent.filter(g=>g.won).length, rl = recent.length - rw;
+  let streak = 0, bestWin = 0, run = 0;
+  seqAll.forEach(g=>{ run = g.won ? run + 1 : 0; bestWin = Math.max(bestWin, run); });
+  if(seqAll.length){
+    const lastWin = seqAll[seqAll.length-1].won;
+    for(let i=seqAll.length-1; i>=0 && seqAll[i].won===lastWin; i--) streak++;
+    if(!lastWin) streak = -streak;
+  }
+  const stTxt = !streak ? '-' : streak > 0 ? streak+'연승' : (-streak)+'연패';
+  const stCol = !streak ? 'var(--text-muted)' : streak > 0 ? 'var(--primary)' : 'var(--danger)';
+  const diffStr = (avgDiff>=0?'+':'')+avgDiff.toFixed(1);
+  const tile = (label, val, col, sub) => `<div class="stat-card" style="text-align:center;padding:12px 6px;min-width:0;">
+    <div class="stat-label" style="margin-bottom:4px;">${label}</div>
+    <div style="font-family:'Black Han Sans',sans-serif;font-size:1.15rem;line-height:1;color:${col};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${val}</div>
+    ${sub?`<div style="font-size:.62rem;color:var(--text-muted);margin-top:4px;">${sub}</div>`:''}
+  </div>`;
+  return `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px;">
+    ${tile('시즌 전적', d.wins+'승 '+d.losses+'패', 'var(--text)', d.games+'경기')}
+    ${tile('시즌 승률', wr+'%', wr>=50?'var(--primary)':'var(--text-muted)', '평균 득실 '+diffStr)}
+    ${tile('최근 '+recent.length+'경기', rw+'승 '+rl+'패', rw>=rl?'var(--primary)':'var(--danger)')}
+    ${tile('현재 흐름', stTxt, stCol, bestWin?'최장 '+bestWin+'연승':'')}
+  </div>`;
+}
+
+function _anFlowCard(series){
+  if(!series.length) return '';
+  const n=series.length, sw=series.filter(x=>x.won).length, sl=n-sw, net=sw-sl;
+  const netStr=(net>0?'+':'')+net, netCol=net>0?'var(--accent)':net<0?'var(--danger)':'var(--text-muted)';
+  return `<div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div style="display:flex;align-items:center;gap:7px;font-size:.9rem;font-weight:800;">${_anIcon('trending',16,'var(--accent)')}<span>최근 ${n}경기 흐름</span></div>
+      <div style="font-size:.76rem;color:var(--text-muted);">${sw}승 ${sl}패 · <b style="color:${netCol};">${netStr}</b></div>
+    </div>
+    <div style="font-size:.7rem;color:var(--text-muted);margin-bottom:6px;">이기면 상승 · 지면 하락</div>
+    <canvas id="an-momentum-canvas" style="width:100%;display:block;"></canvas>
+  </div>`;
+}
+
+/* 다이버징 스펙트럼 카드: 2경기 이상 전원, 가운데 프사+이름, 50% 기준 좌우 바 */
+function _anSpectrumCard(icon, iconCol, title, list, subWord, note, leftLab, rightLab){
+  const arr = (list||[]).filter(x=>x.games>=2);
+  const wrOf = x=>x.games?x.wins/x.games:0;
+  const net = x=>x.wins*2-x.games;
+  arr.sort((a,b)=>wrOf(b)-wrOf(a)||net(b)-net(a));
+  const users = window._profilesCache||[];
+  const avOf = x=>{
+    const u = x.id ? users.find(v=>v.id===x.id) : null;
+    return u&&u.avatar_url
+      ? `<img src="${u.avatar_url}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+      : `<span style="width:20px;height:20px;border-radius:50%;background:var(--primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.58rem;font-weight:800;flex-shrink:0;">${escHtml((x.name||'?').slice(0,1))}</span>`;
+  };
+  const rows = arr.map(x=>{
+    const wr = wrOf(x);
+    const dev = wr - 0.5;
+    const len = Math.max(Math.round(Math.abs(dev)/0.5*100), dev===0?0:4);
+    const right = dev>0, mid = dev===0;
+    const pct = `<span style="font-size:.68rem;font-weight:800;flex-shrink:0;color:${mid?'var(--text-muted)':right?'var(--primary)':'var(--danger)'};">${Math.round(wr*100)}%</span>`;
+    return `<div style="display:flex;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);">
+      <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:5px;">
+        ${!right&&!mid?pct:''}
+        <div style="width:${!right&&!mid?len:0}%;height:8px;border-radius:4px 0 0 4px;background:var(--danger);"></div>
+      </div>
+      <div style="width:108px;flex-shrink:0;display:flex;align-items:center;gap:5px;padding:0 5px;border-left:1px solid var(--border);border-right:1px solid var(--border);">
+        ${avOf(x)}
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.72rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(x.name)}</div>
+          <div style="font-size:.58rem;color:var(--text-muted);white-space:nowrap;">${subWord} ${x.games}판 ${x.wins}승${x.games-x.wins}패</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:0;display:flex;align-items:center;gap:5px;">
+        <div style="width:${right?len:0}%;height:8px;border-radius:0 4px 4px 0;background:var(--primary);"></div>
+        ${right||mid?pct:''}
+      </div>
+    </div>`;
+  }).join('');
+  const legend = `<div style="display:flex;justify-content:space-between;font-size:.64rem;font-weight:700;padding:2px 0 6px;">
+    <span style="color:var(--danger);">← ${leftLab}</span>
+    <span style="color:var(--text-muted);font-weight:600;">50%</span>
+    <span style="color:var(--primary);">${rightLab} →</span>
+  </div>`;
+  return `<div class="card">
+    <div style="display:flex;align-items:center;gap:7px;font-size:.9rem;font-weight:800;margin-bottom:2px;">${_anIcon(icon,16,iconCol)}<span>${title}</span></div>
+    <div style="font-size:.7rem;color:var(--text-muted);margin-bottom:6px;">${note}</div>
+    ${arr.length ? legend + rows : _anEmptyRow('2경기 이상 데이터가 아직 없어요')}
+  </div>`;
 }
