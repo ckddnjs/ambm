@@ -693,12 +693,14 @@ function _anAllAggregate(pass){
   const users=window._profilesCache||[];
   const ex=new Set(users.filter(u=>u.exclude_stats).map(u=>u.id));
   const players=new Map(), pairs=new Map(), h2h=new Map();
+  const days=new Set();
   let total=0;
   const P=id=>{ if(!players.has(id)){const u=users.find(x=>x.id===id); players.set(id,{id,name:u?.name||'?',avatar:u?.avatar_url||'',games:[],partner:new Set()});} return players.get(id); };
   const ms=(window._allMatchesCache||[]).filter(m=>m.status==='approved'&&pass(m))
     .slice().sort((a,b)=>String(a.match_date).localeCompare(String(b.match_date))||String(a.created_at||'').localeCompare(String(b.created_at||'')));
   ms.forEach(m=>{
     total++;
+    if(m.match_date) days.add(String(m.match_date).slice(0,10));
     const aWin=m.score_a>m.score_b, diffA=m.score_a-m.score_b;
     const A=[m.a1_id,m.a2_id].filter(id=>id&&!ex.has(id));
     const B=[m.b1_id,m.b2_id].filter(id=>id&&!ex.has(id));
@@ -717,7 +719,7 @@ function _anAllAggregate(pass){
     }));
   });
   pairs.forEach(pr=>{pr.names=pr.ids.map(id=>players.get(id)?.name||'?');});
-  return {players,pairs,h2h,total};
+  return {players,pairs,h2h,total,days:days.size};
 }
 
 /* 🏅 시즌 어워드 배지 그리드 */
@@ -825,14 +827,18 @@ function _anAllHTML(opt){
       <div style="margin-top:8px;font-weight:700;">${isCurrent?'이번 시즌':'이 시즌'} 승인된 경기가 없어요</div>
     </div></div>`;
   }
-  const tiles=`<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px;">
-    <div class="stat-card" style="text-align:center;padding:14px 6px;">
-      <div class="stat-label" style="margin-bottom:4px;">총 경기</div>
-      <div style="font-family:'Black Han Sans',sans-serif;font-size:1.5rem;line-height:1;color:var(--text);">${d.total}</div>
+  const tiles=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px;">
+    <div class="stat-card" style="text-align:center;padding:14px 4px;">
+      <div class="stat-label" style="margin-bottom:4px;">모인 날</div>
+      <div style="font-family:'Black Han Sans',sans-serif;font-size:1.4rem;line-height:1;color:var(--accent);">${d.days}</div>
     </div>
-    <div class="stat-card" style="text-align:center;padding:14px 6px;">
+    <div class="stat-card" style="text-align:center;padding:14px 4px;">
+      <div class="stat-label" style="margin-bottom:4px;">총 경기</div>
+      <div style="font-family:'Black Han Sans',sans-serif;font-size:1.4rem;line-height:1;color:var(--text);">${d.total}</div>
+    </div>
+    <div class="stat-card" style="text-align:center;padding:14px 4px;">
       <div class="stat-label" style="margin-bottom:4px;">참여 인원</div>
-      <div style="font-family:'Black Han Sans',sans-serif;font-size:1.5rem;line-height:1;color:var(--text);">${d.players.size}</div>
+      <div style="font-family:'Black Han Sans',sans-serif;font-size:1.4rem;line-height:1;color:var(--text);">${d.players.size}</div>
     </div>
   </div>`;
   const pr=[...d.pairs.values()].filter(x=>x.g>=3);
