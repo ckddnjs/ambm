@@ -533,7 +533,12 @@ function _anNemesisCard(oppList){
 /* ── 5. 상대전적 분포 (50% 기준 다이버징) ── */
 function _anDivergingCard(oppList){
   const list = oppList.filter(o => o.games >= _AN_MIN_GAMES)
-    .sort((a,b) => _anWr(b) - _anWr(a) || b.games - a.games);
+    .sort((a,b) => {
+      const d = _anWr(b) - _anWr(a);
+      if(d !== 0) return d;
+      // 동률이면: 우세(50%↑)는 판수 많을수록 위(확실한 먹잇감), 열세는 판수 많을수록 아래(지독한 천적)
+      return _anWr(a) >= 50 ? b.games - a.games : a.games - b.games;
+    });
   if(!list.length) return '';
 
   const rows = list.map(o => {
