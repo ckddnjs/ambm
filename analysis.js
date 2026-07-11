@@ -217,17 +217,22 @@ function _anRenderShell(){
   const selOpt = opts[sel];
   const range  = selOpt ? _anRangeLabel(selOpt) : '';
 
+  const main = window._anMainTab || 'all';
+  const mtab = (key,label) => `<button onclick="_anSetMainTab('${key}')" style="flex:1;padding:11px 0;border:none;border-radius:11px;font-family:inherit;font-size:.9rem;font-weight:800;cursor:pointer;${main===key?'background:var(--primary);color:#fff;':'background:var(--bg2);color:var(--text-muted);'}">${label}</button>`;
+
   wrap.innerHTML = `
-    <div class="card" style="padding:12px 14px;margin-bottom:12px;">
+    <div style="display:flex;gap:6px;margin-bottom:12px;">${mtab('all','📊 시즌 전체')}${mtab('person','👤 개인별')}</div>
+    ${main === 'person' ? `<div class="card" style="padding:12px 14px;margin-bottom:12px;">
       <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;letter-spacing:.3px;">${_anIcon('user', 13, 'var(--text-muted)')}<span>분석 대상</span></div>
       ${_anPlayerSelectHtml()}
-    </div>
+    </div>` : ''}
     <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:4px;-webkit-overflow-scrolling:touch;">${pills}</div>
     <div style="display:flex;align-items:center;gap:5px;font-size:.74rem;color:var(--text-muted);margin-bottom:12px;padding-left:2px;">${_anIcon('calendar', 13, 'var(--text-muted)')}<span>${range}</span></div>
     <div id="analysis-body"></div>`;
 
   _anRenderBody();
 }
+function _anSetMainTab(t){ window._anMainTab = t; _anRenderShell(); }
 
 /* 대상 변경 */
 function _anSelectPlayer(id){
@@ -249,6 +254,10 @@ function _anRenderBody(){
   const body = document.getElementById('analysis-body');
   if(!body) return;
   const opt = (window._anSeasonOpts || [])[window._anSeasonIdx || 0];
+  if((window._anMainTab || 'all') === 'all'){
+    body.innerHTML = _anAllHTML(opt);
+    return;
+  }
   const tid = window._anTargetId || ME?.id;
   const isMe = tid === ME?.id;
   const tUser = (window._profilesCache || []).find(u => u.id === tid);
@@ -652,4 +661,178 @@ function _anThreshNote(fullList, rankedList, verb){
     return `<div style="font-size:.72rem;color:var(--text-muted);margin-top:8px;text-align:center;">아직 ${_AN_MIN_GAMES}경기 이상 ${verb} 상대가 없어 전체 기준으로 표시했어요.</div>`;
   }
   return `<div style="font-size:.7rem;color:var(--text-dim);margin-top:8px;text-align:center;">${_AN_MIN_GAMES}경기 이상 함께한 파트너 기준</div>`;
+}
+
+/* ═══ 📊 시즌 전체 (hsdTV 시즌통계 모티브: 어워드·라이벌·페어 랭킹) ═══ */
+function _anAv(p,size){
+  return p&&p.avatar
+    ? `<img src="${p.avatar}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+    : `<span style="width:${size}px;height:${size}px;border-radius:50%;background:var(--primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:${Math.round(size*.4)}px;font-weight:800;flex-shrink:0;">${escHtml((p?.name||'?').slice(0,1))}</span>`;
+}
+const _anSecCard=(title,inner,note)=>`<div class="card">
+  <div class="card-title" style="margin-bottom:${note?'2px':'8px'};">${title}</div>
+  ${note?`<div style="font-size:.7rem;color:var(--text-muted);margin-bottom:8px;">${note}</div>`:''}
+  ${inner}</div>`;
+const _anEmptyRow=msg=>`<div style="text-align:center;color:var(--text-muted);font-size:.78rem;padding:12px 0;">${msg}</div>`;
+
+/* 시즌 전체 집계: 회원 기준 (통계제외 제외, 게스트는 총경기에만 포함) */
+function _anAllAggregate(pass){
+  const users=window._profilesCache||[];
+  const ex=new Set(users.filter(u=>u.exclude_stats).map(u=>u.id));
+  const players=new Map(), pairs=new Map(), h2h=new Map();
+  let total=0;
+  const P=id=>{ if(!players.has(id)){const u=users.find(x=>x.id===id); players.set(id,{id,name:u?.name||'?',avatar:u?.avatar_url||'',games:[],partner:new Set()});} return players.get(id); };
+  const ms=(window._allMatchesCache||[]).filter(m=>m.status==='approved'&&pass(m))
+    .slice().sort((a,b)=>String(a.match_date).localeCompare(String(b.match_date))||String(a.created_at||'').localeCompare(String(b.created_at||'')));
+  ms.forEach(m=>{
+    total++;
+    const aWin=m.score_a>m.score_b, diffA=m.score_a-m.score_b;
+    const A=[m.a1_id,m.a2_id].filter(id=>id&&!ex.has(id));
+    const B=[m.b1_id,m.b2_id].filter(id=>id&&!ex.has(id));
+    A.forEach(id=>P(id).games.push({win:aWin,diff:diffA}));
+    B.forEach(id=>P(id).games.push({win:!aWin,diff:-diffA}));
+    const addPair=(T,won)=>{ if(T.length!==2) return;
+      T.forEach((id,i)=>P(id).partner.add(T[1-i]));
+      const k=T.slice().sort().join('|');
+      const pr=pairs.get(k)||{ids:T.slice().sort(),names:[],g:0,w:0};
+      pr.g++; if(won) pr.w++; pairs.set(k,pr); };
+    addPair(A,aWin); addPair(B,!aWin);
+    A.forEach(x=>B.forEach(y=>{
+      const k=[x,y].sort().join('|');
+      const r=h2h.get(k)||{ids:[x,y].sort(),g:0,w:{}};
+      r.g++; const winner=aWin?x:y; r.w[winner]=(r.w[winner]||0)+1; h2h.set(k,r);
+    }));
+  });
+  pairs.forEach(pr=>{pr.names=pr.ids.map(id=>players.get(id)?.name||'?');});
+  return {players,pairs,h2h,total};
+}
+
+/* 🏅 시즌 어워드 배지 그리드 */
+function _anAwardsHTML(players){
+  const list=[...players.values()].filter(p=>p.games.length>0);
+  if(!list.length) return _anEmptyRow('데이터가 없어요');
+  const stat=p=>{
+    const wins=p.games.filter(g=>g.win).length;
+    let run=0,best=0,closeW=0,sum=0;
+    p.games.forEach(g=>{ run=g.win?run+1:0; best=Math.max(best,run); if(g.win&&g.diff<=2) closeW++; sum+=g.diff; });
+    return {p,wins,g:p.games.length,best,closeW,avg:p.games.length?sum/p.games.length:0,mates:p.partner.size};
+  };
+  const S=list.map(stat);
+  const top=(arr,fn)=>arr.reduce((a,x)=>fn(x)>fn(a)?x:a,arr[0]);
+  const min10=S.filter(x=>x.g>=10);
+  const defs=[
+    {e:'🏆',t:'다승왕', grad:'linear-gradient(135deg,#ffd45e2e,#ff9f2e1c)', s:top(S,x=>x.wins), v:x=>`${x.wins}승`},
+    {e:'🏃',t:'개근왕', grad:'linear-gradient(135deg,#4D9FFF2e,#4D9FFF12)', s:top(S,x=>x.g), v:x=>`${x.g}경기`},
+    {e:'🔥',t:'연승왕', grad:'linear-gradient(135deg,#ff52522e,#ff9f2e14)', s:top(S,x=>x.best), v:x=>`최장 ${x.best}연승`},
+    {e:'🎯',t:'접전왕', grad:'linear-gradient(135deg,#AB47BC2e,#AB47BC12)', s:top(S,x=>x.closeW), v:x=>`2점차 승 ${x.closeW}회`},
+    {e:'💪',t:'압도왕', grad:'linear-gradient(135deg,#00C8962e,#00C89612)', s:min10.length?top(min10,x=>x.avg):null, v:x=>`평균 ${x.avg>=0?'+':''}${x.avg.toFixed(1)}점`, note:'10경기↑'},
+    {e:'🤝',t:'마당발', grad:'linear-gradient(135deg,#F062922e,#F0629212)', s:top(S,x=>x.mates), v:x=>`파트너 ${x.mates}명`},
+  ];
+  const cards=defs.filter(d=>d.s).map(d=>`
+    <div style="position:relative;overflow:hidden;border:1px solid var(--border);border-radius:14px;padding:11px 12px;background:${d.grad};">
+      <span style="position:absolute;right:-6px;bottom:-10px;font-size:3rem;opacity:.18;">${d.e}</span>
+      <div style="font-size:.68rem;font-weight:800;color:var(--text-muted);margin-bottom:7px;">${d.e} ${d.t}${d.note?` <span style="font-weight:600;">(${d.note})</span>`:''}</div>
+      <div style="display:flex;align-items:center;gap:7px;">
+        ${_anAv(d.s.p,30)}
+        <div style="min-width:0;">
+          <div style="font-size:.84rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(d.s.p.name)}</div>
+          <div style="font-size:.66rem;color:var(--text-muted);">${d.v(d.s)}</div>
+        </div>
+      </div>
+    </div>`).join('');
+  return `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">${cards}</div>`;
+}
+
+/* ⚡ 라이벌 매치 — 팽팽한 맞대결 TOP3 */
+function _anRivalsHTML(players,h2h){
+  const rivals=[...h2h.values()]
+    .filter(r=>r.g>=3&&players.has(r.ids[0])&&players.has(r.ids[1]))
+    .map(r=>{ const w1=r.w[r.ids[0]]||0, w2=r.w[r.ids[1]]||0; return {...r,w1,w2,close:1-Math.abs(w1-w2)/r.g}; })
+    .sort((a,b)=>b.close-a.close||b.g-a.g)
+    .slice(0,3);
+  if(!rivals.length) return _anEmptyRow('3회 이상 맞붙은 라이벌이 아직 없어요');
+  return rivals.map((r,i)=>{
+    const P1=players.get(r.ids[0]), P2=players.get(r.ids[1]);
+    const heat=r.w1===r.w2?'🔥 완전 팽팽':'⚡ 초접전';
+    return `
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 10px;border:1.5px solid ${i===0?'#FFB300':'var(--border)'};border-radius:14px;margin-bottom:8px;background:linear-gradient(90deg,rgba(255,82,82,.07),var(--bg2) 35%,var(--bg2) 65%,rgba(77,159,255,.07));">
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;">
+        ${_anAv(P1,38)}
+        <span style="max-width:100%;font-size:.76rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(P1.name)}</span>
+      </div>
+      <div style="flex-shrink:0;text-align:center;">
+        <div style="font-size:1.15rem;font-weight:900;letter-spacing:2px;">${r.w1} <span style="font-size:.7rem;color:var(--danger);font-weight:900;">VS</span> ${r.w2}</div>
+        <div style="font-size:.62rem;color:var(--text-muted);margin-top:2px;">${r.g}번 맞대결 · ${heat}</div>
+      </div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;">
+        ${_anAv(P2,38)}
+        <span style="max-width:100%;font-size:.76rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(P2.name)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* 💚/💧 페어 카드 */
+function _anPairCard(players,pr,rank,isBest){
+  const P1=players.get(pr.ids[0]), P2=players.get(pr.ids[1]);
+  const wr=pr.g?Math.round(pr.w/pr.g*100):0;
+  const first=isBest&&rank===0;
+  const medal=isBest?(['🥇','🥈','🥉'][rank]||`<span style="font-size:.72rem;font-weight:900;color:var(--text-muted);">${rank+1}위</span>`):(['💧','😅','🙈'][rank]||'💧');
+  const pctColor=isBest?'var(--primary)':'var(--danger)';
+  const barGrad=isBest?'linear-gradient(90deg,#2979FF,#4D9FFF)':'linear-gradient(90deg,#f87171,#dc2626)';
+  const border=first?'1.5px solid #FFB300':'1px solid var(--border)';
+  const bg=first?'linear-gradient(135deg,rgba(255,179,0,.1),var(--bg2) 55%)':'var(--bg2)';
+  const ring='border:2px solid var(--bg2);border-radius:50%;';
+  return `
+  <div style="display:flex;align-items:center;gap:9px;padding:${first?'12px':'10px'} 11px;border:${border};border-radius:13px;margin-bottom:7px;background:${bg};">
+    <span style="width:26px;flex-shrink:0;text-align:center;font-size:${first?'1.25rem':'1.05rem'};">${medal}</span>
+    <span style="flex-shrink:0;display:inline-flex;">
+      <span style="${ring}display:inline-flex;z-index:1;">${_anAv(P1||{name:pr.names?.[0]},first?32:28)}</span>
+      <span style="${ring}display:inline-flex;margin-left:-9px;">${_anAv(P2||{name:pr.names?.[1]},first?32:28)}</span>
+    </span>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:.8rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(pr.names?.[0]||'?')} <span style="color:var(--text-dim);">✚</span> ${escHtml(pr.names?.[1]||'?')}</div>
+      <div style="font-size:.64rem;color:var(--text-muted);margin-top:1px;">${pr.g}전 ${pr.w}승 ${pr.g-pr.w}패</div>
+    </div>
+    <div style="flex-shrink:0;text-align:right;">
+      <div style="font-size:${first?'1.05rem':'.92rem'};font-weight:900;color:${pctColor};line-height:1;">${wr}%</div>
+      <div style="width:54px;height:6px;border-radius:3px;background:var(--bg3);overflow:hidden;margin-top:4px;">
+        <div style="height:100%;width:${Math.max(wr,3)}%;background:${barGrad};"></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _anAllHTML(opt){
+  const d=_anAllAggregate(_anPredicateFor(opt));
+  if(!d.total){
+    const isCurrent=opt&&opt.isCurrent;
+    return `<div class="card"><div class="empty-state" style="padding:40px 0;">
+      <div style="display:flex;justify-content:center;opacity:.45;margin-bottom:6px;">${_anIcon('chart',40,'var(--text-muted)')}</div>
+      <div style="margin-top:8px;font-weight:700;">${isCurrent?'이번 시즌':'이 시즌'} 승인된 경기가 없어요</div>
+    </div></div>`;
+  }
+  const tiles=`<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px;">
+    <div class="stat-card" style="text-align:center;padding:14px 6px;">
+      <div class="stat-label" style="margin-bottom:4px;">총 경기</div>
+      <div style="font-family:'Black Han Sans',sans-serif;font-size:1.5rem;line-height:1;color:var(--text);">${d.total}</div>
+    </div>
+    <div class="stat-card" style="text-align:center;padding:14px 6px;">
+      <div class="stat-label" style="margin-bottom:4px;">참여 인원</div>
+      <div style="font-family:'Black Han Sans',sans-serif;font-size:1.5rem;line-height:1;color:var(--text);">${d.players.size}</div>
+    </div>
+  </div>`;
+  const pr=[...d.pairs.values()].filter(x=>x.g>=3);
+  const wrOf=x=>x.g?x.w/x.g:0;
+  const best=[...pr].sort((a,b)=>wrOf(b)-wrOf(a)||b.g-a.g).slice(0,5);
+  const worst=[...pr].sort((a,b)=>wrOf(a)-wrOf(b)||b.g-a.g).slice(0,3);
+  return tiles
+    + _anSecCard('🏅 시즌 어워드', _anAwardsHTML(d.players), '시즌 전 경기 기준')
+    + _anSecCard('⚡ 라이벌 매치', _anRivalsHTML(d.players,d.h2h), '3회 이상 맞붙고 전적이 팽팽한 맞대결')
+    + _anSecCard('💚 환상의 파트너 TOP 5',
+        best.length?best.map((x,i)=>_anPairCard(d.players,x,i,true)).join(''):_anEmptyRow('3경기 이상 함께 뛴 조합이 아직 없어요'),
+        '같은 팀으로 3경기 이상')
+    + _anSecCard('💧 아쉬운 케미 TOP 3',
+        worst.length?worst.map((x,i)=>_anPairCard(d.players,x,i,false)).join(''):_anEmptyRow('데이터 부족'),
+        '같은 팀으로 3경기 이상 · 승률 낮은 순');
 }
