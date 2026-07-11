@@ -282,7 +282,6 @@ async function renderDashboard(){
   renderPartner(_allMatchesCache);
   renderBump();
   renderStreakTrain();
-  renderPastSeasonCard();
   renderSeasonOnboard(stats.total.games||0);
 }
 

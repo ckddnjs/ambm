@@ -846,7 +846,11 @@ function _anAllHTML(opt){
   const best=[...pr].sort((a,b)=>wrOf(b)-wrOf(a)||b.g-a.g).slice(0,5);
   const worst=[...pr].sort((a,b)=>wrOf(a)-wrOf(b)||b.g-a.g).slice(0,3);
   return tiles
-    + _anSecCard('🏆 시즌 MVP TOP 3', `<div style="padding-top:4px;">${_anMvpPodiumHTML(opt)}</div>`, 'CI 종합점수 기준 · 5경기 이상')
+    + _anSecCard('🏆 시즌 MVP TOP 3', `<div style="padding-top:4px;">${_anMvpPodiumHTML(opt)}</div>
+        <div id="an-rank-full" style="display:none;margin-top:12px;">${_anRankFullHTML(opt)}</div>
+        <div style="display:flex;justify-content:center;padding:10px 0 4px;">
+          <button onclick="const d=document.getElementById('an-rank-full');const open=d.style.display==='none';d.style.display=open?'':'none';this.textContent=open?'접기 ▴':'전체 랭킹 보기 ▾';" style="background:var(--bg2);border:1px solid var(--border);border-radius:9999px;padding:8px 20px;font-family:inherit;font-size:.82rem;font-weight:700;color:var(--text-muted);cursor:pointer;">전체 랭킹 보기 ▾</button>
+        </div>`, 'CI 종합점수 기준 · 5경기 이상')
     + _anSecCard('🏅 시즌 어워드', _anAwardsHTML(d.players), '시즌 전 경기 기준')
     + _anSecCard('⚡ 라이벌 매치', _anRivalsHTML(d.players,d.h2h), '3회 이상 맞붙고 전적이 팽팽한 맞대결')
     + _anSecCard('💚 환상의 파트너 TOP 5',
@@ -858,7 +862,8 @@ function _anAllHTML(opt){
 }
 
 /* 🏆 시즌 MVP TOP3 — 전체랭킹 MVP 포디움 디자인(CI 기준) 이식, 시즌 범위 반영 */
-function _anMvpPodiumHTML(opt){
+/* 시즌 랭킹(CI 기준, 5경기↑) 공용 집계 — MVP 포디움·전체 랭킹이 함께 사용 */
+function _anSeasonRanked(opt){
   const users=window._profilesCache||[];
   const ex=new Set(users.filter(u=>u.exclude_stats).map(u=>u.id));
   const userMap={}; users.forEach(u=>{ if(u.id&&u.name) userMap[u.id]=u; });
@@ -876,7 +881,10 @@ function _anMvpPodiumHTML(opt){
   });
   Object.values(st).forEach(u=>{u.diff=u.scored-u.conceded;u.ci=calcCI(u.wins,u.games,u.diff,u.closeWins);});
   const wr=u=>u.games?u.wins/u.games:0;
-  const top3=Object.values(st).filter(u=>u.games>=5).sort((a,b)=>b.ci-a.ci||wr(b)-wr(a)||b.diff-a.diff||b.games-a.games).slice(0,3);
+  return Object.values(st).filter(u=>u.games>=5).sort((a,b)=>b.ci-a.ci||wr(b)-wr(a)||b.diff-a.diff||b.games-a.games);
+}
+function _anMvpPodiumHTML(opt){
+  const top3=_anSeasonRanked(opt).slice(0,3);
   if(!top3.length) return `<div style="text-align:center;padding:20px 0;color:var(--text-muted);font-size:.82rem;">5경기 이상 완료된 선수가 없어요</div>`;
 
   const order=[top3[1],top3[0],top3[2]];
@@ -1020,4 +1028,24 @@ function _anSpectrumCard(icon, iconCol, title, list, subWord, note, leftLab, rig
     <div style="font-size:.7rem;color:var(--text-muted);margin-bottom:6px;">${note}</div>
     ${arr.length ? legend + rows : _anEmptyRow('2경기 이상 데이터가 아직 없어요')}
   </div>`;
+}
+
+/* 시즌 전체 랭킹 리스트 (MVP 하단 펼침) */
+function _anRankFullHTML(opt){
+  const list=_anSeasonRanked(opt);
+  if(!list.length) return _anEmptyRow('5경기 이상 회원이 없어요');
+  const medal=i=>i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
+  return list.map((u,i)=>`
+  <div style="display:flex;align-items:center;gap:9px;padding:8px 2px;border-bottom:1px solid var(--border);${i<3?'':''}">
+    <span style="width:26px;flex-shrink:0;text-align:center;font-size:${i<3?'1rem':'.82rem'};font-weight:800;color:var(--text-muted);">${medal(i)}</span>
+    ${u.avatar
+      ?`<img src="${u.avatar}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+      :`<span style="width:26px;height:26px;border-radius:50%;background:var(--primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:800;flex-shrink:0;">${escHtml((u.name||'?').slice(0,1))}</span>`}
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:.84rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(u.name)}</div>
+      <div style="font-size:.64rem;color:var(--text-muted);">${u.games}전 ${u.wins}승 ${u.games-u.wins}패 · 득실 ${u.diff>0?'+':''}${u.diff}</div>
+    </div>
+    <span style="flex-shrink:0;font-size:.76rem;font-weight:700;color:${u.games&&u.wins/u.games>=0.5?'var(--primary)':'var(--text-muted)'};">${Math.round(u.wins/u.games*100)}%</span>
+    <span style="flex-shrink:0;width:52px;text-align:right;font-family:'Black Han Sans',sans-serif;font-size:.95rem;color:var(--primary);">${Math.round(u.ci)}</span>
+  </div>`).join('');
 }
