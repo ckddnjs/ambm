@@ -155,7 +155,7 @@ function openAnalysisPicker(){
   ov.id = 'an-picker';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:400;display:flex;align-items:flex-end;justify-content:center;';
   ov.onclick = e => { if(e.target===ov) ov.remove(); };
-  ov.innerHTML = `<div style="background:var(--bg);border-radius:18px 18px 0 0;width:100%;max-width:520px;max-height:78vh;display:flex;flex-direction:column;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));">
+  ov.innerHTML = `<div class="sheet-in" style="background:var(--bg);border-radius:18px 18px 0 0;width:100%;max-width:520px;max-height:78vh;display:flex;flex-direction:column;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));">
     <div style="width:44px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 12px;"></div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
       <b style="font-size:1rem;">📊 분석 대상 선택</b>
@@ -232,11 +232,17 @@ function _anRenderShell(){
       <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;letter-spacing:.3px;">${_anIcon('user', 13, 'var(--text-muted)')}<span>분석 대상</span></div>
       ${_anPlayerSelectHtml()}
     </div>` : ''}
-    <div id="analysis-body"></div>`;
+    <div id="analysis-body" class="an-anim"></div>`;
 
   _anRenderBody();
 }
-function _anSetMainTab(t){ window._anMainTab = t; _anRenderShell(); }
+function _anSetMainTab(t){
+  window._anMainTab = t;
+  _anRenderShell();
+  // 전환 애니 재생 (요소 재생성 시 자동, 혹시 재사용되면 클래스 리트리거)
+  const b=document.getElementById('analysis-body');
+  if(b){ b.classList.remove('an-anim'); void b.offsetWidth; b.classList.add('an-anim'); }
+}
 
 /* 대상 변경 */
 function _anSelectPlayer(id){
@@ -982,7 +988,7 @@ function _anSpectrumCard(icon, iconCol, title, list, subWord, note, leftLab, rig
     return `<div style="display:flex;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);">
       <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:5px;">
         ${!right&&!mid?pct:''}
-        <div style="width:${!right&&!mid?len:0}%;height:8px;border-radius:4px 0 0 4px;background:var(--danger);"></div>
+        <div class="an-bar-l" style="width:${!right&&!mid?len:0}%;height:8px;border-radius:4px 0 0 4px;background:var(--danger);"></div>
       </div>
       <div style="width:108px;flex-shrink:0;display:flex;align-items:center;gap:5px;padding:0 5px;border-left:1px solid var(--border);border-right:1px solid var(--border);">
         ${avOf(x)}
@@ -992,7 +998,7 @@ function _anSpectrumCard(icon, iconCol, title, list, subWord, note, leftLab, rig
         </div>
       </div>
       <div style="flex:1;min-width:0;display:flex;align-items:center;gap:5px;">
-        <div style="width:${right?len:0}%;height:8px;border-radius:0 4px 4px 0;background:var(--primary);"></div>
+        <div class="an-bar-r" style="width:${right?len:0}%;height:8px;border-radius:0 4px 4px 0;background:var(--primary);"></div>
         ${right||mid?pct:''}
       </div>
     </div>`;

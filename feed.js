@@ -474,7 +474,7 @@ async function openPairPicker(){
   ov.id='pair-picker';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:400;display:flex;align-items:flex-end;justify-content:center;';
   ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
-  ov.innerHTML=`<div style="background:var(--bg);border-radius:18px 18px 0 0;width:100%;max-width:520px;max-height:78vh;display:flex;flex-direction:column;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));">
+  ov.innerHTML=`<div class="sheet-in" style="background:var(--bg);border-radius:18px 18px 0 0;width:100%;max-width:520px;max-height:78vh;display:flex;flex-direction:column;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));">
     <div style="width:44px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 12px;"></div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
       <b style="font-size:1rem;">👥 조합 선택</b>
@@ -488,6 +488,7 @@ async function openPairPicker(){
     </div>
   </div>`;
   document.body.appendChild(ov);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>ov.querySelector('.sheet-in')?.classList.add('on')));
 }
 function _ppPick(id){
   const sel=window._ppSel||[];

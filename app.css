@@ -474,3 +474,22 @@ body.light-mode .rank-table td:last-child span { color: var(--primary); font-wei
 .train-chug{display:inline-block;animation:trainChug 2.4s ease-in-out infinite}
 @keyframes trainChug{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
 .train-av{width:24px;height:24px;border-radius:50%;object-fit:cover;border:1.5px solid var(--bg2);background:var(--bg2);display:inline-flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:800;flex-shrink:0}
+
+/* ── 앱 느낌 모션 (2026-07-11) ── */
+/* 본문 전환 페이드+슬라이드 */
+.an-anim{animation:anFadeUp .24s cubic-bezier(.2,.7,.3,1)}
+@keyframes anFadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+/* 버튼 눌림 피드백 */
+button{transition:transform .1s ease, opacity .1s ease}
+button:active{transform:scale(.96)}
+/* 스펙트럼 바 자라나는 애니메이션 */
+.an-bar-r{transform-origin:left center;animation:anBarIn .4s ease}
+.an-bar-l{transform-origin:right center;animation:anBarIn .4s ease}
+@keyframes anBarIn{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+/* 바텀시트 슬라이드업 */
+.sheet-in{transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,.33,1)}
+.sheet-in.on{transform:translateY(0)}
+@media (prefers-reduced-motion: reduce){
+  .an-anim,.an-bar-r,.an-bar-l{animation:none}
+  .sheet-in{transition:none}
+}
