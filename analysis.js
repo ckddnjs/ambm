@@ -124,15 +124,52 @@ function _anDefaultSeasonIdx(targetId){
 /* 분석 대상 선택 드롭다운 */
 function _anPlayerSelectHtml(){
   const me = ME?.id;
-  const users = (window._profilesCache || [])
-    .filter(u => u && u.id && u.name)
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
   const tid = window._anTargetId || me;
-  const opts = users.map(u =>
-    `<option value="${u.id}" ${u.id === tid ? 'selected' : ''}>${u.name}${u.id === me ? ' (나)' : ''}</option>`
-  ).join('');
-  return `<select class="form-select" onchange="_anSelectPlayer(this.value)" style="font-size:.92rem;font-weight:700;">${opts}</select>`;
+  const cur = (window._profilesCache || []).find(u => u.id === tid);
+  const nm = cur ? cur.name + (cur.id === me ? ' (나)' : '') : '선택';
+  const av = cur && cur.avatar_url
+    ? `<img src="${cur.avatar_url}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+    : `<span style="width:30px;height:30px;border-radius:50%;background:var(--primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;flex-shrink:0;">${escHtml((cur?.name||'?').slice(0,1))}</span>`;
+  return `<button onclick="openAnalysisPicker()" style="width:100%;display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg2);cursor:pointer;font-family:inherit;">
+    ${av}
+    <span style="flex:1;text-align:left;font-size:.95rem;font-weight:800;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(nm)}</span>
+    <span style="color:var(--text-muted);font-size:.8rem;">바꾸기 ▾</span>
+  </button>`;
+}
+/* 분석 대상 선택 시트 (조합 선택과 동일한 3열 그리드) */
+function openAnalysisPicker(){
+  const me = ME?.id, tid = window._anTargetId || me;
+  const list = (window._profilesCache || []).filter(u => u && u.id && u.name)
+    .slice().sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  const males = list.filter(u=>u.gender==='male');
+  const females = list.filter(u=>u.gender==='female');
+  const etc = list.filter(u=>u.gender!=='male'&&u.gender!=='female');
+  const chip = u => `<div onclick="_anSelectPlayer('${u.id}');document.getElementById('an-picker')?.remove();" style="display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:9999px;border:1.5px solid ${u.id===tid?'var(--primary)':'var(--border)'};background:${u.id===tid?'rgba(77,159,255,.14)':'var(--bg2)'};cursor:pointer;min-width:0;">
+      ${u.avatar_url
+        ? `<img src="${u.avatar_url}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+        : `<span style="width:34px;height:34px;border-radius:50%;background:var(--primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;flex-shrink:0;">${escHtml(u.name.slice(0,1))}</span>`}
+      <span style="font-size:.85rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(u.name)}${u.id===me?' (나)':''}</span>
+    </div>`;
+  const group = (title,arr) => arr.length ? `
+    <div style="font-size:.9rem;font-weight:800;margin:12px 0 8px;">${title} ${arr.length}명</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">${arr.map(chip).join('')}</div>` : '';
+  const ov = document.createElement('div');
+  ov.id = 'an-picker';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:400;display:flex;align-items:flex-end;justify-content:center;';
+  ov.onclick = e => { if(e.target===ov) ov.remove(); };
+  ov.innerHTML = `<div style="background:var(--bg);border-radius:18px 18px 0 0;width:100%;max-width:520px;max-height:78vh;display:flex;flex-direction:column;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));">
+    <div style="width:44px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 12px;"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+      <b style="font-size:1rem;">📊 분석 대상 선택</b>
+      <button onclick="document.getElementById('an-picker').remove()" style="margin-left:auto;background:var(--bg2);border:1px solid var(--border);border-radius:50%;width:30px;height:30px;color:var(--text-muted);font-size:.9rem;cursor:pointer;line-height:1;">✕</button>
+    </div>
+    <div style="overflow-y:auto;padding-bottom:10px;">
+      ${group('🙋‍♂️ 남자',males)}
+      ${group('🙋‍♀️ 여자',females)}
+      ${group('👤 기타',etc)}
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
 }
 
 /* ── 렌더 진입점 ── */
