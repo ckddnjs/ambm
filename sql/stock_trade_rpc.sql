@@ -155,3 +155,8 @@ grant execute on function public.stock_sell(uuid, integer) to authenticated;
 
 -- (선택·권장) RPC 전환 후 직접 쓰기 봉쇄 — 클라이언트 폴백 코드 제거 뒤 실행:
 -- revoke insert, update, delete on stock_wallets, stock_portfolio, stock_trades from authenticated;
+
+-- ══ 2차 적용분 (2026-07-11, 이미 DB 반영됨) ══
+-- 지갑 이체 서버 검증: wallet_transfer(p_dir 'sav2sm'|'sm2sav', p_amt)
+-- 거래 테이블 직접 쓰기 봉쇄: stock_portfolio·stock_trades에서
+--   authenticated/anon의 insert·update·delete revoke (RPC로만 기록)
