@@ -185,3 +185,8 @@ grant execute on function public.shuttle_exchange(integer, text) to authenticate
 
 -- 인벤토리 직접 쓰기 봉쇄 (RPC로만 변경 가능 — 실물 교환 재화라 필수)
 revoke insert, update, delete on table public.market_inventory from authenticated, anon;
+
+-- ══ 교환 요청 스키마 보정 (2026-07-11, DB 반영됨) ══
+-- logs 테이블에 action·note 컬럼 추가 (교환요청·관리자 처리 코드 호환).
+--   message는 NOT NULL이라 shuttle_exchange RPC가 message도 채움.
+-- admin_restore_shuttles(p_uid,p_qty): 반려 시 남의 인벤 복구용 admin 게이트 RPC.

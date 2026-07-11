@@ -1355,11 +1355,8 @@ async function adminCraftReject(logId, userId, qty){
       let note={};try{note=JSON.parse(log?.note||'{}');}catch(e){}
       note.status='rejected';
       await sb.from('logs').update({note:JSON.stringify(note)}).eq('id',logId);
-      // 인벤토리 복구
-      const {data:inv}=await sb.from('market_inventory').select('*').eq('user_id',userId).maybeSingle();
-      if(inv){
-        await sb.from('market_inventory').update({shuttles:(inv.shuttles||0)+qty}).eq('user_id',userId);
-      }
+      // 인벤토리 복구 — 직접 쓰기 봉쇄됐으므로 admin 게이트 RPC로 (남의 인벤 변경)
+      await sb.rpc('admin_restore_shuttles',{p_uid:userId,p_qty:qty});
       addLog('shuttle_exchange_rejected',ME.id,JSON.stringify({targetUser:userId,qty}));
       toast(`반려 완료. 셔틀콕 ${qty}개 복구됨`,'success');
       renderAdminCraft();
