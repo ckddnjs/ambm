@@ -467,3 +467,10 @@ body.light-mode .toast.success{background:#E3F2FD;border-color:rgba(21,101,192,.
 .rank-table td:last-child span { color: var(--primary); }
 body.light-mode .rank-table td:last-child span { color: var(--primary); font-weight:800; }
 
+
+/* ── 🚂 연승열차 (hsdTV 이식) ── */
+.train-row{padding:10px 2px;border-bottom:1px solid var(--border)}
+.train-row:last-child{border-bottom:none}
+.train-chug{display:inline-block;animation:trainChug 2.4s ease-in-out infinite}
+@keyframes trainChug{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
+.train-av{width:24px;height:24px;border-radius:50%;object-fit:cover;border:1.5px solid var(--bg2);background:var(--bg2);display:inline-flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:800;flex-shrink:0}

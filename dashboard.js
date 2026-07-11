@@ -280,7 +280,7 @@ async function renderDashboard(){
   }
   renderMvpPodium(_allMatchesCache, window._profilesCache||[]);
   renderPartner(_allMatchesCache);
-  setTimeout(()=>renderScatter(),100);
+  renderStreakTrain();
   renderPastSeasonCard();
   renderSeasonOnboard(stats.total.games||0);
 }
@@ -1470,4 +1470,145 @@ async function renderSeasonOnboard(myGames){
       }
     }catch(e){}
   }
+}
+/* ── 🚂 연승열차: 함께 뛰면 계속 이기는 조합 (전체 승인 경기 기준, hsdTV 이식) ── */
+/* 벡터 열차 파츠 — tier: 0 무궁화 · 1 ITX · 2 KTX · 3 특급 */
+function _tEngine(col,tier){
+  const chim=tier===0?`<rect x="7" y="1.5" width="4" height="6" rx="1.2" fill="${col}"/><circle cx="9" cy="0.5" r="2" fill="${col}" opacity=".35"/>`:'';
+  const star=tier===3?`<path d="M26 1 l1.3 2.6 2.9.4 -2.1 2 .5 2.8 -2.6-1.3 -2.6 1.3 .5-2.8 -2.1-2 2.9-.4 Z" fill="#FFD600" stroke="#c9a400" stroke-width=".5"/>`:'';
+  const lines=tier>=2?`<g stroke="${col}" stroke-width="2" stroke-linecap="round" opacity=".45"><line x1="-1" y1="10" x2="5" y2="10"/><line x1="-2" y1="15" x2="4" y2="15"/></g>`:'';
+  return `<svg width="34" height="22" viewBox="-3 0 43 26" style="display:block;">${lines}
+    <path d="M3 7 h21 q9 0 13 9 v4 q0 2 -2 2 h-32 q-2 0 -2 -2 z" fill="${col}"/>
+    <rect x="6" y="10" width="9" height="5" rx="1.4" fill="#fff" opacity=".7"/>
+    <rect x="18" y="10" width="7" height="5" rx="1.4" fill="#fff" opacity=".9"/>
+    <rect x="3" y="18.5" width="34" height="2" fill="#000" opacity=".14"/>
+    ${chim}${star}
+    <circle cx="10" cy="23" r="2.6" fill="#2b2f2b"/><circle cx="28" cy="23" r="2.6" fill="#2b2f2b"/>
+  </svg>`;
+}
+function _tWagon(col){
+  return `<svg width="19" height="15" viewBox="0 0 24 18" style="display:block;flex-shrink:0;">
+    <rect x="1" y="2" width="22" height="11" rx="3" fill="${col}" opacity=".8"/>
+    <rect x="4" y="5" width="6" height="4" rx="1" fill="#fff" opacity=".8"/>
+    <rect x="13" y="5" width="6" height="4" rx="1" fill="#fff" opacity=".8"/>
+    <circle cx="7" cy="15" r="2.2" fill="#2b2f2b"/><circle cx="17" cy="15" r="2.2" fill="#2b2f2b"/>
+  </svg>`;
+}
+function _tSmoke(col){
+  return `<svg width="20" height="14" viewBox="0 0 26 18" style="display:block;flex-shrink:0;margin-left:2px;">
+    <circle cx="4" cy="13" r="3" fill="${col}" opacity=".35"/>
+    <circle cx="12" cy="9" r="4" fill="${col}" opacity=".22"/>
+    <circle cx="21" cy="5" r="5" fill="${col}" opacity=".13"/>
+  </svg>`;
+}
+function renderStreakTrain(){
+  const card=document.getElementById('train-card'); if(!card) return;
+  const ms=(window._allMatchesCache||[]).filter(m=>m.status==='approved');
+  if(!ms.length){ card.style.display='none'; return; }
+  if(card.dataset.drawn===String(ms.length)) return;   // 데이터 변동 시에만 다시 그림 (펼침 상태 보존)
+
+  // 시간순 정렬 후 페어별 경기 시퀀스 → 말미 연속 승수
+  const seqSrc=ms.slice().sort((a,b)=>String(a.match_date).localeCompare(String(b.match_date))||String(a.created_at||'').localeCompare(String(b.created_at||'')));
+  const pairKey=(x,y)=>[x,y].sort().join('|');
+  const pairs={};
+  seqSrc.forEach(m=>{
+    const aWin=m.score_a>m.score_b;
+    [[m.a1_id,m.a2_id,m.a1_name,m.a2_name,aWin,m.score_a,m.score_b,[m.b1_name,m.b2_name],[m.b1_id,m.b2_id]],
+     [m.b1_id,m.b2_id,m.b1_name,m.b2_name,!aWin,m.score_b,m.score_a,[m.a1_name,m.a2_name],[m.a1_id,m.a2_id]]]
+    .forEach(pr=>{
+      if(!pr[0]||!pr[1]) return;
+      const k=pairKey(pr[0],pr[1]);
+      const p=pairs[k]||(pairs[k]={ids:[pr[0],pr[1]],names:[pr[2]||'',pr[3]||''],seq:[]});
+      p.seq.push({win:pr[4],date:m.match_date,s:pr[5],c:pr[6],oppN:pr[7].filter(Boolean),oppI:pr[8]});
+    });
+  });
+  const trains=Object.values(pairs).map(p=>{
+    let st=0;
+    for(let i=p.seq.length-1;i>=0;i--){ if(p.seq[i].win) st++; else break; }
+    return {...p, streak:st, last:p.seq[p.seq.length-1].date, run:p.seq.slice(p.seq.length-st)};
+  }).filter(t=>t.streak>=3)
+    .sort((a,b)=>b.streak-a.streak||String(b.last).localeCompare(String(a.last)))
+    .slice(0,6);
+
+  card.style.display='';
+  card.dataset.drawn=String(ms.length);
+  if(!trains.length){
+    document.getElementById('train-count').textContent='운행 중 0대';
+    document.getElementById('train-wrap').innerHTML='<div style="text-align:center;padding:14px 0;color:var(--text-muted);font-size:.82rem;">지금 달리는 열차가 없어요. 다음 발차의 주인공은? 💨</div>';
+    return;
+  }
+  const grade=s=>s>=10?{nm:'새벽 특급',tier:3,col:'#E3B70A'}:s>=7?{nm:'KTX',tier:2,col:'#38A8E8'}:s>=5?{nm:'ITX-새마을',tier:1,col:'#4CAF50'}:{nm:'무궁화호',tier:0,col:'#9AA096'};
+  const users=window._profilesCache||[];
+  const av=(id,nm)=>{
+    const u=users.find(x=>x.id===id);
+    return u&&u.avatar_url
+      ?`<img class="train-av" src="${u.avatar_url}" onerror="this.outerHTML='<span class=&quot;train-av&quot;>${escHtml((nm||'?').slice(0,1))}</span>'">`
+      :`<span class="train-av">${escHtml((nm||'?').slice(0,1))}</span>`;
+  };
+  document.getElementById('train-count').textContent='운행 중 '+trains.length+'대';
+  document.getElementById('train-wrap').innerHTML=trains.map((t,i)=>{
+    const g=grade(t.streak);
+    const coupling=`<span style="display:inline-block;width:3px;height:2.5px;background:${g.col};opacity:.5;flex-shrink:0;"></span>`;
+    const wagons=Array.from({length:Math.min(t.streak,10)},()=>_tWagon(g.col)).join(coupling)
+      +(t.streak>10?`<span style="font-size:.68rem;color:var(--text-muted);font-weight:800;margin-left:3px;">×${t.streak}</span>`:'')
+      +_tSmoke(g.col);
+    const md=t.last?String(t.last).slice(5).replace('-','/'):'';
+    // 연승 구간 운행 성격 — 접전(3점차 이내) 비율 우선 판정
+    const margins=t.run.map(r=>r.s-r.c);
+    const len=Math.max(margins.length,1);
+    const avg=margins.reduce((a,b)=>a+b,0)/len;
+    const avgTxt=avg.toFixed(1);
+    const closeN=margins.filter(m=>m<=3).length;
+    let runIc,runMsg,nick=null;
+    if(closeN/len>=0.5){
+      runIc='🎢'; runMsg=`${margins.length}승 중 ${closeN}번이 3점차 이내! 아슬아슬 곡예 운행 중`;
+      nick={t:'🎢 곡예 운행',col:'#E5484D'};
+    }else if(avg>=10){
+      runIc='🚀'; runMsg=`평균 ${avgTxt}점차, 브레이크 없는 폭주 중`;
+      nick={t:'💪 파워 운행',col:'#2EAD4B'};
+    }else if(avg<4){ runIc='🧊'; runMsg=`평균 ${avgTxt}점차의 살얼음 운행 중`; }
+    else if(avg<7){ runIc='🛤️'; runMsg=`평균 ${avgTxt}점차 안정 운행 중`; }
+    else{ runIc='😎'; runMsg=`평균 ${avgTxt}점차 여유 운행 중`; }
+    const nickHtml=nick?`<span style="font-size:.6rem;font-weight:800;color:${nick.col};background:${nick.col}1c;border-radius:6px;padding:1.5px 6px;margin-left:5px;white-space:nowrap;">${nick.t}</span>`:'';
+    const avS=(id,nm)=>{
+      const u=users.find(x=>x.id===id);
+      return u&&u.avatar_url
+        ?`<img src="${u.avatar_url}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;border:1.5px solid var(--bg);flex-shrink:0;">`
+        :`<span style="width:20px;height:20px;border-radius:50%;background:var(--bg);border:1.5px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:800;flex-shrink:0;">${escHtml((nm||'?').slice(0,1))}</span>`;
+    };
+    const detail=t.run.map(r=>{
+      // 점수차별 긴장감: 1점차 진땀승 · 2~3점차 접전 · 10점차+ 압승
+      const mg=r.s-r.c;
+      const mCol=mg<=1?'#E5484D':mg<=3?'#F5820D':mg>=10?'#2EAD4B':'';
+      const mTag=mg<=1?'🔥 진땀승':mg<=3?'⚡ 접전':mg>=10?'💪 압승':'';
+      const tagHtml=mTag?`<span style="font-size:.58rem;font-weight:800;color:${mCol};background:${mCol}1c;border-radius:6px;padding:1.5px 6px;margin-right:5px;white-space:nowrap;">${mTag}</span>`:'';
+      return `
+      <div style="display:flex;align-items:center;gap:7px;padding:7px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:.64rem;color:var(--text-dim);width:32px;flex-shrink:0;">${r.date?String(r.date).slice(5).replace('-','/'):''}</span>
+        <span style="display:flex;flex-shrink:0;">${avS(r.oppI[0],r.oppN[0])}${r.oppI[1]?`<span style="margin-left:-6px;display:flex;">${avS(r.oppI[1],r.oppN[1])}</span>`:''}</span>
+        <span style="font-size:.75rem;font-weight:700;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(r.oppN.join('·'))}</span>
+        <span style="margin-left:auto;flex-shrink:0;font-size:.8rem;display:flex;align-items:center;">${tagHtml}<b style="${mCol?'color:'+mCol+';':''}">${r.s}:${r.c}</b>&nbsp;<span style="color:var(--primary);font-weight:800;font-size:.66rem;">승</span></span>
+      </div>`;}).join('');
+    return `<div class="train-row">
+      <div style="display:flex;align-items:center;gap:9px;cursor:pointer;" onclick="const d=document.getElementById('train-d-${i}');d.style.display=d.style.display==='none'?'':'none';">
+        <span style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;min-width:38px;">
+          ${_tEngine(g.col,g.tier)}
+          <span style="font-size:.54rem;font-weight:800;color:${g.col};margin-top:1px;white-space:nowrap;">${g.nm}</span>
+        </span>
+        <span style="display:flex;">${av(t.ids[0],t.names[0])}<span style="margin-left:-7px;">${av(t.ids[1],t.names[1])}</span></span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.86rem;font-weight:800;">${escHtml(t.names[0])}·${escHtml(t.names[1])}</div>
+          <div style="font-size:.66rem;color:var(--text-muted);font-weight:600;display:flex;align-items:center;">최근 승리 ${md}${nickHtml}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:.95rem;font-weight:900;color:var(--primary);">${t.streak}연승</div>
+        </div>
+      </div>
+      <div class="train-chug" style="display:flex;align-items:center;margin:4px 0 0 38px;overflow:hidden;">${wagons}</div>
+      <div id="train-d-${i}" style="display:none;margin:8px 0 0 0;background:var(--bg2);border-radius:12px;padding:2px 12px 10px;">
+        <div style="font-size:.72rem;font-weight:800;padding:9px 0 3px;">${runIc} ${runMsg}</div>
+        ${detail}
+      </div>
+    </div>`;
+  }).join('');
 }
