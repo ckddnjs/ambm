@@ -166,6 +166,7 @@ function openAnalysisPicker(){
     </div>
   </div>`;
   document.body.appendChild(ov);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>ov.querySelector('.sheet-in')?.classList.add('on')));
 }
 
 /* ── 렌더 진입점 ── */
