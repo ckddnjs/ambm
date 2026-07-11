@@ -191,7 +191,7 @@ async function loadProfile(authUser){
     if(np) ME=np;
     addLog(`신규 가입: ${name}`);
     // 비회원으로 등록된 경기 내역을 이름 기반으로 연결
-    _linkGuestMatchesToUser(authUser.id, name);
+    sb.rpc('link_guest_matches').then(()=>{}).catch?.(()=>{}); // 서버가 본인 이름 매칭만 연결
   } else if(data){
     ME=data;
   }

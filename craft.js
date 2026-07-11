@@ -24,9 +24,7 @@ const SHUTTLECOCK_RECIPE = [
 async function _getMarketInv(uid){
   const {data}=await sb.from('market_inventory').select('*').eq('user_id',uid).maybeSingle();
   if(data) return {...data};
-  const row={user_id:uid,feather:0,cork:0,thread:0,tape:0,artisan:0,recycle:0,shuttles:0,defective:0};
-  await sb.from('market_inventory').upsert(row,{onConflict:'user_id'});
-  return row;
+  return {user_id:uid,feather:0,cork:0,thread:0,tape:0,artisan:0,recycle:0,shuttles:0,defective:0}; // 행 생성은 서버 RPC가 담당
 }
 
 async function _saveMarketInv(uid,inv){
@@ -264,24 +262,11 @@ async function smShopBuy(itemId){
       window._smTxBusy=true;
       try{
         const qty=Math.max(1,Math.min(maxQty,parseInt(document.getElementById('shop-qty')?.value||'1')));
-        const total=item.price*qty;
-        // 최신 잔액 재조회 + 조건부 차감
-        const {data:ww}=await sb.from('stock_wallets').select('cash').eq('user_id',uid).maybeSingle();
-        const latestCash=Math.floor(Number(ww?.cash??0));
-        if(latestCash<total){toast('증권 현금이 부족합니다','error');return;}
-        const {data:deducted}=await sb.from('stock_wallets')
-          .update({cash:latestCash-total})
-          .eq('user_id',uid)
-          .gte('cash',total)
-          .select('cash');
-        if(!deducted?.length){toast('잔액 부족 또는 처리 오류','error');return;}
-        try{await sb.from('shop_purchases').insert({user_id:uid,item:item.name,price:total,qty});}catch(e){}
-        const inv=await _getMarketInv(uid);
-        inv[item.craftItem]=(inv[item.craftItem]||0)+(item.craftQty*qty);
-        const {error:invErr}=await _saveMarketInv(uid,inv);
-        if(invErr){
-          await sb.from('stock_wallets').update({cash:latestCash}).eq('user_id',uid);
-          toast('인벤토리 저장 실패 — 환불됐습니다','error');
+        // 서버 검증 구매 — 가격·잔액·지급을 RPC가 원자 처리 (sql/security_hardening.sql)
+        const {error:buyErr}=await sb.rpc('shop_buy',{p_item:item.id,p_qty:qty});
+        if(buyErr){
+          const em=String(buyErr.message||'');
+          toast(em.includes('insufficient')?'증권 현금이 부족합니다':'구매 실패: '+em,'error');
           return;
         }
         toast('✅ '+item.name+' '+qty+'개 구매 완료!','success');
@@ -349,23 +334,15 @@ function previewCraftImages(){
 async function startCraft(){
   const uid=ME?.id; if(!uid) return;
   const inv=await _getMarketInv(uid);
-  const missing=SHUTTLECOCK_RECIPE.filter(r=>{
-    const have=r.item==='feather'?(inv['feather']||0):(inv[r.item]||0);
-    return have<r.need;
-  });
-  if(missing.length>0){toast('재료가 부족합니다: '+missing.map(r=>r.name).join(', '),'error');return;}
-  const useArtisan=document.getElementById('use-artisan')?.checked&&(inv['artisan']||0)>0;
-  SHUTTLECOCK_RECIPE.forEach(r=>{
-    if(r.item==='feather') inv['feather']=(inv['feather']||0)-r.need;
-    else inv[r.item]=(inv[r.item]||0)-1;
-  });
-  if(useArtisan){inv['artisan']=(inv['artisan']||1)-1;if(inv['artisan']<=0)delete inv['artisan'];}
-  Object.keys(inv).forEach(k=>{if(typeof inv[k]==='number'&&inv[k]<=0&&k!=='shuttles'&&k!=='defective'&&k!=='user_id')inv[k]=0;});
-  await _saveMarketInv(uid,inv);
-  window._craftPendingInv=inv;
-  const _rate=(window._marketFlightRate??40)/100;
-  const success=useArtisan||Math.random()<_rate;
-  showFlightTestAnimation(useArtisan,success);
+  const useArtisan=!!(document.getElementById('use-artisan')?.checked&&(inv['artisan']||0)>0);
+  // 서버 검증 제작 — 재료 검증·차감·성공 판정(서버 난수)·결과 반영을 RPC가 원자 처리
+  const {data:r,error}=await sb.rpc('craft_start',{p_use_artisan:useArtisan});
+  if(error){
+    const em=String(error.message||'');
+    toast(em.includes('materials')?'재료가 부족합니다':em.includes('artisan')?'장인의 손길이 없습니다':'제작 실패: '+em,'error');
+    return;
+  }
+  showFlightTestAnimation(!!r?.artisan,!!r?.success);
 }
 
 /* ── 비행 테스트 애니메이션 ── */
@@ -460,13 +437,7 @@ function showFlightTestAnimation(useArtisan,success){
 
 /* ── 비행 테스트 결과 저장 ── */
 async function _applyFlightResult(success,inv=null){
-  const uid=ME?.id; if(!uid) return;
-  const _inv=inv||await _getMarketInv(uid);
-  if(success) _inv.shuttles=(_inv.shuttles||0)+1;
-  else _inv.defective=(_inv.defective||0)+1;
-  if(_inv.artisan===undefined) _inv.artisan=0;
-  if(_inv.recycle===undefined) _inv.recycle=0;
-  await _saveMarketInv(uid,_inv);
+  // 결과 반영은 craft_start RPC가 서버에서 이미 처리 — 화면 전환만
   window._smTab='craft';window._smCraftTab='inventory';
   renderStockMarketPage();
 }
@@ -475,13 +446,13 @@ async function _applyFlightResult(success,inv=null){
 async function doFlightTest(isArtisanForce=false){
   const uid=ME?.id; if(!uid) return;
   if(!isArtisanForce) return;
-  const inv=await _getMarketInv(uid);
-  if((inv.defective||0)<=0){toast('불량 셔틀콕이 없습니다','error');return;}
-  if((inv['recycle']||0)<=0){toast('재활용의 손길이 없습니다','error');return;}
-  inv['recycle']=Math.max(0,(inv['recycle']||1)-1);
-  inv.defective=Math.max(0,(inv.defective||1)-1);
-  inv.shuttles=(inv.shuttles||0)+1;
-  await _saveMarketInv(uid,inv);
+  // 서버 검증 재활용 — 불량·재활용권 차감 + 셔틀콕 지급 원자 처리
+  const {error}=await sb.rpc('craft_recycle');
+  if(error){
+    const em=String(error.message||'');
+    toast(em.includes('defective')?'불량 셔틀콕이 없습니다':em.includes('recycle')?'재활용의 손길이 없습니다':'복구 실패: '+em,'error');
+    return;
+  }
   toast('♻️ 재활용의 손길로 복구! 셔틀콕이 완성됐습니다 🏸','success');
   window._smTab='craft';window._smCraftTab='inventory';
   renderStockMarketPage();
@@ -497,11 +468,13 @@ async function openExchangeRequest(maxQty){
         const memo=document.getElementById('exchange-memo')?.value||'';
         if(!qty||qty<1||qty>maxQty){toast('수량을 확인해주세요 (최대 '+maxQty+'개)','error');return;}
         const uid=ME?.id; if(!uid) return;
-        await sb.from('logs').insert({user_id:uid,action:'shuttle_exchange_request',note:JSON.stringify({qty,memo,status:'pending',userName:ME.name||''}),created_at:new Date().toISOString()});
-        if(typeof addLog==='function') addLog('shuttle_exchange_request',uid,JSON.stringify({qty,memo,status:'pending'}));
-        const _inv=await _getMarketInv(uid);
-        _inv.shuttles=Math.max(0,(_inv.shuttles||0)-qty);
-        await _saveMarketInv(uid,_inv);
+        // 서버 검증 교환 — 보유 검증·차감·로그 기록을 RPC가 원자 처리
+        const {error:exErr}=await sb.rpc('shuttle_exchange',{p_qty:qty,p_memo:memo});
+        if(exErr){
+          const em=String(exErr.message||'');
+          toast(em.includes('not enough')?'보유 셔틀콕이 부족합니다':'요청 실패: '+em,'error');
+          return;
+        }
         toast('✅ 교환 요청이 전송됐습니다. 관리자 승인 후 실물로 교환됩니다.','success');
         window._smTab='craft';window._smCraftTab='inventory';
         renderStockMarketPage();
