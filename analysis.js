@@ -831,6 +831,7 @@ function _anAllHTML(opt){
   const best=[...pr].sort((a,b)=>wrOf(b)-wrOf(a)||b.g-a.g).slice(0,5);
   const worst=[...pr].sort((a,b)=>wrOf(a)-wrOf(b)||b.g-a.g).slice(0,3);
   return tiles
+    + _anSecCard('🏆 시즌 MVP TOP 3', `<div style="padding-top:4px;">${_anMvpPodiumHTML(opt)}</div>`, 'CI 종합점수 기준 · 5경기 이상')
     + _anSecCard('🏅 시즌 어워드', _anAwardsHTML(d.players), '시즌 전 경기 기준')
     + _anSecCard('⚡ 라이벌 매치', _anRivalsHTML(d.players,d.h2h), '3회 이상 맞붙고 전적이 팽팽한 맞대결')
     + _anSecCard('💚 환상의 파트너 TOP 5',
@@ -839,4 +840,65 @@ function _anAllHTML(opt){
     + _anSecCard('💧 아쉬운 케미 TOP 3',
         worst.length?worst.map((x,i)=>_anPairCard(d.players,x,i,false)).join(''):_anEmptyRow('데이터 부족'),
         '같은 팀으로 3경기 이상 · 승률 낮은 순');
+}
+
+/* 🏆 시즌 MVP TOP3 — 전체랭킹 MVP 포디움 디자인(CI 기준) 이식, 시즌 범위 반영 */
+function _anMvpPodiumHTML(opt){
+  const users=window._profilesCache||[];
+  const ex=new Set(users.filter(u=>u.exclude_stats).map(u=>u.id));
+  const userMap={}; users.forEach(u=>{ if(u.id&&u.name) userMap[u.id]=u; });
+  const pass=_anPredicateFor(opt);
+  const st={};
+  (window._allMatchesCache||[]).filter(m=>m.status==='approved'&&pass(m)).forEach(m=>{
+    const aWin=m.score_a>m.score_b, close=Math.abs(m.score_a-m.score_b)<=3;
+    [{id:m.a1_id,win:aWin,s:m.score_a,c:m.score_b},{id:m.a2_id,win:aWin,s:m.score_a,c:m.score_b},
+     {id:m.b1_id,win:!aWin,s:m.score_b,c:m.score_a},{id:m.b2_id,win:!aWin,s:m.score_b,c:m.score_a}]
+    .filter(x=>x.id&&!ex.has(x.id)).forEach(x=>{
+      const u=userMap[x.id];
+      if(!st[x.id]) st[x.id]={id:x.id,name:u?u.name:x.id,avatar:u?.avatar_url||'',games:0,wins:0,scored:0,conceded:0,closeWins:0};
+      const o=st[x.id]; o.games++; if(x.win){o.wins++; if(close) o.closeWins++;} o.scored+=x.s; o.conceded+=x.c;
+    });
+  });
+  Object.values(st).forEach(u=>{u.diff=u.scored-u.conceded;u.ci=calcCI(u.wins,u.games,u.diff,u.closeWins);});
+  const wr=u=>u.games?u.wins/u.games:0;
+  const top3=Object.values(st).filter(u=>u.games>=5).sort((a,b)=>b.ci-a.ci||wr(b)-wr(a)||b.diff-a.diff||b.games-a.games).slice(0,3);
+  if(!top3.length) return `<div style="text-align:center;padding:20px 0;color:var(--text-muted);font-size:.82rem;">5경기 이상 완료된 선수가 없어요</div>`;
+
+  const order=[top3[1],top3[0],top3[2]];
+  const podH=[68,94,54], avSize=[64,80,58];
+  const isLight=document.body.classList.contains('light-mode');
+  const META=[
+    {rank:'2',color:isLight?'#5B7A9A':'#A8B8C8',glow:'rgba(168,184,200,.2)', textSize:'.75rem',numSize:'1.2rem'},
+    {rank:'1',color:isLight?'#1565C0':'#42A5F5',glow:'rgba(66,165,245,.3)', textSize:'.82rem',numSize:'1.5rem'},
+    {rank:'3',color:isLight?'#8B4E1A':'#C87941',glow:'rgba(200,121,65,.18)',textSize:'.7rem', numSize:'1.1rem'},
+  ];
+  const crown=color=>'<svg width="22" height="16" viewBox="0 0 22 16" fill="none" style="display:block;">'
+    +'<path d="M1 14 L4 4 L8 9 L11 2 L14 9 L18 4 L21 14 Z" fill="'+color+'" opacity=".9"/>'
+    +'<rect x="1" y="13" width="20" height="2.5" rx="1.2" fill="'+color+'"/>'
+    +'<circle cx="11" cy="2" r="1.6" fill="'+color+'"/><circle cx="4.5" cy="4.5" r="1.2" fill="'+color+'" opacity=".7"/>'
+    +'<circle cx="17.5" cy="4.5" r="1.2" fill="'+color+'" opacity=".7"/></svg>';
+  const rankLabels=['2nd','1st','3rd'];
+  const cols=order.map((u,i)=>{
+    const m=META[i], isFirst=(i===1);
+    if(!u) return '<div style="flex:1"></div>';
+    const av=avSize[i], rpDisp=Math.round(u.ci), wrPct=u.games?Math.round(u.wins/u.games*100):0, ini=escHtml((u.name||'?')[0]);
+    const avatarInner=u.avatar
+      ? '<img src="'+u.avatar+'" style="width:100%;height:100%;object-fit:cover;">'
+      : '<span style="font-size:'+(isFirst?'1.7rem':'1.3rem')+';font-weight:900;color:'+m.color+';">'+ini+'</span>';
+    const badgeDot='<div style="position:absolute;bottom:-2px;right:-2px;width:18px;height:18px;border-radius:50%;background:'+m.color+';border:2px solid var(--bg2);display:flex;align-items:center;justify-content:center;z-index:2;"><span style="font-size:.48rem;font-weight:900;color:#fff;letter-spacing:-.3px;">'+rankLabels[i]+'</span></div>';
+    return '<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;">'
+      +'<div style="height:26px;display:flex;align-items:center;justify-content:center;">'+(isFirst?crown(m.color):'')+'</div>'
+      +'<div style="position:relative;margin-bottom:7px;">'
+      +'<div style="position:absolute;inset:-3px;border-radius:50%;background:'+m.color+';opacity:.12;filter:blur(4px);"></div>'
+      +'<div style="width:'+av+'px;height:'+av+'px;border-radius:50%;border:2px solid '+m.color+';box-shadow:0 0 '+(isFirst?'20':'11')+'px '+m.glow+';background:radial-gradient(circle at 35% 35%,'+m.color+'33,var(--bg2));display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;z-index:1;">'
+      +avatarInner+'</div>'+badgeDot+'</div>'
+      +'<div style="font-weight:800;font-size:'+m.textSize+';color:var(--text);width:100%;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 3px;margin-bottom:2px;letter-spacing:-.2px;">'+escHtml(u.name)+'</div>'
+      +'<div style="font-family:\'Black Han Sans\',sans-serif;font-size:'+(isFirst?'.9rem':'.76rem')+';color:'+m.color+';margin-bottom:7px;letter-spacing:.3px;">'+rpDisp+'</div>'
+      +'<div style="width:100%;height:'+podH[i]+'px;position:relative;overflow:hidden;background:linear-gradient(170deg,'+m.color+'28 0%,'+m.color+'14 70%,transparent 100%);border:1px solid '+m.color+'55;border-bottom:none;border-radius:10px 10px 0 0;">'
+      +'<div style="position:relative;z-index:1;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;">'
+      +'<span style="font-family:\'Black Han Sans\',sans-serif;font-size:'+m.numSize+';color:'+m.color+';line-height:1;">'+m.rank+'</span>'
+      +'<span style="font-size:.58rem;color:'+m.color+'99;font-weight:700;letter-spacing:.3px;">'+wrPct+'% 승률</span>'
+      +'</div></div></div>';
+  });
+  return '<div style="display:flex;align-items:flex-end;gap:5px;padding:0 2px;">'+cols.join('')+'</div>';
 }
