@@ -461,15 +461,15 @@ async function openPairPicker(){
   const females=list.filter(u=>u.gender==='female');
   const etc=list.filter(u=>u.gender!=='male'&&u.gender!=='female');
   window._ppSel=[];
-  const chip=u=>`<div id="pp-u-${u.id}" onclick="_ppPick('${u.id}')" style="display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:9999px;border:1.5px solid var(--border);background:var(--bg2);cursor:pointer;transition:all .12s;min-width:0;">
+  const chip=u=>`<div id="pp-u-${u.id}" onclick="_ppPick('${u.id}')" style="display:flex;align-items:center;gap:7px;padding:6px 7px;border-radius:9999px;border:1.5px solid var(--border);background:var(--bg2);cursor:pointer;transition:all .12s;min-width:0;">
       ${u.avatar_url
-        ?`<img src="${u.avatar_url}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
-        :`<span style="width:34px;height:34px;border-radius:50%;background:var(--primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;flex-shrink:0;">${escHtml(u.name.slice(0,1))}</span>`}
-      <span style="font-size:.85rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(u.name)}</span>
+        ?`<img src="${u.avatar_url}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+        :`<span style="width:30px;height:30px;border-radius:50%;background:var(--primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:.8rem;flex-shrink:0;">${escHtml(u.name.slice(0,1))}</span>`}
+      <span style="font-size:.78rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(u.name)}</span>
     </div>`;
   const group=(title,arr)=>arr.length?`
     <div style="font-size:.9rem;font-weight:800;margin:12px 0 8px;">${title} ${arr.length}명</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">${arr.map(chip).join('')}</div>`:'';
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px;">${arr.map(chip).join('')}</div>`:'';
   const ov=document.createElement('div');
   ov.id='pair-picker';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:400;display:flex;align-items:flex-end;justify-content:center;';

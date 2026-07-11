@@ -1504,7 +1504,7 @@ function _tSmoke(col){
 }
 function renderStreakTrain(){
   const card=document.getElementById('train-card'); if(!card) return;
-  const ms=(window._allMatchesCache||[]).filter(m=>m.status==='approved'&&inSeason(m));
+  const ms=(window._allMatchesCache||[]).filter(m=>m.status==='approved'); // 연승열차는 전체 경기 기준
   if(!ms.length){ card.style.display='none'; return; }
   if(card.dataset.drawn===String(ms.length)) return;   // 데이터 변동 시에만 다시 그림 (펼침 상태 보존)
 
