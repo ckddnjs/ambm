@@ -468,6 +468,25 @@ const ADMIN_NAVS=[
   {id:'stockmarket',label:'거래소'},
   {id:'admin',label:'관리'},
 ];
+/* 탭 전환 슬라이드 방향 계산용 순서 (하단 네비 순서 기준) */
+const _SLIDE_ORDER=['dashboard','feed','register','analysis','community','stockmarket','stockdetail','balance','tournament','compare','settings','admin','install-guide'];
+
+/* ── iOS PWA 하단 네비 떠오름/스크롤 보정 (hsdTV 이식): 키보드 닫힘 후 visualViewport가
+   늦게 복원되며 position:fixed 요소가 화면 중간에 앵커된 채 남는 현상 → 재앵커로 리플로우 유도 ── */
+if(window.visualViewport){
+  let _vvT=null;
+  const _vvFix=()=>{
+    clearTimeout(_vvT);
+    _vvT=setTimeout(()=>{
+      const vv=window.visualViewport;
+      if(Math.abs(window.innerHeight-vv.height-vv.offsetTop)<2) window.scrollTo(window.scrollX,window.scrollY);
+    },120);
+  };
+  window.visualViewport.addEventListener('resize',_vvFix);
+  window.visualViewport.addEventListener('scroll',_vvFix);
+  document.addEventListener('focusout',_vvFix);
+}
+
 function buildNav(){
   const navs=ME.role==='admin'?ADMIN_NAVS:USER_NAVS;
   document.getElementById('bottom-nav').innerHTML=navs.map(n=>{
@@ -490,14 +509,20 @@ function navigateTo(page){
     const el=document.getElementById('page-'+id);
     if(el) el.style.display='none';
   });
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active','slide-left'));
   document.querySelectorAll('.bottom-nav-item').forEach(n=>n.classList.remove('active'));
   if(_overlayPages.includes(page)){
     // 오버레이 방식으로 열기
     const oel=document.getElementById('page-'+page);
     if(oel){oel.style.display='block';oel.scrollTop=0;}
   } else {
-    document.getElementById('page-'+page)?.classList.add('active');
+    const _pel=document.getElementById('page-'+page);
+    if(_pel){
+      // 탭 이동 방향에 따라 좌/우 슬라이드
+      const _pi=_SLIDE_ORDER.indexOf(prevPage), _ni=_SLIDE_ORDER.indexOf(page);
+      if(_pi>-1&&_ni>-1&&_ni<_pi) _pel.classList.add('slide-left');
+      _pel.classList.add('active');
+    }
   }
   document.getElementById('nav-'+page)?.classList.add('active');
   document.querySelector('.app-body').scrollTop=0;
@@ -568,13 +593,14 @@ window.addEventListener('popstate',e=>{
   currentPage=page;
   const _op2=['stockmarket','stockdetail'];
   _op2.forEach(id=>{const el=document.getElementById('page-'+id);if(el)el.style.display='none';});
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active','slide-left'));
   document.querySelectorAll('.bottom-nav-item').forEach(n=>n.classList.remove('active'));
   if(_op2.includes(page)){
     const oel=document.getElementById('page-'+page);
     if(oel){oel.style.display='block';oel.scrollTop=0;}
   } else {
-    document.getElementById('page-'+page)?.classList.add('active');
+    const _pel2=document.getElementById('page-'+page);
+    if(_pel2){ _pel2.classList.add('slide-left'); _pel2.classList.add('active'); }   // 뒤로가기는 왼쪽에서 등장
   }
   document.getElementById('nav-'+page)?.classList.add('active');
   document.querySelector('.app-body').scrollTop=0;
