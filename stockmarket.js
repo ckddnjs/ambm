@@ -78,7 +78,6 @@ async function renderStockMarketPage(){
     '<div style="padding:0 0 16px;">'+
       '<div style="position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--border);">'+
         '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px 10px;">'+
-          '<button onclick="navigateTo(\'dashboard\')" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:0;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px;margin-right:2px;">‹</button>'+
           '<div style="flex:1;">'+
             '<div style="font-size:.95rem;font-weight:700;">📈 새벽민턴 증권거래소</div>'+
             '<div style="font-size:.65rem;color:var(--text-muted);">새벽민턴 증권거래소 · 초기자금 2,000P</div>'+
