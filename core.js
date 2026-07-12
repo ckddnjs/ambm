@@ -190,11 +190,12 @@ async function loadProfile(authUser){
     if(insErr) console.error('profile insert error',insErr);
     if(np) ME=np;
     addLog(`신규 가입: ${name}`);
-    // 비회원으로 등록된 경기 내역을 이름 기반으로 연결
-    sb.rpc('link_guest_matches').then(()=>{}).catch?.(()=>{}); // 서버가 본인 이름 매칭만 연결
   } else if(data){
     ME=data;
   }
+  // 비회원 기록 자동 연계 — 가입 순간 1회가 아니라 매 로그인마다(멱등: 이름 일치 + id null 슬롯만).
+  // 가입 시점에 배포·캐시 타이밍으로 놓쳐도 다음 접속에서 자동 치유 (심재성 케이스 재발 방지)
+  if(ME) sb.rpc('link_guest_matches').then(({data:n,error})=>{ if(!error&&n>0) console.log(`[연계] 비회원 기록 ${n}건 자동 연결`); });
 }
 
 

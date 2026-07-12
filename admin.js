@@ -110,10 +110,11 @@ async function renderAdminMembers(){
   // 비회원(이름만 있는) 경기 목록에서 이름 추출
   const{data:guestMatches}=await sb.from('matches').select('a1_name,a2_name,b1_name,b2_name,a1_id,a2_id,b1_id,b2_id').eq('status','approved');
   const memberNames=new Set((users||[]).map(u=>u.name));
+  // id 미연결 슬롯은 전부 표시 — 회원과 동명이면 오히려 최우선 연계 대상(가입 후 과거 기록 미연결 케이스)
   const guestNames=new Set();
   (guestMatches||[]).forEach(m=>{
     [{n:m.a1_name,id:m.a1_id},{n:m.a2_name,id:m.a2_id},{n:m.b1_name,id:m.b1_id},{n:m.b2_name,id:m.b2_id}]
-    .forEach(p=>{if(p.n&&!p.id&&!memberNames.has(p.n)) guestNames.add(p.n);});
+    .forEach(p=>{if(p.n&&!p.id) guestNames.add(p.n);});
   });
   const guestArr=[...guestNames].sort();
   const guestModeNames=await _loadGuestModeNames();
@@ -149,11 +150,12 @@ async function renderAdminMembers(){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
         ${guestArr.map((nm)=>{
           const isGM=guestModeNames.has(nm);
+          const hasMember=memberNames.has(nm);
           const safeId='gm-'+nm.replace(/[^a-zA-Z0-9가-힣]/g,'_');
-          return `<div style="display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 9px;">
+          return `<div style="display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid ${hasMember?'rgba(255,152,0,.45)':'var(--border)'};border-radius:8px;padding:6px 9px;">
             <div style="flex:1;min-width:0;">
               <div style="font-size:.81rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(nm)}</div>
-              ${isGM?'<div style="font-size:.62rem;color:#E65100;">랭킹제외</div>':''}
+              ${hasMember?'<div style="font-size:.62rem;color:#E65100;">⚠️ 동명 회원 존재 — 연계 필요</div>':isGM?'<div style="font-size:.62rem;color:#E65100;">랭킹제외</div>':''}
             </div>
             <label style="display:flex;align-items:center;gap:4px;cursor:pointer;flex-shrink:0;" title="랭킹 제외 (경기 기록은 유지)">
               <input type="checkbox" id="${safeId}" ${isGM?'checked':''} onchange="toggleGuestMode('${escHtml(nm)}',this.checked)"
@@ -229,7 +231,12 @@ function openLinkGuestModal(guestName){
   const nameEl=document.getElementById('link-guest-name');
   if(nameEl) nameEl.textContent=guestName;
   const sel=document.getElementById('link-guest-select');
-  if(sel) sel.value='';
+  if(sel){
+    sel.value='';
+    // 동명 회원이 있으면 자동 선택 (가입 후 과거 기록 연계 케이스)
+    const opt=[...sel.options].find(o=>o.value.split('|')[1]===guestName);
+    if(opt) sel.value=opt.value;
+  }
   openModal('modal-link-guest');
 }
 
