@@ -1,0 +1,8 @@
+-- ══════════════════════════════════════════════════════════════
+-- 그립 특별 아이템 (2026-07-17) — 구매 1000P → 실물 교환 요청(셔틀콕과 동일 흐름)
+-- DB에는 migration 'grip_special_item'으로 적용 완료.
+-- ① market_inventory.grip 컬럼 ② shuttle_exchange_requests.kind('shuttle'|'grip')
+-- ③ ambm_item_price에 grip 1000 (app_settings.market_prices로 조정 가능)
+-- ④ shop_buy grip 매핑(+지갑 원장 reason 태깅 'shop_buy:아이템')
+-- ⑤ grip_exchange(p_qty,p_memo) — 보유 검증·차감·요청 생성 원자 처리
+-- ⑥ exchange_reject — kind별(셔틀콕/그립) 복구

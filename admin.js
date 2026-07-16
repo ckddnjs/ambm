@@ -1265,6 +1265,7 @@ async function renderAdminCraft(){
     {id:'tape',icon:'🩹',name:'띠지',defaultPrice:200},
     {id:'artisan_craft',icon:'✨',name:'장인의 손길',defaultPrice:4000},
     {id:'recycle',icon:'♻️',name:'재활용의 손길',defaultPrice:6000},
+    {id:'grip',icon:'🧤',name:'그립',defaultPrice:1000},
   ];
 
   // ── 교환 요청 섹션 ──
@@ -1273,7 +1274,7 @@ async function renderAdminCraft(){
       <div class="card" style="padding:12px;margin-bottom:8px;border-left:3px solid var(--accent);">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
           <div style="flex:1;min-width:0;">
-            <div style="font-size:.9rem;font-weight:700;">${escHtml(r.userName)} <span style="font-size:.75rem;color:var(--text-muted);">· ${r.qty||1}개 요청</span></div>
+            <div style="font-size:.9rem;font-weight:700;">${escHtml(r.userName)} <span style="font-size:.75rem;color:var(--text-muted);">· ${r.kind==='grip'?'🧤 그립':'🏸 셔틀콕'} ${r.qty||1}개 요청</span></div>
             ${r.memo?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px;">📝 ${escHtml(r.memo)}</div>`:''}
             <div style="font-size:.68rem;color:var(--text-dim);margin-top:3px;">${new Date(r.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
           </div>
@@ -1290,7 +1291,7 @@ async function renderAdminCraft(){
       done.slice(0,20).map(r=>`
         <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">
           <span style="font-size:.85rem;">${r.status==='approved'?'✅':'❌'}</span>
-          <div style="flex:1;font-size:.82rem;">${escHtml(r.userName)} · ${r.qty||1}개</div>
+          <div style="flex:1;font-size:.82rem;">${escHtml(r.userName)} · ${r.kind==='grip'?'🧤':'🏸'} ${r.qty||1}개</div>
           <div style="font-size:.68rem;color:var(--text-muted);">${new Date(r.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
         </div>`).join('')+
       '</div></details>'
@@ -1350,7 +1351,7 @@ async function adminCraftApprove(reqId){
 }
 
 async function adminCraftReject(reqId){
-  showConfirm({icon:'❌',title:'교환 반려',msg:`교환 요청을 반려하고 셔틀콕을 인벤토리에 복구합니다.`,okLabel:'반려',okClass:'btn-danger',
+  showConfirm({icon:'❌',title:'교환 반려',msg:`교환 요청을 반려하고 아이템(셔틀콕/그립)을 인벤토리에 복구합니다.`,okLabel:'반려',okClass:'btn-danger',
     onOk:async()=>{
       const {data:r,error}=await sb.rpc('exchange_reject',{p_id:reqId});
       if(error){toast('반려 실패: '+error.message,'error');return;}

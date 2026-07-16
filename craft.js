@@ -11,6 +11,7 @@ const MARKET_ITEMS = [
   {id:'tape',icon:'🩹',name:'띠지',desc:'깃털이 코르크에 박힌 부분에 접착제를 바른 뒤 감싸 깃털이 빠지지 않도록 단단히 고정.',price:200,unit:'1장',category:'craft',craftItem:'tape',craftQty:1},
   {id:'artisan_craft',icon:'✨',name:'장인의 손길',desc:'셔틀콕 제작 시 사용하면 비행 테스트를 100% 통과합니다.',price:4000,unit:'1장',category:'special',craftItem:'artisan',craftQty:1},
   {id:'recycle',icon:'♻️',name:'재활용의 손길',desc:'불량 셔틀콕 1개를 완성된 셔틀콕으로 복구합니다.',price:6000,unit:'1개',category:'special',craftItem:'recycle',craftQty:1},
+  {id:'grip',icon:'🧤',name:'그립',desc:'라켓 그립 실물 교환권. 구매 후 아래 보유 아이템에서 교환 요청하면 관리자 승인 후 실물로 받아요.',price:1000,unit:'1개',category:'special',craftItem:'grip',craftQty:1},
 ];
 
 const SHUTTLECOCK_RECIPE = [
@@ -24,7 +25,7 @@ const SHUTTLECOCK_RECIPE = [
 async function _getMarketInv(uid){
   const {data}=await sb.from('market_inventory').select('*').eq('user_id',uid).maybeSingle();
   if(data) return {...data};
-  return {user_id:uid,feather:0,cork:0,thread:0,tape:0,artisan:0,recycle:0,shuttles:0,defective:0}; // 행 생성은 서버 RPC가 담당
+  return {user_id:uid,feather:0,cork:0,thread:0,tape:0,artisan:0,recycle:0,shuttles:0,defective:0,grip:0}; // 행 생성은 서버 RPC가 담당
 }
 
 async function _saveMarketInv(uid,inv){
@@ -213,6 +214,17 @@ function _renderInventory(inv,myShuttles,myDefective){
         '<div style="font-family:Black Han Sans,sans-serif;font-size:1.3rem;color:var(--primary);">'+myShuttles+'개</div>'+
       '</div>'+
       '<button onclick="openExchangeRequest('+myShuttles+')" style="width:100%;padding:9px;border-radius:8px;border:none;background:var(--primary);color:#fff;font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;">🔄 교환 요청</button>'+
+    '</div>';
+  }
+  const myGrips=inv['grip']||0;
+  if(myGrips>0){
+    html+='<div class="card" style="padding:12px;margin-bottom:8px;border:1px solid rgba(255,214,0,.35);background:rgba(255,214,0,.05);">'+
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'+
+        '<span style="font-size:1.8rem;width:44px;text-align:center;">🧤</span>'+
+        '<div style="flex:1;"><div style="font-size:.88rem;font-weight:700;">그립</div><div style="font-size:.72rem;color:var(--text-muted);">실물 교환 가능</div></div>'+
+        '<div style="font-family:Black Han Sans,sans-serif;font-size:1.3rem;color:var(--warn);">'+myGrips+'개</div>'+
+      '</div>'+
+      '<button onclick="openGripExchange('+myGrips+')" style="width:100%;padding:9px;border-radius:8px;border:none;background:var(--warn);color:#1a1a1a;font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;">🔄 그립 교환 요청</button>'+
     '</div>';
   }
   if(myDefective>0){
@@ -496,6 +508,49 @@ async function openExchangeRequest(maxQty){
           '<div style="font-size:.72rem;color:var(--text-muted);line-height:1.5;background:var(--bg3);border-radius:8px;padding:8px;">'+
             '📌 요청 후 관리자 승인 시 셔틀콕이 차감됩니다.<br>'+
             '승인 전에는 인벤토리에서 임시 차감 표시됩니다.'+
+          '</div>'+
+        '</div>';
+    },30);
+  }catch(e){if(typeof toast==='function')toast('불러오기 실패','error');}
+}
+
+/* ── 그립 교환 요청 (셔틀콕과 동일 흐름, kind='grip') ── */
+async function openGripExchange(maxQty){
+  try{
+    showConfirm({
+      icon:'🧤',title:'그립 교환 요청',msg:'',okLabel:'요청 보내기',okClass:'btn-primary',
+      onOk:async()=>{
+        const qty=parseInt(document.getElementById('exchange-qty')?.value||'1');
+        const memo=document.getElementById('exchange-memo')?.value||'';
+        if(!qty||qty<1||qty>maxQty){toast('수량을 확인해주세요 (최대 '+maxQty+'개)','error');return;}
+        if(!ME?.id) return;
+        const {error:exErr}=await sb.rpc('grip_exchange',{p_qty:qty,p_memo:memo});
+        if(exErr){
+          const em=String(exErr.message||'');
+          toast(em.includes('not enough')?'보유 그립이 부족합니다':'요청 실패: '+em,'error');
+          return;
+        }
+        toast('✅ 그립 교환 요청이 전송됐습니다. 관리자 승인 후 실물로 받아요.','success');
+        window._smTab='craft';window._smCraftTab='inventory';
+        renderStockMarketPage();
+      }
+    });
+    setTimeout(()=>{
+      const el=document.getElementById('confirm-msg');
+      if(!el) return;
+      el.innerHTML=
+        '<div style="margin:10px 0;display:flex;flex-direction:column;gap:10px;">'+
+          '<div>'+
+            '<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:5px;">교환 수량 (최대 '+maxQty+'개)</div>'+
+            '<input id="exchange-qty" type="number" min="1" max="'+maxQty+'" value="1" style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-family:inherit;font-size:.9rem;text-align:center;">'+
+          '</div>'+
+          '<div>'+
+            '<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:5px;">메모 (선택)</div>'+
+            '<input id="exchange-memo" type="text" placeholder="예: 다음 모임 때 수령 희망" style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;box-sizing:border-box;">'+
+          '</div>'+
+          '<div style="font-size:.72rem;color:var(--text-muted);line-height:1.5;background:var(--bg3);border-radius:8px;padding:8px;">'+
+            '📌 요청 시 그립이 차감되고, 관리자 승인 후 실물로 받아요.<br>'+
+            '반려되면 그립이 인벤토리로 복구됩니다.'+
           '</div>'+
         '</div>';
     },30);
