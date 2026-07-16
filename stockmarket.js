@@ -34,8 +34,7 @@ async function renderStockMarketPage(){
   ]);
   const portfolio=portfolioRes.data||[];
   const walletRow=walletRes.data;
-  const cash=walletRow?.cash??2000;
-  if(!walletRow) await sb.from('stock_wallets').insert({user_id:ME.id,cash:2000});
+  const cash=walletRow?.cash??2000; // 지갑 미생성 시 표시만 2000 — 실제 생성은 첫 거래 RPC(stock_buy/sell upsert)가 수행(직접쓰기 봉쇄됨)
 
   // ── 3. stocks 계산 — allPortfolio 30초 캐시 ──
   const _now=Date.now();
