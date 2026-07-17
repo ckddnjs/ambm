@@ -324,7 +324,7 @@ async function renderAdminBatch(){
     <div style="margin-bottom:12px;">
       <div style="font-size:.85rem;font-weight:700;margin-bottom:6px;">📋 경기 일괄 등록</div>
       <button onclick="document.getElementById('batch-photo-input').click()" class="btn btn-secondary" style="width:100%;margin-bottom:8px;">📷 결과판 사진으로 인식 (AI)</button>
-      <input type="file" id="batch-photo-input" accept="image/*" style="display:none;" onchange="batchPhotoOcr(this)">
+      <input type="file" id="batch-photo-input" accept="image/*" multiple style="display:none;" onchange="batchPhotoOcr(this)">
       <div id="batch-photo-status"></div>
       <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px;line-height:1.6;background:var(--bg2);padding:10px;border-radius:8px;">
         <b>형식:</b> <code>날짜 A선수1 A선수2 A점수:B점수 B선수1 B선수2</code><br>
@@ -342,22 +342,23 @@ async function renderAdminBatch(){
 
 /* ── 결과판 사진 → Gemini 판독 → 텍스트란 자동 채움 ── */
 async function batchPhotoOcr(input){
-  const file=input.files?.[0];
+  const files=[...(input.files||[])].slice(0,3);
   input.value='';
-  if(!file) return;
+  if(!files.length) return;
   const st=document.getElementById('batch-photo-status');
   const setSt=(html)=>{if(st)st.innerHTML=html;};
   try{
-    setSt('<div style="font-size:.78rem;color:var(--text-muted);padding:6px 2px;">🔄 사진 압축 중...</div>');
-    const b64=await _photoToB64(file,1800,0.85);
-    setSt('<div style="font-size:.78rem;color:var(--text-muted);padding:6px 2px;">🤖 AI가 결과판을 읽는 중... (20~40초)</div>');
+    setSt(`<div style="font-size:.78rem;color:var(--text-muted);padding:6px 2px;">🔄 사진 ${files.length}장 압축 중...</div>`);
+    const images=[];
+    for(const f of files) images.push({b64:await _photoToB64(f,1800,0.85),mime:'image/jpeg'});
+    setSt(`<div style="font-size:.78rem;color:var(--text-muted);padding:6px 2px;">🤖 AI가 결과판 ${files.length}장을 읽는 중... (20~60초)</div>`);
     const session=await sb.auth.getSession();
     const token=session.data.session?.access_token;
     if(!token){toast('로그인 세션 없음','error');setSt('');return;}
     const res=await fetch('/api/admin/photo-ocr',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-      body:JSON.stringify({b64,mime:'image/jpeg'})
+      body:JSON.stringify({images})
     });
     const json=await res.json();
     if(!res.ok||!json.ok){toast('판독 실패: '+(json.error||res.status),'error');setSt('');return;}
@@ -375,7 +376,7 @@ async function batchPhotoOcr(input){
     const tagName=n=>memberSet.has(n)?null:(guestSet.has(n)?`${n}(기존 게스트)`:`${n}(신규? 확인 필요)`);
     const flagged=unsure.map(tagName).filter(Boolean);
     setSt(`<div style="font-size:.78rem;line-height:1.6;background:rgba(255,193,7,.08);border:1px solid rgba(255,193,7,.35);border-radius:8px;padding:8px 10px;margin-bottom:8px;">
-      ✅ ${ms.length}경기 인식 완료 — 아래 미리보기에서 확인 후 등록하세요.<br>
+      ✅ ${ms.length}경기 인식 완료${json.dropped?` (사진 간 중복 ${json.dropped}건 제거)`:''} — 아래 미리보기에서 확인 후 등록하세요.<br>
       ${flagged.length?`⚠️ <b>확인 필요:</b> ${flagged.join(', ')}<br><span style="color:var(--text-muted);">오타면 텍스트에서 수정, 게스트가 맞으면 그대로 두세요 (이름만 저장되고 나중에 게스트연결 가능)</span>`:'모든 이름이 명단과 매칭됐어요.'}
     </div>`);
     batchParsePreview();

@@ -24,9 +24,10 @@ export default async function handler(req, res) {
   const { data: profile } = await sbAdmin.from('profiles').select('role').eq('id', user.id).single();
   if (profile?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
 
-  const b64 = req.body?.b64;
-  if (!b64 || typeof b64 !== 'string') return res.status(400).json({ error: 'b64 필요' });
-  const mime = String(req.body?.mime || 'image/jpeg');
+  // 단일 {b64,mime} 또는 다중 {images:[{b64,mime},..]} (최대 3장)
+  let images = Array.isArray(req.body?.images) ? req.body.images : (req.body?.b64 ? [{ b64: req.body.b64, mime: req.body.mime }] : []);
+  images = images.filter(im => im && typeof im.b64 === 'string' && im.b64.length > 100).slice(0, 3);
+  if (!images.length) return res.status(400).json({ error: '이미지 필요' });
 
   try {
     // 회원 명단 + 과거 게스트 명부 (matches에서 id 없이 이름만 남은 선수들)
@@ -45,7 +46,8 @@ export default async function handler(req, res) {
     const roster = (members || []).map(m => m.name).filter(Boolean).sort().join(',');
     const guestList = guests.sort().join(',');
 
-    const prompt = `배드민턴 동호회 경기결과판 사진이다. 라운드(Round)별로 코트 1~3의 경기가 기록되어 있다.
+    const prompt = `배드민턴 동호회 경기결과판 사진 ${images.length}장이다. 라운드(Round)별로 코트 1~3의 경기가 기록되어 있다.
+${images.length > 1 ? '여러 사진에 같은 경기가 겹쳐 찍혔을 수 있다 — 같은 선수 구성과 점수의 경기는 한 번만 출력하라.' : ''}
 각 경기 행: 왼쪽 두 이름=A팀, 오른쪽 두 이름=B팀, 가운데 숫자 두 개(왼쪽=A팀 점수, 오른쪽=B팀 점수). 빨간 동그라미가 쳐진 점수가 승리팀 점수다.
 손글씨 이름은 성(姓)을 뺀 2글자가 많다. 아래 명단에서 가장 가까운 이름으로 보정하라. 회원 명단을 우선하되, 없으면 게스트 명부에서 찾아라. 둘 다 없으면 읽힌 그대로 쓰고 unsure에 넣어라.
 [회원] ${roster}
@@ -53,12 +55,11 @@ export default async function handler(req, res) {
 빈 경기(이름 없음)는 제외. 반드시 아래 형식의 압축 JSON만 출력(설명·마크다운 금지):
 {"matches":[{"r":1,"c":1,"a":["이름","이름"],"b":["이름","이름"],"sa":21,"sb":15,"unsure":["판독이나 보정이 불확실한 이름들"]}]}`;
 
+    const parts = images.map(im => ({ inline_data: { mime_type: String(im.mime || 'image/jpeg').split(';')[0], data: im.b64 } }));
+    parts.push({ text: prompt });
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_KEY}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [
-        { inline_data: { mime_type: mime.split(';')[0], data: b64 } },
-        { text: prompt },
-      ] }] }),
+      body: JSON.stringify({ contents: [{ parts }] }),
     });
     const j = await r.json();
     if (!r.ok) return res.status(500).json({ error: 'Gemini 오류: ' + (j.error?.message || r.status).toString().slice(0, 200) });
@@ -70,11 +71,23 @@ export default async function handler(req, res) {
     let data;
     try { data = JSON.parse(text.slice(s, e + 1)); }
     catch (pe) { return res.status(500).json({ error: 'JSON 파싱 실패: ' + pe.message }); }
-    const matches = (Array.isArray(data.matches) ? data.matches : []).filter(m =>
+    let matches = (Array.isArray(data.matches) ? data.matches : []).filter(m =>
       Array.isArray(m.a) && Array.isArray(m.b) && m.a.length && m.b.length &&
       Number.isFinite(m.sa) && Number.isFinite(m.sb) && m.sa !== m.sb);
 
-    return res.status(200).json({ ok: true, matches, guests, count: matches.length });
+    // 사진 간 중복 제거: 팀 구성+점수가 같으면 동일 경기 (A/B 뒤집힘도 동일 취급)
+    const seen = new Set();
+    let dropped = 0;
+    matches = matches.filter(m => {
+      const sideA = m.a.slice().sort().join('/') + ':' + m.sa;
+      const sideB = m.b.slice().sort().join('/') + ':' + m.sb;
+      const key = [sideA, sideB].sort().join('|');
+      if (seen.has(key)) { dropped++; return false; }
+      seen.add(key);
+      return true;
+    });
+
+    return res.status(200).json({ ok: true, matches, guests, count: matches.length, dropped });
   } catch (err) {
     return res.status(500).json({ error: err.message || String(err) });
   }

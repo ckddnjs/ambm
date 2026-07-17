@@ -229,7 +229,7 @@
           <button onclick="toggleBatchPanel()" style="background:none;border:none;color:var(--text-muted);font-size:1.1rem;cursor:pointer;padding:0 2px;line-height:1;">✕</button>
         </div>
         <button onclick="document.getElementById('batch-photo-input-feed').click()" class="btn btn-ghost" style="width:100%;margin-bottom:8px;border:1px solid var(--border);">📷 결과판 사진으로 인식 (AI)</button>
-        <input type="file" id="batch-photo-input-feed" accept="image/*" style="display:none;" onchange="batchPhotoOcr(this)">
+        <input type="file" id="batch-photo-input-feed" accept="image/*" multiple style="display:none;" onchange="batchPhotoOcr(this)">
         <div id="batch-photo-status"></div>
         <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:8px;line-height:1.7;background:var(--bg2);padding:8px 10px;border-radius:8px;">
           <b>형식:</b> 날짜 A1 A2 점수:점수 B1 B2 (한 줄=1경기, 날짜 생략 가능)<br>
@@ -765,7 +765,7 @@
 <script src="feed.js?v=1783764656" defer></script>
 <script src="register.js?v=1775267349" defer></script>
   <script src="analysis.js?v=1783767002" defer></script>
-<script src="admin.js?v=1784690000" defer></script>
+<script src="admin.js?v=1784700000" defer></script>
 <script src="community.js?v=1775267349" defer></script>
 <script src="tournament.js?v=1775267349" defer></script>
 <script src="balance.js?v=1775267349" defer></script>
