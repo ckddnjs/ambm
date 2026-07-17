@@ -445,29 +445,22 @@ function _bmNameMark(inp){ inp.style.borderColor=_bmNameColor(inp.value.trim());
 function _bmScoreMark(i){
   const sa=+document.getElementById(`bm-sa-${i}`)?.value||0;
   const sb=+document.getElementById(`bm-sb-${i}`)?.value||0;
-  const ra=document.getElementById(`bm-ta-${i}`), rb=document.getElementById(`bm-tb-${i}`);
-  if(ra) ra.style.opacity=sa>=sb?'1':'.55';
-  if(rb) rb.style.opacity=sb>=sa?'1':'.55';
+  const dim=(ids,on)=>ids.forEach(s=>{const el=document.getElementById(`bm-${s}-${i}`);if(el)el.style.opacity=on?'1':'.5';});
+  dim(['a1','a2','sa'],sa>=sb);
+  dim(['b1','b2','sb'],sb>=sa);
 }
 function _bmNameInp(i,slot,val){
   const c=_bmNameColor(val||'');
   return `<input id="bm-${slot}-${i}" list="bm-names" value="${(val||'').replace(/"/g,'&quot;')}" placeholder="이름"
     oninput="_bmNameMark(this)" autocomplete="off"
-    style="flex:1;min-width:0;box-sizing:border-box;background:var(--bg3);color:var(--text);border:1.5px solid ${c};border-radius:8px;padding:8px 6px;font-size:.85rem;text-align:center;">`;
+    style="flex:1;min-width:0;box-sizing:border-box;background:var(--bg3);color:var(--text);border:1.5px solid ${c};border-radius:7px;padding:9px 1px;font-size:.78rem;text-align:center;">`;
 }
 function _bmRowHtml(i,r){
-  return `<div id="bmr-${i}" data-date="${r.match_date}" style="position:relative;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 8px 8px;">
-    <button onclick="_bmDel(${i})" style="position:absolute;top:4px;right:6px;background:none;border:none;color:var(--text-muted);font-size:.95rem;cursor:pointer;padding:2px;line-height:1;">🗑</button>
-    <div id="bm-ta-${i}" style="display:flex;gap:5px;align-items:center;margin-bottom:5px;padding-right:26px;">
-      ${_bmNameInp(i,'a1',r.a1_name)}${_bmNameInp(i,'a2',r.a2_name)}
-      <input id="bm-sa-${i}" type="number" inputmode="numeric" value="${r.score_a}" oninput="_bmScoreMark(${i})"
-        style="width:54px;box-sizing:border-box;background:var(--bg3);color:var(--primary);font-weight:700;border:1.5px solid var(--border);border-radius:8px;padding:8px 2px;font-size:.9rem;text-align:center;">
-    </div>
-    <div id="bm-tb-${i}" style="display:flex;gap:5px;align-items:center;padding-right:26px;">
-      ${_bmNameInp(i,'b1',r.b1_name)}${_bmNameInp(i,'b2',r.b2_name)}
-      <input id="bm-sb-${i}" type="number" inputmode="numeric" value="${r.score_b}" oninput="_bmScoreMark(${i})"
-        style="width:54px;box-sizing:border-box;background:var(--bg3);color:var(--primary);font-weight:700;border:1.5px solid var(--border);border-radius:8px;padding:8px 2px;font-size:.9rem;text-align:center;">
-    </div>
+  const sc=(slot,val)=>`<input id="bm-${slot}-${i}" type="number" inputmode="numeric" value="${val}" oninput="_bmScoreMark(${i})"
+    style="width:32px;flex-shrink:0;box-sizing:border-box;background:var(--bg3);color:var(--primary);font-weight:700;border:1.5px solid var(--border);border-radius:7px;padding:9px 0;font-size:.8rem;text-align:center;-moz-appearance:textfield;">`;
+  return `<div id="bmr-${i}" data-date="${r.match_date}" style="display:flex;gap:3px;align-items:center;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:6px 4px 6px 6px;">
+    ${_bmNameInp(i,'a1',r.a1_name)}${_bmNameInp(i,'a2',r.a2_name)}${sc('sa',r.score_a)}${sc('sb',r.score_b)}${_bmNameInp(i,'b1',r.b1_name)}${_bmNameInp(i,'b2',r.b2_name)}
+    <button onclick="_bmDel(${i})" style="background:none;border:none;color:var(--text-muted);font-size:.85rem;cursor:pointer;padding:2px 1px;line-height:1;flex-shrink:0;">✕</button>
   </div>`;
 }
 function _batchRenderGrid(records,extraHtml){
@@ -478,6 +471,7 @@ function _batchRenderGrid(records,extraHtml){
   const date0=records[0]?.match_date||new Date().toISOString().slice(0,10);
   window._bmN=records.length;
   wrap.innerHTML=`
+    <style>#bm-rows input[type=number]::-webkit-outer-spin-button,#bm-rows input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}</style>
     <datalist id="bm-names">${names.map(n=>`<option value="${n}">`).join('')}</datalist>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
       <div style="font-size:.82rem;font-weight:700;color:var(--primary);">✏️ ${records.length}경기 — 탭해서 수정</div>
