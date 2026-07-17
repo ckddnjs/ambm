@@ -323,6 +323,9 @@ async function renderAdminBatch(){
   el.innerHTML=`
     <div style="margin-bottom:12px;">
       <div style="font-size:.85rem;font-weight:700;margin-bottom:6px;">📋 경기 일괄 등록</div>
+      <button onclick="document.getElementById('batch-photo-input').click()" class="btn btn-secondary" style="width:100%;margin-bottom:8px;">📷 결과판 사진으로 인식 (AI)</button>
+      <input type="file" id="batch-photo-input" accept="image/*" style="display:none;" onchange="batchPhotoOcr(this)">
+      <div id="batch-photo-status"></div>
       <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px;line-height:1.6;background:var(--bg2);padding:10px;border-radius:8px;">
         <b>형식:</b> <code>날짜 A선수1 A선수2 A점수:B점수 B선수1 B선수2</code><br>
         (한 줄에 경기 1개, 날짜 생략 시 오늘 날짜 사용)<br>
@@ -335,6 +338,68 @@ async function renderAdminBatch(){
     </div>
     <button onclick="batchParsePreview()" class="btn btn-primary" style="width:100%;margin-bottom:10px;">🔍 파싱 미리보기</button>
     <div id="batch-preview"></div>`;
+}
+
+/* ── 결과판 사진 → Gemini 판독 → 텍스트란 자동 채움 ── */
+async function batchPhotoOcr(input){
+  const file=input.files?.[0];
+  input.value='';
+  if(!file) return;
+  const st=document.getElementById('batch-photo-status');
+  const setSt=(html)=>{if(st)st.innerHTML=html;};
+  try{
+    setSt('<div style="font-size:.78rem;color:var(--text-muted);padding:6px 2px;">🔄 사진 압축 중...</div>');
+    const b64=await _photoToB64(file,1800,0.85);
+    setSt('<div style="font-size:.78rem;color:var(--text-muted);padding:6px 2px;">🤖 AI가 결과판을 읽는 중... (20~40초)</div>');
+    const session=await sb.auth.getSession();
+    const token=session.data.session?.access_token;
+    if(!token){toast('로그인 세션 없음','error');setSt('');return;}
+    const res=await fetch('/api/admin/photo-ocr',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({b64,mime:'image/jpeg'})
+    });
+    const json=await res.json();
+    if(!res.ok||!json.ok){toast('판독 실패: '+(json.error||res.status),'error');setSt('');return;}
+    if(!json.matches.length){toast('사진에서 경기를 찾지 못했어요','error');setSt('');return;}
+    // 라운드·코트 순 정렬 → 기존 파서 형식으로 변환
+    const ms=json.matches.slice().sort((x,y)=>(x.r-y.r)||(x.c-y.c));
+    const lines=ms.map(m=>`${m.a.join(' ')} ${m.sa}:${m.sb} ${m.b.join(' ')}`);
+    const ta=document.getElementById('batch-input');
+    if(ta) ta.value=lines.join('\n');
+    // 불확실 이름 요약 (명단·게스트 어디에도 확신 없던 이름)
+    const unsure=[...new Set(ms.flatMap(m=>m.unsure||[]))];
+    const memberSet=new Set(Object.values(window._bfUsersMap||{}).map(u=>u.name));
+    const guestSet=new Set(json.guests||[]);
+    const tagName=n=>memberSet.has(n)?null:(guestSet.has(n)?`${n}(기존 게스트)`:`${n}(신규? 확인 필요)`);
+    const flagged=unsure.map(tagName).filter(Boolean);
+    setSt(`<div style="font-size:.78rem;line-height:1.6;background:rgba(255,193,7,.08);border:1px solid rgba(255,193,7,.35);border-radius:8px;padding:8px 10px;margin-bottom:8px;">
+      ✅ ${ms.length}경기 인식 완료 — 아래 미리보기에서 확인 후 등록하세요.<br>
+      ${flagged.length?`⚠️ <b>확인 필요:</b> ${flagged.join(', ')}<br><span style="color:var(--text-muted);">오타면 텍스트에서 수정, 게스트가 맞으면 그대로 두세요 (이름만 저장되고 나중에 게스트연결 가능)</span>`:'모든 이름이 명단과 매칭됐어요.'}
+    </div>`);
+    batchParsePreview();
+  }catch(e){
+    toast('오류: '+e.message,'error');setSt('');
+  }
+}
+
+function _photoToB64(file,maxDim,quality){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      try{
+        const scale=Math.min(1,maxDim/Math.max(img.width,img.height));
+        const w=Math.round(img.width*scale),h=Math.round(img.height*scale);
+        const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        URL.revokeObjectURL(url);
+        resolve(cv.toDataURL('image/jpeg',quality).split(',')[1]);
+      }catch(e){reject(e);}
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('이미지 로드 실패'));};
+    img.src=url;
+  });
 }
 
 function batchParsePreview(){
