@@ -63,6 +63,32 @@ function riseRowsHTML(){
   }).join('');
 }
 
+async function renderCommunityPage(){
+  // 최신 role DB에서 재확인 (관리자가 권한 변경했을 수 있음)
+  const{data:fresh}=await sb.from('profiles').select('role').eq('id',ME.id).single();
+  if(fresh&&fresh.role!==ME.role){
+    ME.role=fresh.role;
+  }
+  const commWriteBtn=document.getElementById('btn-comm-write');
+  if(commWriteBtn) commWriteBtn.style.display=(ME.role==='admin'||ME.role==='writer')?'':'none';
+
+  const el=document.getElementById('community-list');
+  if(!el) return;
+  el.innerHTML=`<div class="skeleton sk-card"></div>`.repeat(3);
+  let q=sb.from('community_posts').select('*').order('created_at',{ascending:false});
+  if(commTab!=='all') q=q.eq('category',commTab);
+  const{data:posts,error}=await q;
+  if(error){
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div>불러오기 실패<br><span style="font-size:.78rem;color:var(--text-muted);">community_posts 테이블이 필요합니다</span></div></div>`;
+    return;
+  }
+  if(!posts||!posts.length){
+    el.innerHTML=riseBlockHTML()+`<div class="empty-state"><div class="empty-icon">💬</div><div>아직 게시글이 없어요<br><span style="font-size:.82rem;">첫 글을 남겨보세요!</span></div></div>`;
+    return;
+  }
+  el.innerHTML=riseBlockHTML()+posts.map(p=>commPostHTML(p)).join('');
+}
+
 const _catLabel={'general':'일반','info':'정보','rules':'규칙'};
 const _catColor={'general':'var(--primary)','info':'var(--info)','rules':'var(--accent)'};
 
