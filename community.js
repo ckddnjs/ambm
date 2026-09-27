@@ -20,12 +20,21 @@ const RISE_TOP10 = [
   ['이영배',1125,1134, 8,11,36,77,0.8],
 ];
 /* 1~3위만 메달색, 나머지는 차분하게 */
-const RISE_MARKER = '[[RISE_TOP10]]';
 const RISE_CHIP = [
   ['rgba(255,213,79,.16)','#FFD54F'],
   ['rgba(176,190,197,.16)','#B0BEC5'],
   ['rgba(255,171,145,.16)','#FFAB91'],
 ];
+
+function riseBlockHTML(){
+  // 일반 성격의 내용이라 '전체'와 '일반' 탭에서만 보인다
+  if(commTab!=='all' && commTab!=='general') return '';
+  return `<div class="rise-card">
+    <div class="rise-head">
+      <div class="rise-title">📈 시즌2 상승률 TOP 10 <span class="rise-tag">20경기 이상</span></div>
+      <div class="rise-sub">시즌1 대비 종합점수(CI)가 가장 많이 오른 순서</div>
+    </div>${riseRowsHTML()}</div>`;
+}
 
 function riseRowsHTML(){
   return RISE_TOP10.map((r,i)=>{
@@ -66,10 +75,10 @@ async function renderCommunityPage(){
     return;
   }
   if(!posts||!posts.length){
-    el.innerHTML=`<div class="empty-state"><div class="empty-icon">💬</div><div>아직 게시글이 없어요<br><span style="font-size:.82rem;">첫 글을 남겨보세요!</span></div></div>`;
+    el.innerHTML=riseBlockHTML()+`<div class="empty-state"><div class="empty-icon">💬</div><div>아직 게시글이 없어요<br><span style="font-size:.82rem;">첫 글을 남겨보세요!</span></div></div>`;
     return;
   }
-  el.innerHTML=posts.map(p=>commPostHTML(p)).join('');
+  el.innerHTML=riseBlockHTML()+posts.map(p=>commPostHTML(p)).join('');
 }
 
 const _catLabel={'general':'일반','info':'정보','rules':'규칙'};
@@ -80,13 +89,11 @@ function commPostHTML(p){
   const isMyPost=p.author_id===ME?.id&&(ME?.role==='writer'||ME?.role==='admin');
   const canEdit=isAdmin||isMyPost;
   const dateStr=fmtDate(p.created_at);
-  // 본문이 마커면 글자 대신 순위 목록을 그린다. 펼쳐 둔 상태로 시작한다.
-  const isRise=String(p.body||'').trim()===RISE_MARKER;
   const label=_catLabel[p.category]||p.category;
   const isLight=document.body.classList.contains('light-mode');
   const rawColor=_catColor[p.category]||'var(--text-muted)';
   const color=(isLight&&p.category==='rules')?'#5C6BC0':rawColor;
-  return `<div class="comm-post${isRise?' open':''}" id="post-${p.id}" onclick="togglePost('${p.id}')">
+  return `<div class="comm-post" id="post-${p.id}" onclick="togglePost('${p.id}')">
     <div class="comm-post-header">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
         <span style="font-size:.68rem;font-weight:700;padding:1px 7px;border-radius:10px;border:1px solid ${color};color:${color};background:${color}18;flex-shrink:0;">${label}</span>
@@ -98,7 +105,7 @@ function commPostHTML(p){
         <button onclick="event.stopPropagation();deletePost('${p.id}')" style="background:none;border:none;color:var(--danger);font-size:.78rem;cursor:pointer;padding:0 4px;">🗑</button>`:''}
       </div>
     </div>
-    <div class="comm-post-body${isRise?' rise-body':''}"><div style="font-size:.75rem;color:var(--text-muted);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);">✍ ${escHtml(p.author_name||'익명')}</div>${isRise?riseRowsHTML():escHtml(p.body)}
+    <div class="comm-post-body"><div style="font-size:.75rem;color:var(--text-muted);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);">✍ ${escHtml(p.author_name||'익명')}</div>${escHtml(p.body)}
     </div>
   </div>`;
 }

@@ -496,10 +496,13 @@ button:active{transform:scale(.96)}
   .sheet-in{transition:none}
 }
 
-/* ── 📈 시즌 상승률 TOP — 소식 탭 '일반' 게시글 본문 ──
-   글 본문이 마커면 글자 대신 이 순위 목록을 그린다. 행이 게시글 폭을 꽉 쓰도록
-   좌우 패딩만큼 음수 마진으로 넓힌다. */
-.comm-post-body.rise-body{white-space:normal;padding-top:0;border-top:none;margin:6px -14px -12px}
+/* ── 📈 시즌 상승률 TOP — 소식 탭 '전체'·'일반' 상단 블록 ──
+   게시글 틀(제목줄·날짜·수정삭제)을 두르지 않고 내용만 보여준다. */
+.rise-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;overflow:hidden;border-left:3px solid rgba(77,159,255,.45)}
+.rise-head{padding:11px 14px 9px;border-bottom:1px solid var(--border)}
+.rise-title{font-size:.92rem;font-weight:900;color:var(--text);display:flex;align-items:center;gap:6px}
+.rise-tag{font-size:.58rem;font-weight:800;color:var(--primary);letter-spacing:.04em;background:rgba(77,159,255,.12);border:1px solid rgba(77,159,255,.30);border-radius:5px;padding:2px 6px}
+.rise-sub{font-size:.68rem;color:var(--text-muted);margin-top:3px}
 .rise-row{display:flex;align-items:center;gap:9px;padding:7px 14px;border-bottom:1px solid rgba(255,255,255,.04)}
 .rise-row:last-of-type{border-bottom:none}
 .rise-rk{flex-shrink:0;width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.66rem;font-weight:900}
