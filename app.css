@@ -497,8 +497,9 @@ button:active{transform:scale(.96)}
 }
 
 /* ── 📈 시즌 상승률 TOP — 소식 탭 '전체'·'일반' 상단 블록 ──
-   게시글 틀(제목줄·날짜·수정삭제)을 두르지 않고 내용만 보여준다. */
-.rise-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;overflow:hidden;border-left:3px solid rgba(77,159,255,.45)}
+   게시글 틀(제목줄·날짜·수정삭제)을 두르지 않고 내용만 보여준다.
+   좌측 악센트 띠는 두지 않는다 — 포인트 색은 태그와 상승률 숫자로 충분하다. */
+.rise-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;overflow:hidden}
 .rise-head{padding:11px 14px 9px;border-bottom:1px solid var(--border)}
 .rise-title{font-size:.92rem;font-weight:900;color:var(--text);display:flex;align-items:center;gap:6px}
 .rise-tag{font-size:.58rem;font-weight:800;color:var(--primary);letter-spacing:.04em;background:rgba(77,159,255,.12);border:1px solid rgba(77,159,255,.30);border-radius:5px;padding:2px 6px}
