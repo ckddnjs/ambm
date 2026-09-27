@@ -35,7 +35,7 @@ function riseCardHTML(){
     const [bg,fg] = RISE_CHIP[i] || ['rgba(255,255,255,.05)','#7B8A9C'];
     const mv = r[3]-r[4];
     const mvTxt = mv>0?'▲'+mv : mv<0?'▼'+Math.abs(mv) : '–';
-    const mvCol = mv>0?'var(--accent)' : mv<0?'var(--danger)' : 'var(--text-dim)';
+    const mvCol = mv>0?'var(--primary)' : mv<0?'var(--danger)' : 'var(--text-dim)';
     return `<div class="rise-row">
       <span class="rise-rk" style="background:${bg};color:${fg};">${i+1}</span>
       <span class="rise-who"><b>${escHtml(r[0])}</b><span>${r[5]}→${r[6]}경기</span></span>
