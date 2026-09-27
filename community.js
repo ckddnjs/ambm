@@ -1,3 +1,68 @@
+/* ══════════════════════════════════════════════════
+   📈 시즌2 상승률 TOP 10 — 소식 탭 상단 고정 카드
+   시즌 마감 기준의 스냅샷이라 값을 박아 둔다. 다음 시즌에 갱신하려면
+   양 시즌 CI를 다시 뽑아 RISE_TOP10만 갈아끼우면 된다.
+   행: [이름, 시즌1 CI, 시즌2 CI, 시즌1 랭킹, 시즌2 랭킹, 시즌1 경기, 시즌2 경기, 상승률(%)]
+   기준: 승인 경기만 · 양 시즌 20경기 이상(해당 21명) 중 상위 10명
+         시즌1 2026-04-02~06-30 / 시즌2 2026-07-01~09-27
+   ⚠️ 가산점 상한이 시즌1 30점·시즌2 50점으로 달라, 30경기 이상 뛴 사람은
+      규칙 변경만으로 최대 20점을 얻는다(각주에 밝혀 둔다). */
+const RISE_TOP10 = [
+  ['류현준',1076,1177,25, 1,24,71,9.4],
+  ['김두범',1085,1138,20, 7,20,36,4.9],
+  ['안치영',1075,1123,26,16,38,38,4.5],
+  ['김동규',1047,1081,37,31,26,30,3.2],
+  ['강민주',1100,1132,13,12,29,53,2.9],
+  ['고영인',1070,1096,28,25,21,21,2.4],
+  ['김선구',1127,1151, 6, 5,56,65,2.1],
+  ['김종호',1092,1110,17,19,30,44,1.6],
+  ['강창원',1057,1071,32,37,45,47,1.3],
+  ['이영배',1125,1134, 8,11,36,77,0.8],
+];
+/* 1~3위만 메달색, 나머지는 차분하게 */
+const RISE_CHIP = [
+  ['rgba(255,213,79,.16)','#FFD54F'],
+  ['rgba(176,190,197,.16)','#B0BEC5'],
+  ['rgba(255,171,145,.16)','#FFAB91'],
+];
+
+function riseCardHTML(){
+  // 분류 탭을 고른 상태에서는 그 분류 글만 보여야 하므로 '전체'에서만 띄운다
+  if(commTab!=='all') return '';
+  if(localStorage.getItem('ambm_rise_hidden')==='1') return '';
+
+  const rows = RISE_TOP10.map((r,i)=>{
+    const [bg,fg] = RISE_CHIP[i] || ['rgba(255,255,255,.05)','#7B8A9C'];
+    const mv = r[3]-r[4];
+    const mvTxt = mv>0?'▲'+mv : mv<0?'▼'+Math.abs(mv) : '–';
+    const mvCol = mv>0?'var(--accent)' : mv<0?'var(--danger)' : 'var(--text-dim)';
+    return `<div class="rise-row">
+      <span class="rise-rk" style="background:${bg};color:${fg};">${i+1}</span>
+      <span class="rise-who"><b>${escHtml(r[0])}</b><span>${r[5]}→${r[6]}경기</span></span>
+      <span class="rise-move">
+        <b>${r[1]} → <em>${r[2]}</em></b>
+        <span>(${r[3]}위 → ${r[4]}위) <span style="color:${mvCol};font-weight:700;">${mvTxt}</span></span>
+      </span>
+      <span class="rise-pct">+${r[7]}%</span>
+    </div>`;
+  }).join('');
+
+  return `<div class="rise-card">
+    <div class="rise-head">
+      <div class="rise-title">📈 시즌2 상승률 TOP 10 <span class="rise-tag">20경기 이상</span>
+        <button class="rise-close" onclick="hideRiseCard(event)" aria-label="카드 숨기기">✕</button></div>
+      <div class="rise-sub">시즌1 대비 종합점수(CI)가 가장 많이 오른 순서</div>
+    </div>
+    ${rows}
+  </div>`;
+}
+
+function hideRiseCard(e){
+  e.stopPropagation();
+  try{ localStorage.setItem('ambm_rise_hidden','1'); }catch(err){}
+  document.querySelector('.rise-card')?.remove();
+}
+
 async function renderCommunityPage(){
   // 최신 role DB에서 재확인 (관리자가 권한 변경했을 수 있음)
   const{data:fresh}=await sb.from('profiles').select('role').eq('id',ME.id).single();
@@ -18,10 +83,10 @@ async function renderCommunityPage(){
     return;
   }
   if(!posts||!posts.length){
-    el.innerHTML=`<div class="empty-state"><div class="empty-icon">💬</div><div>아직 게시글이 없어요<br><span style="font-size:.82rem;">첫 글을 남겨보세요!</span></div></div>`;
+    el.innerHTML=riseCardHTML()+`<div class="empty-state"><div class="empty-icon">💬</div><div>아직 게시글이 없어요<br><span style="font-size:.82rem;">첫 글을 남겨보세요!</span></div></div>`;
     return;
   }
-  el.innerHTML=posts.map(p=>commPostHTML(p)).join('');
+  el.innerHTML=riseCardHTML()+posts.map(p=>commPostHTML(p)).join('');
 }
 
 const _catLabel={'general':'일반','info':'정보','rules':'규칙'};
