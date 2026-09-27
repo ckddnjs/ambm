@@ -518,4 +518,4 @@ button:active{transform:scale(.96)}
 .rise-cell b.dim{color:var(--text-muted);font-weight:500}
 .rise-cell i{font-style:normal;font-size:.6rem;color:var(--text-dim);white-space:nowrap}
 .rise-cell.l b{font-size:.84rem;font-weight:800}
-.rise-pct{text-align:right;font-family:'Black Han Sans',sans-serif;font-size:.92rem;line-height:1;color:var(--primary);font-variant-numeric:tabular-nums}
+.rise-pct{text-align:right;font-family:'Black Han Sans',sans-serif;font-size:.92rem;line-height:1;color:var(--accent);font-variant-numeric:tabular-nums}

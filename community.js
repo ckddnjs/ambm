@@ -50,8 +50,8 @@ function riseRowsHTML(){
     const d  = r[2]-r[1];
     const mv = r[3]-r[4];
     const mvTxt = mv>0?'▲'+mv : mv<0?'▼'+Math.abs(mv) : '–';
-    const mvCol = mv>0?'var(--primary)' : mv<0?'var(--danger)' : 'var(--text-dim)';
-    const dCol  = d>0?'var(--primary)'  : d<0?'var(--danger)'  : 'var(--text-dim)';
+    const mvCol = mv>0?'var(--accent)' : mv<0?'var(--danger)' : 'var(--text-dim)';
+    const dCol  = d>0?'var(--accent)'  : d<0?'var(--danger)'  : 'var(--text-dim)';
     return `<div class="rise-row">
       <span class="rise-rk" style="background:${bg};color:${fg};">${i+1}</span>
       <span class="rise-cell l"><b>${escHtml(r[0])}</b><i>${r[5]}→${r[6]}경기</i></span>
