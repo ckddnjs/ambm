@@ -504,14 +504,18 @@ button:active{transform:scale(.96)}
 .rise-title{font-size:.92rem;font-weight:900;color:var(--text);display:flex;align-items:center;gap:6px}
 .rise-tag{font-size:.58rem;font-weight:800;color:var(--primary);letter-spacing:.04em;background:rgba(77,159,255,.12);border:1px solid rgba(77,159,255,.30);border-radius:5px;padding:2px 6px}
 .rise-sub{font-size:.68rem;color:var(--text-muted);margin-top:3px}
-.rise-row{display:flex;align-items:center;gap:9px;padding:7px 14px;border-bottom:1px solid rgba(255,255,255,.04)}
+/* 별도 페이지(시즌 상승률 표)와 같은 6열 격자 — 머리줄과 값이 정확히 맞도록 grid를 쓴다 */
+.rise-grid{--rise-cols:20px minmax(54px,1fr) 54px 54px 56px 52px}
+.rise-hrow,.rise-row{display:grid;grid-template-columns:var(--rise-cols);align-items:center;gap:5px;padding:6px 12px}
+.rise-hrow{background:var(--bg2);border-bottom:1px solid var(--border);font-size:.6rem;font-weight:700;color:var(--text-dim);letter-spacing:.02em;text-align:right}
+.rise-hrow .l{text-align:left}
+.rise-row{border-bottom:1px solid rgba(255,255,255,.04)}
 .rise-row:last-of-type{border-bottom:none}
-.rise-rk{flex-shrink:0;width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.66rem;font-weight:900}
-.rise-who{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
-.rise-who b{font-size:.84rem;font-weight:800;color:var(--text);line-height:1.3}
-.rise-who span{font-size:.6rem;color:var(--text-dim);line-height:1.3}
-.rise-move{flex-shrink:0;text-align:right;display:flex;flex-direction:column;gap:1px;font-variant-numeric:tabular-nums}
-.rise-move b{font-size:.74rem;font-weight:700;color:var(--text-muted);line-height:1.3}
-.rise-move b em{font-style:normal;color:var(--text)}
-.rise-move span{font-size:.6rem;color:var(--text-dim);line-height:1.3}
-.rise-pct{flex-shrink:0;min-width:52px;text-align:right;font-family:'Black Han Sans',sans-serif;font-size:1.05rem;line-height:1;color:var(--primary);font-variant-numeric:tabular-nums}
+.rise-rk{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.64rem;font-weight:900}
+.rise-cell{display:flex;flex-direction:column;text-align:right;min-width:0;font-variant-numeric:tabular-nums;line-height:1.25}
+.rise-cell.l{text-align:left}
+.rise-cell b{font-size:.78rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rise-cell b.dim{color:var(--text-muted);font-weight:500}
+.rise-cell i{font-style:normal;font-size:.6rem;color:var(--text-dim);white-space:nowrap}
+.rise-cell.l b{font-size:.84rem;font-weight:800}
+.rise-pct{text-align:right;font-family:'Black Han Sans',sans-serif;font-size:.92rem;line-height:1;color:var(--primary);font-variant-numeric:tabular-nums}

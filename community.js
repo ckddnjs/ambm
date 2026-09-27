@@ -32,53 +32,35 @@ function riseBlockHTML(){
   return `<div class="rise-card">
     <div class="rise-head">
       <div class="rise-title">📈 시즌2 상승률 TOP 10 <span class="rise-tag">20경기 이상</span></div>
-      <div class="rise-sub">시즌1 대비 종합점수(CI)가 가장 많이 오른 순서</div>
-    </div>${riseRowsHTML()}</div>`;
+      <div class="rise-sub">시즌1 대비 종합점수(CI)가 가장 많이 오른 순서 · 괄호는 그 시즌 랭킹</div>
+    </div>
+    <div class="rise-grid">
+      <div class="rise-hrow">
+        <span>#</span><span class="l">이름</span><span>시즌1</span><span>시즌2</span><span>증감</span><span>상승률</span>
+      </div>
+      ${riseRowsHTML()}
+    </div>
+  </div>`;
 }
 
+/* 별도 페이지(시즌 상승률 표)와 같은 6열 구조 — 값 아래 괄호로 순위를 붙인다 */
 function riseRowsHTML(){
   return RISE_TOP10.map((r,i)=>{
     const [bg,fg] = RISE_CHIP[i] || ['rgba(255,255,255,.05)','#7B8A9C'];
+    const d  = r[2]-r[1];
     const mv = r[3]-r[4];
     const mvTxt = mv>0?'▲'+mv : mv<0?'▼'+Math.abs(mv) : '–';
     const mvCol = mv>0?'var(--primary)' : mv<0?'var(--danger)' : 'var(--text-dim)';
+    const dCol  = d>0?'var(--primary)'  : d<0?'var(--danger)'  : 'var(--text-dim)';
     return `<div class="rise-row">
       <span class="rise-rk" style="background:${bg};color:${fg};">${i+1}</span>
-      <span class="rise-who"><b>${escHtml(r[0])}</b><span>${r[5]}→${r[6]}경기</span></span>
-      <span class="rise-move">
-        <b>${r[1]} → <em>${r[2]}</em></b>
-        <span>(${r[3]}위 → ${r[4]}위) <span style="color:${mvCol};font-weight:700;">${mvTxt}</span></span>
-      </span>
+      <span class="rise-cell l"><b>${escHtml(r[0])}</b><i>${r[5]}→${r[6]}경기</i></span>
+      <span class="rise-cell"><b class="dim">${r[1]}</b><i>(${r[3]}위)</i></span>
+      <span class="rise-cell"><b>${r[2]}</b><i>(${r[4]}위)</i></span>
+      <span class="rise-cell"><b style="color:${dCol}">${d>0?'+':''}${d}</b><i style="color:${mvCol}">(${mvTxt})</i></span>
       <span class="rise-pct">+${r[7]}%</span>
     </div>`;
   }).join('');
-}
-
-
-async function renderCommunityPage(){
-  // 최신 role DB에서 재확인 (관리자가 권한 변경했을 수 있음)
-  const{data:fresh}=await sb.from('profiles').select('role').eq('id',ME.id).single();
-  if(fresh&&fresh.role!==ME.role){
-    ME.role=fresh.role;
-  }
-  const commWriteBtn=document.getElementById('btn-comm-write');
-  if(commWriteBtn) commWriteBtn.style.display=(ME.role==='admin'||ME.role==='writer')?'':'none';
-
-  const el=document.getElementById('community-list');
-  if(!el) return;
-  el.innerHTML=`<div class="skeleton sk-card"></div>`.repeat(3);
-  let q=sb.from('community_posts').select('*').order('created_at',{ascending:false});
-  if(commTab!=='all') q=q.eq('category',commTab);
-  const{data:posts,error}=await q;
-  if(error){
-    el.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div>불러오기 실패<br><span style="font-size:.78rem;color:var(--text-muted);">community_posts 테이블이 필요합니다</span></div></div>`;
-    return;
-  }
-  if(!posts||!posts.length){
-    el.innerHTML=riseBlockHTML()+`<div class="empty-state"><div class="empty-icon">💬</div><div>아직 게시글이 없어요<br><span style="font-size:.82rem;">첫 글을 남겨보세요!</span></div></div>`;
-    return;
-  }
-  el.innerHTML=riseBlockHTML()+posts.map(p=>commPostHTML(p)).join('');
 }
 
 const _catLabel={'general':'일반','info':'정보','rules':'규칙'};
