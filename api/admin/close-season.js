@@ -2,25 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://wkclmrbdsinvliaaqjol.supabase.co';
 
-/* ── core.js calcCI와 동일 (서버 복제) ── */
-const BASE_RATING = 1000, CONFIDENCE_DENOMINATOR = 15, PD_WEIGHT = 5,
-      WR_WEIGHT = 200, GAMES_BONUS = 1, GAMES_BONUS_CAP = 30,
-      CLOSE_WIN_BONUS = 1, CLOSE_WIN_THRESHOLD = 3;
-
-function calcCI(wins, games, diff, closeWins = 0) {
-  if (games === 0) return BASE_RATING;
-  const wr = wins / games;
-  const confidence = games / (games + CONFIDENCE_DENOMINATOR);
-  const adjustedWR = wr * confidence;
-  const avgDiff = diff / games;
-  const wrScore = Math.round(adjustedWR * WR_WEIGHT);
-  const diffScore = Math.round(avgDiff * PD_WEIGHT);
-  const gamesBonus = Math.min(games, GAMES_BONUS_CAP) * GAMES_BONUS;
-  const closeWinBonus = (closeWins || 0) * CLOSE_WIN_BONUS;
-  return BASE_RATING + wrScore + diffScore + gamesBonus + closeWinBonus;
-}
-// 주가 = calcCI - 900 (최소 10) — stockmarket.js _smCalcStocks와 동일
-const priceFromCI = (ci) => Math.max(10, Math.round(ci - 900));
+/* 청산가 = 서버 주가 RPC ambm_stock_price (stock_buy/sell과 동일 가격, 시즌별 가산점 상한 반영).
+   null(5경기 미만 비상장)은 최저가 10으로 청산. */
+const MIN_PRICE = 10;
 
 async function chunkedInsert(sb, table, rows, size = 500) {
   for (let i = 0; i < rows.length; i += size) {
@@ -71,16 +55,14 @@ export default async function handler(req, res) {
     const currentSeason = parseInt(csRow?.value || '1') || 1;
 
     // ── 2. 데이터 로드 ──
-    const [matchesRes, portRes, walletRes, profilesRes] = await Promise.all([
-      sb.from('matches')
-        .select('a1_id,a2_id,b1_id,b2_id,score_a,score_b,match_date')
-        .eq('status', 'approved'),
-      sb.from('stock_portfolio').select('id,user_id,stock_user_id,shares,avg_price'),
-      sb.from('stock_wallets').select('user_id,cash'),
+    const [portRes, walletRes, profilesRes] = await Promise.all([
+      sb.from('stock_portfolio').select('*'),
+      sb.from('stock_wallets').select('*'),
       sb.from('profiles').select('id,name'),
     ]);
-    const matches = (matchesRes.data || []).filter(m =>
-      !currentSeasonStart || String(m.match_date || '') >= currentSeasonStart);
+    if (portRes.error || walletRes.error) {
+      return res.status(500).json({ error: '데이터 조회 실패: ' + (portRes.error || walletRes.error).message });
+    }
     const portfolio = portRes.data || [];
     const wallets = walletRes.data || [];
     const nameMap = {};
@@ -89,20 +71,13 @@ export default async function handler(req, res) {
     // ── 3. 보유된 종목(stock_user_id)들의 현재가 계산 ──
     const heldIds = [...new Set(portfolio.map(p => p.stock_user_id))];
     const priceMap = {};
-    heldIds.forEach(uid => {
-      let wins = 0, games = 0, diff = 0, closeWins = 0;
-      matches.forEach(m => {
-        const onA = m.a1_id === uid || m.a2_id === uid;
-        const onB = m.b1_id === uid || m.b2_id === uid;
-        if (!onA && !onB) return;
-        games++;
-        const win = onA ? (m.score_a > m.score_b) : (m.score_b > m.score_a);
-        const d = onA ? (m.score_a - m.score_b) : (m.score_b - m.score_a);
-        if (win) { wins++; if (Math.abs(m.score_a - m.score_b) <= CLOSE_WIN_THRESHOLD) closeWins++; }
-        diff += d;
-      });
-      priceMap[uid] = priceFromCI(calcCI(wins, games, diff, closeWins));
-    });
+    const unlisted = [];
+    for (const uid of heldIds) {
+      const { data: price, error } = await sb.rpc('ambm_stock_price', { p_stock: uid });
+      if (error) return res.status(500).json({ error: '주가 조회 실패: ' + error.message, at: uid });
+      if (price == null) unlisted.push(nameMap[uid] || uid);
+      priceMap[uid] = price ?? MIN_PRICE;
+    }
 
     // ── 4. 청산 계산 (환급액·매도기록) ──
     const walletMap = {};
@@ -110,7 +85,7 @@ export default async function handler(req, res) {
     const refundByUser = {};     // user_id -> 환급 합계
     const sellTrades = [];       // stock_trades insert 대상
     for (const p of portfolio) {
-      const price = priceMap[p.stock_user_id] ?? 10;
+      const price = priceMap[p.stock_user_id] ?? MIN_PRICE;
       const total = price * p.shares;
       const pnl = (price - (p.avg_price || 0)) * p.shares;
       refundByUser[p.user_id] = (refundByUser[p.user_id] || 0) + total;
@@ -135,6 +110,7 @@ export default async function handler(req, res) {
       portfolioRows: portfolio.length,
       holderCount: Object.keys(refundByUser).length,
       totalRefund,
+      unlisted,
       refunds: Object.entries(refundByUser)
         .map(([uid, amt]) => ({ user_id: uid, name: nameMap[uid] || uid, refund: amt }))
         .sort((a, b) => b.refund - a.refund),
@@ -143,6 +119,27 @@ export default async function handler(req, res) {
     // ── 5. dryRun: 계산만 반환, 쓰기 없음 ──
     if (dryRun) {
       return res.status(200).json({ dryRun: true, ...summary });
+    }
+
+    // ── 5-1. 재실행 방지: 이 시즌 스냅샷이 이미 있으면 이전 실행이 중간에 멈춘 것 → 수동 확인 필요 ──
+    const { count: snapCount, error: snapCntErr } = await sb.from('season_close_snapshot')
+      .select('id', { count: 'exact', head: true }).eq('season', currentSeason);
+    if (snapCntErr) return res.status(500).json({ error: '스냅샷 확인 실패: ' + snapCntErr.message });
+    if (snapCount > 0) {
+      return res.status(409).json({ error: `시즌 ${currentSeason} 마감 스냅샷이 이미 있습니다. 이전 실행이 중간에 멈췄을 수 있으니 이중 환급 방지를 위해 중단합니다 — season_close_snapshot·wallet_ledger로 상태 확인 후 처리하세요.` });
+    }
+
+    // ── 5-2. 스냅샷: 환급·삭제 전 지갑·포트폴리오 원본 박제 (실패 시 아무것도 바꾸지 않고 중단) ──
+    const { data: savings, error: savErr } = await sb.from('wallets').select('*');
+    if (savErr) return res.status(500).json({ error: '예금지갑 조회 실패(중단): ' + savErr.message });
+    const snapRows = [
+      ...wallets.map(w => ({ season: currentSeason, kind: 'stock_wallets', user_id: w.user_id, data: w })),
+      ...portfolio.map(p => ({ season: currentSeason, kind: 'stock_portfolio', user_id: p.user_id, data: { ...p, liquidation_price: priceMap[p.stock_user_id] ?? MIN_PRICE } })),
+      ...(savings || []).map(w => ({ season: currentSeason, kind: 'wallets', user_id: w.user_id, data: w })),
+    ];
+    if (snapRows.length) {
+      const err = await chunkedInsert(sb, 'season_close_snapshot', snapRows);
+      if (err) return res.status(500).json({ error: '스냅샷 저장 실패(중단, 변경 없음): ' + err.message });
     }
 
     // ── 6. 실제 청산: 지갑 환급 (보유자별) ──
