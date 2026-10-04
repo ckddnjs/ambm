@@ -279,18 +279,18 @@ async function doEmailSignup(){
 
 /* ── 글자 크기 ── */
 const _FONT_STEPS=[
-  {size:13,label:'작게',    sub:'기본보다 작음'},
-  {size:15,label:'보통',    sub:'기본 크기'},
-  {size:17,label:'크게',    sub:'기본보다 큼'},
-  {size:19,label:'매우 크게',sub:'최대 크기'},
+  {size:15,label:'작게',    sub:'기본보다 작음'},
+  {size:17,label:'보통',    sub:'기본 크기'},
+  {size:19,label:'크게',    sub:'기본보다 큼'},
+  {size:21,label:'매우 크게',sub:'최대 크기'},
 ];
-let _fontStepIdx=1;
+let _fontStepIdx=1; // 기본 보통(17px) — 2026-10-04 한 단계씩 상향(예전 '크게'=새 '보통')
 function applyFontScale(idx,save=true){
   idx=Math.max(0,Math.min(_FONT_STEPS.length-1,idx));
   _fontStepIdx=idx;
   const step=_FONT_STEPS[idx];
   document.documentElement.style.fontSize=step.size+'px';
-  if(save) localStorage.setItem('font_scale_idx',idx);
+  if(save) localStorage.setItem('font_scale_idx2',idx);
   const label=document.getElementById('font-scale-label');
   const sub=document.getElementById('font-scale-sub');
   if(label) label.textContent=step.label;
@@ -300,7 +300,16 @@ function applyFontScale(idx,save=true){
 }
 function adjustFontScale(delta){ applyFontScale(_fontStepIdx+delta); }
 function initFontScale(){
-  const saved=localStorage.getItem('font_scale_idx');
+  let saved=localStorage.getItem('font_scale_idx2');
+  if(saved===null){
+    // 단계 상향 전 저장값은 한 칸 내려서 보던 크기 유지 (예전 '크게' 17px → 새 '보통' 17px)
+    const old=localStorage.getItem('font_scale_idx');
+    if(old!==null){
+      saved=String(Math.max(0,parseInt(old)-1));
+      localStorage.setItem('font_scale_idx2',saved);
+      localStorage.removeItem('font_scale_idx');
+    }
+  }
   applyFontScale(saved!==null?parseInt(saved):1,false);
 }
 
