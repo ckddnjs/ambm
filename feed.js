@@ -63,12 +63,23 @@ async function renderFeed(forceNameQ){
 async function _renderFeedInner(forceNameQ, token){
   const el=document.getElementById('feed-list');
   if(!el) return;
-  el.innerHTML=`<div class="skeleton sk-card"></div>`.repeat(4);
 
   const rawName=forceNameQ!==undefined?forceNameQ:(document.getElementById('feed-name-search')?.value||'');
   _feedNameQ=rawName.trim();
   const clearBtn=document.getElementById('feed-search-clear');
   if(clearBtn) clearBtn.style.display=_feedNameQ?'block':'none';
+
+  // 기본 목록(검색·조합 없음)은 직전 결과를 먼저 그려 두고 뒤에서 새로 받아 교체 — 서버 왕복 지연 숨김
+  const isDefault=!window._feedPairFilter && !_feedNameQ;
+  if(isDefault && window._feedCache){
+    window._feedAllMatches=window._feedCache;
+    _renderFeedSlice();
+  } else {
+    el.innerHTML=`<div class="skeleton sk-card"></div>`.repeat(4);
+  }
+  // 날짜별 전체 카운트는 목록 조회와 동시에 요청 (캐시 있으면 생략)
+  const countReady=window._feedFullCountByDate?null
+    :sb.from('matches').select('match_date').eq('status','approved');
 
   const _MATCH_COLS='id,match_type,match_date,a1_id,a1_name,a2_id,a2_name,b1_id,b1_name,b2_id,b2_name,score_a,score_b,status,note,admin_note,submitter_id,submitter_name,approved_at,created_at';
   let q=sb.from('matches').select(_MATCH_COLS)
@@ -105,8 +116,8 @@ async function _renderFeedInner(forceNameQ, token){
   _renderPairBanner(pf,matches);
 
   // 날짜별 전체 카운트를 위해 전체 건수는 별도로 집계 (캐시 있으면 재사용)
-  if(!window._feedFullCountByDate){
-    const{data:allDates}=await sb.from('matches').select('match_date').eq('status','approved');
+  if(countReady){
+    const{data:allDates}=await countReady;
     if(token!==_feedRenderToken) return;
     const cnt={};
     (allDates||[]).forEach(m=>{ const d=m.match_date||''; cnt[d]=(cnt[d]||0)+1; });
@@ -126,6 +137,13 @@ async function _renderFeedInner(forceNameQ, token){
   if(!matches.length){
     el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><div>${pf?'이 조합의 경기가 없어요':(_feedNameQ?`'${rawName}' 검색 결과 없음`:'경기 내역 없음')}</div></div>`;
     return;
+  }
+  if(isDefault && !feedErr){
+    // 먼저 그려 둔 캐시와 내용이 같으면 DOM을 다시 그리지 않는다 (깜빡임·스크롤 튐 방지)
+    const same=window._feedCache && window._feedAllMatches===window._feedCache
+      && JSON.stringify(window._feedCache)===JSON.stringify(matches);
+    window._feedCache=matches;
+    if(same){ window._feedAllMatches=matches; _attachFeedScroll(); return; }
   }
   window._feedAllMatches=matches;
   _feedPage=1;
