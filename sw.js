@@ -1,4 +1,4 @@
-const CACHE = 'ambm-v63';
+const CACHE = 'ambm-v64';
 const STATIC = [
   '/',
   '/index.html',
@@ -65,6 +65,16 @@ self.addEventListener('fetch', e => {
   // ⚠️ Supabase auth 요청은 절대 캐시하지 않음 (로그아웃 방지)
   if (isSupabase && (url.pathname.includes('/auth/') || url.pathname.includes('/token'))) {
     e.respondWith(fetch(e.request));
+    return;
+  }
+
+  // 후생동TV 안에 끼워 넣은 화면(?embed=hsdtv)은 최신본 우선 — 저장본을 먼저 쓰면 업데이트가 한 박자 늦게 보인다.
+  // 오프라인이면 저장본으로 대체 (2026-10-05)
+  if (isNavigation && url.searchParams.get('embed') === 'hsdtv') {
+    e.respondWith(fetch(e.request).then(res => {
+      if (res && res.ok) caches.open(CACHE).then(c => c.put('/index.html', res.clone()));
+      return res;
+    }).catch(() => caches.match('/index.html')));
     return;
   }
 
