@@ -8,6 +8,10 @@ const SUPABASE_URL  = 'https://wkclmrbdsinvliaaqjol.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrY2xtcmJkc2ludmxpYWFxam9sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4NjA1MzcsImV4cCI6MjA4ODQzNjUzN30.442P3qAs4NahcXEqZ0tMAlco9bb6qnj2CsREIH21Ltc';
 // SUPABASE_SERVICE 키는 제거됨 → /api/admin/* 서버리스 함수가 처리
 const APP_URL = 'https://ambm.vercel.app';
+// 후생동TV 앱 안에 끼워 넣기(?embed=hsdtv, 2026-10-05) — 부모(후생동TV)가 연동해 둔 로그인 정보를 넘겨받는다.
+// 메시지는 후생동TV 주소에서 온 것만 받는다.
+const HSDTV_ORIGIN='https://hsdtv.vercel.app';
+const _EMBED_HSDTV=window.self!==window.top && new URLSearchParams(location.search).get('embed')==='hsdtv';
 
 const {createClient}=supabase;
 // profiles 공개 칼럼 — email은 2026-10-05부터 조회 차단(관리자는 ambm_admin_profile_emails RPC, 본인은 세션)
@@ -62,6 +66,28 @@ window.addEventListener('DOMContentLoaded',async()=>{
     else if(ME.status==='pending') showPendingScreen(ME.name);
     else{await sb.auth.signOut();showLogin();}
   };
+
+  // ── 0. 후생동TV 안이면 로그인 정보를 먼저 받는다 (최대 4초 대기 후 평소대로 진행) ──
+  if(_EMBED_HSDTV){
+    await new Promise(res=>{
+      const t=setTimeout(res,4000);
+      window.addEventListener('message',async e=>{
+        if(e.origin!==HSDTV_ORIGIN||e.source!==window.parent) return;
+        const d=e.data||{};
+        if(d.type!=='ambm-session'||!d.access_token||!d.refresh_token) return;
+        try{
+          const{data:{session:cur}}=await sb.auth.getSession();
+          if(cur?.refresh_token!==d.refresh_token) await sb.auth.setSession({access_token:d.access_token,refresh_token:d.refresh_token});
+        }catch(err){ console.warn('[embed] setSession',err); }
+        clearTimeout(t);res();
+      });
+      window.parent.postMessage({type:'ambm-ready'},HSDTV_ORIGIN);
+    });
+    // 이 화면이 로그인 정보를 갱신하면 부모에게 돌려준다 (두 곳이 따로 갱신하다 충돌해 로그아웃되는 것 방지)
+    sb.auth.onAuthStateChange((ev,s)=>{
+      if(s&&(ev==='TOKEN_REFRESHED'||ev==='SIGNED_IN')) window.parent.postMessage({type:'ambm-session-update',access_token:s.access_token,refresh_token:s.refresh_token},HSDTV_ORIGIN);
+    });
+  }
 
   // ── 1. getSession() 즉시 호출 — PWA 재시작 시 캐시 세션 복원 핵심 ──
   try{
