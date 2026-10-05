@@ -84,6 +84,12 @@ window.addEventListener('DOMContentLoaded',async()=>{
       });
       window.parent.postMessage({type:'ambm-ready'},HSDTV_ORIGIN);
     });
+    // 끼워 넣은 화면은 아이폰 홈바 높이(safe-area)를 0으로 받는다 → 부모가 잰 자기 메뉴 띄움 높이를 그대로 쓴다
+    window.addEventListener('message',e=>{
+      if(e.origin!==HSDTV_ORIGIN||e.source!==window.parent) return;
+      const d=e.data||{};
+      if(d.type==='ambm-layout'&&Number.isFinite(d.navLift)&&d.navLift>=0&&d.navLift<80) document.documentElement.style.setProperty('--nav-lift',Math.round(d.navLift)+'px');
+    });
     // 라이트·다크 모드를 부모에게 알려 후생동TV 상단 줄 색을 맞춘다
     const _postTheme=()=>{
       const h=document.querySelector('.app-header');
