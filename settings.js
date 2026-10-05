@@ -60,14 +60,14 @@ async function uploadAvatar(input){
       const url=URL.createObjectURL(file);
       img.onload=()=>{
         URL.revokeObjectURL(url);
-        const MAX=1200;
+        const MAX=640;   // 2026-10-05: 1200px·.88은 장당 수백KB라 작은 아바타가 늦게 떴다
         let w=img.width,h=img.height;
         if(w>h&&w>MAX){h=Math.round(h*MAX/w);w=MAX;}
         else if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
         const canvas=document.createElement('canvas');
         canvas.width=w;canvas.height=h;
         canvas.getContext('2d').drawImage(img,0,0,w,h);
-        canvas.toBlob(blob=>resolve(new File([blob],'avatar.jpg',{type:'image/jpeg'})),'image/jpeg',0.88);
+        canvas.toBlob(blob=>resolve(new File([blob],'avatar.jpg',{type:'image/jpeg'})),'image/jpeg',0.85);
       };
       img.src=url;
     });
@@ -80,7 +80,7 @@ async function uploadAvatar(input){
     await sb.storage.from('avatars').remove([path]).catch(()=>{});
     const{error:upErr}=await sb.storage.from('avatars').upload(path,file,{
       contentType:'image/jpeg',
-      cacheControl:'3600',
+      cacheControl:'31536000',   // 주소에 ?t= 가 붙어 바뀔 때마다 새 주소 → 길게 캐시해도 안전
       upsert:false
     });
     if(upErr) throw upErr;
