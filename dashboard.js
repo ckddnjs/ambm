@@ -2,7 +2,7 @@
 async function renderDashboard(){
   await ensureSeasonStart(); // 시즌 컷오프 보장 (랭킹·개인성적 집계용)
   const{data:prof}=await sb.from('profiles').select(PROFILE_COLS).eq('id',ME.id).single();
-  if(prof) ME=prof;
+  if(prof) ME={...ME,...prof}; // email은 profiles에서 못 읽으므로 기존 값(세션) 유지
   // 경기 캐시: 30초 이내면 재조회 생략
   const _now=Date.now();
   if(!window._matchCacheTime||_now-window._matchCacheTime>30000||!_allMatchesCache.length){
