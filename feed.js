@@ -249,13 +249,14 @@ function renderMatchesWithDateHeaders(matches, fullCountByDate){
   return html;
 }
 
-/* ── 날짜 머리: 날짜·경기 수(왼쪽) + 더보기(오른쪽) — MVP 카드가 바로 아래 붙는다 (2026-10-05, 후생동TV와 같은 구조) ── */
+/* ── 날짜 머리: 날짜·경기 수 — MVP 카드가 바로 아래 붙는다. 더보기는 MVP 카드 끝 ›로 흡수(2026-10-05, 후생동TV와 같음),
+   MVP 없는 날도 요약에 갈 수 있게 머리 자체를 눌러도 열린다 ── */
 function feedDateHeader(dateStr,count){
   const d=new Date(dateStr+'T00:00:00');
   const days=['일','월','화','수','목','금','토'];
   const yy=String(d.getFullYear()).slice(2);
   const label=`${yy}.${d.getMonth()+1}.${d.getDate()}.(${days[d.getDay()]})`;
-  return `<div class="feed-day-head"><b>${label}</b>${count>1?`<span>${count}경기</span>`:''}<button type="button" onclick="event.stopPropagation();openDateSummaryPage('${dateStr}')">더보기 ›</button></div>`;
+  return `<div class="feed-day-head" onclick="openDateSummaryPage('${dateStr}')"><b>${label}</b>${count>1?`<span>${count}경기</span>`:''}</div>`;
 }
 
 /* ── 그날의 MVP: 승수 1위, 같으면 득실차 1위, 그래도 같으면 공동 MVP (경기 수 문턱 없음)
@@ -287,6 +288,7 @@ function _feedDayMvpHTML(dateStr,fallback){
     <div class="fdm-avs">${mv.slice(0,4).map(av).join('')}</div>
     <div class="fdm-t"><small><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18h18M4 8l4 4 4-7 4 7 4-4-2 10H6Z"/></svg>${mv.length>1?'공동 MVP':'오늘의 MVP'}</small><b>${mv.map(x=>escHtml(nameOf(x))).join('·')}</b></div>
     <div class="fdm-r"><b>${r.w}승 ${r.l}패</b><small>득실 ${r.d>0?'+':''}${r.d}</small></div>
+    <span class="fdm-chev" aria-hidden="true">›</span>
   </div>`;
 }
 
@@ -339,11 +341,14 @@ async function renderDateSummaryContent(dateStr){
     const wrA=a.wins/(a.wins+a.losses||1), wrB=b.wins/(b.wins+b.losses||1);
     return wrB-wrA||b.wins-a.wins;
   });
-  const mvp=[...players].sort((a,b)=>b.wins-a.wins||(b.wins/(b.wins+b.losses||1))-(a.wins/(a.wins+a.losses||1)))[0];
+  // MVP는 경기 내역 카드와 같은 기준(_feedDayMvp: 승수→득실차, 동률 공동). 비회원은 이름으로 맞춘다
+  const mvps=_feedDayMvp(dateStr,allM)||[];
+  const mvpKeys=new Set(mvps.map(r=>r.id||('name:'+r.nm)));
+  const mvpName=r=>(r.id&&(users.find(u=>u.id===r.id)||{}).name)||r.nm||'?';
   function playerRow(p){
     const total=p.wins+p.losses;
     const wr=total?Math.round(p.wins/total*100):0;
-    const isMvp=p.id===mvp?.id;
+    const isMvp=mvpKeys.has(p.id);
     const u=users.find(x=>x.id===p.realId);
     const av=u?.avatar_url
       ?`<img src="${u.avatar_url}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">`
@@ -356,9 +361,9 @@ async function renderDateSummaryContent(dateStr){
     </div>`;
   }
   el.innerHTML=
-    (mvp?`<div style="margin-bottom:14px;padding:8px 12px;background:rgba(41,121,255,.08);border:1px solid rgba(41,121,255,.2);border-radius:10px;display:flex;align-items:center;gap:10px;">
+    (mvps.length?`<div style="margin-bottom:14px;padding:8px 12px;background:rgba(41,121,255,.08);border:1px solid rgba(41,121,255,.2);border-radius:10px;display:flex;align-items:center;gap:10px;">
       <span style="font-size:1.2rem;">🏆</span>
-      <div><div style="font-size:.68rem;color:var(--text-muted);">오늘의 MVP</div><div style="font-size:.92rem;font-weight:700;">${mvp.name} <span style="font-size:.75rem;color:var(--text-muted);font-weight:400;">${mvp.wins}승 ${mvp.losses}패 · ${Math.round(mvp.wins/(mvp.wins+mvp.losses)*100)}%</span></div></div>
+      <div style="min-width:0"><div style="font-size:.68rem;color:var(--text-muted);">${mvps.length>1?'공동 MVP':'오늘의 MVP'}</div><div style="font-size:.92rem;font-weight:700;">${mvps.map(r=>escHtml(mvpName(r))).join('·')} <span style="font-size:.75rem;color:var(--text-muted);font-weight:400;">${mvps[0].w}승 ${mvps[0].l}패 · 득실 ${mvps[0].d>0?'+':''}${mvps[0].d}</span></div></div>
     </div>`:'')+
     `<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:4px;">총 ${allM.length}경기 · 참석 ${players.length}명</div>`+
     sortByWR(players).map(playerRow).join('');
