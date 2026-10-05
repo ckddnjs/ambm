@@ -94,6 +94,9 @@ body.light-mode .nav-fab-circle{box-shadow:0 4px 16px rgba(21,101,192,.35)}
 @keyframes slideInRight{from{opacity:0;transform:translateX(22px)}to{opacity:1;transform:none}}
 @keyframes slideInLeft{from{opacity:0;transform:translateX(-22px)}to{opacity:1;transform:none}}
 .page-title{font-family:'Black Han Sans',sans-serif;font-size:1.3rem;color:var(--text);margin-bottom:4px;letter-spacing:.5px}
+/* 선 아이콘(스프라이트 #i-*) — 글자 크기·색을 따라간다. 페이지 제목 옆은 primary색 (2026-10-05) */
+.ic{width:1.1em;height:1.1em;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.18em;flex-shrink:0;margin-right:.3em}
+.page-title .ic{color:var(--primary)}
 .page-sub{font-size:.84rem;color:var(--text-muted);margin-bottom:16px}
 .page-title+.page-sub{margin-bottom:0}
 #dash-hello{font-size:1.05rem;line-height:1.4;margin-bottom:4px;}
