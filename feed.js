@@ -271,6 +271,8 @@ function openDateSummaryPage(dateStr){
   renderDateSummaryContent(dateStr);
 }
 function closeDateSummaryPage(){
+  // 열 때 history를 1칸 쌓았으니 되돌린다 → popstate(core.js)가 닫는다. 안 그러면 다음 뒤로가기가 헛돈다
+  if(history.state&&history.state.page==='date-summary'){ history.back(); return; }
   const pg=document.getElementById('page-date-summary');
   if(pg) pg.style.display='none';
 }

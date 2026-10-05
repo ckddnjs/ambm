@@ -492,9 +492,11 @@
 
   <!-- 날짜별 요약 페이지 -->
   <div id="page-date-summary" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:300;overflow-y:scroll;-webkit-overflow-scrolling:touch;height:100%;height:100dvh;">
-    <div style="display:flex;align-items:center;gap:10px;padding:14px 14px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10;">
-      <button onclick="closeDateSummaryPage()" style="background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;padding:2px 6px 2px 0;line-height:1;">‹</button>
-      <div id="dsp-title" style="font-size:1rem;font-weight:700;"></div>
+    <!-- 닫기 버튼이 안 보인다는 제보(2026-10-05): 작은 회색 ‹ 하나뿐이었다 → 큰 뒤로 화살표 + 오른쪽 '닫기', 상단 안전영역 -->
+    <div style="display:flex;align-items:center;gap:6px;padding:max(10px,env(safe-area-inset-top,10px)) 12px 10px 6px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10;">
+      <button type="button" onclick="closeDateSummaryPage()" aria-label="뒤로" style="width:40px;height:40px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--text);cursor:pointer;padding:0;"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+      <div id="dsp-title" style="flex:1;min-width:0;font-size:1rem;font-weight:700;"></div>
+      <button type="button" onclick="closeDateSummaryPage()" style="flex-shrink:0;border:1.5px solid var(--border);background:var(--bg2);color:var(--text);border-radius:999px;padding:7px 14px;font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;">닫기</button>
     </div>
     <div id="dsp-content" style="padding:14px;padding-bottom:40px;"></div>
   </div>
@@ -762,7 +764,7 @@
 <script src="utils.js?v=1775267349" defer></script>
 <script src="core.js?v=1791370000" defer></script>
 <script src="dashboard.js?v=1791210000" defer></script>
-<script src="feed.js?v=1790600000" defer></script>
+<script src="feed.js?v=2026100501" defer></script>
 <script src="register.js?v=1775267349" defer></script>
   <script src="analysis.js?v=1791200000" defer></script>
 <script src="admin.js?v=1791200000" defer></script>
