@@ -330,10 +330,11 @@ async function renderDateSummaryContent(dateStr){
     [[m.a1_id,m.a1_name],[m.a2_id,m.a2_name],[m.b1_id,m.b1_name],[m.b2_id,m.b2_name]].forEach(([id,name])=>{
       if(!name) return;
       const key=id||('name:'+name);
-      if(!playerMap[key]) playerMap[key]={id:key,realId:id||null,name,wins:0,losses:0};
+      if(!playerMap[key]) playerMap[key]={id:key,realId:id||null,name,wins:0,losses:0,diff:0};
       const onA=[m.a1_id,m.a2_id].includes(id)||((!id)&&[m.a1_name,m.a2_name].includes(name));
       const won=(m.score_a>m.score_b)?onA:!onA;
       won?playerMap[key].wins++:playerMap[key].losses++;
+      playerMap[key].diff+=onA?(+m.score_a||0)-(+m.score_b||0):(+m.score_b||0)-(+m.score_a||0);
     });
   });
   const players=Object.values(playerMap);
@@ -357,6 +358,7 @@ async function renderDateSummaryContent(dateStr){
       ${av}
       <div style="flex:1;font-size:.87rem;font-weight:${isMvp?700:400};">${p.name}${isMvp?' 🏆':''}</div>
       <div style="font-size:.8rem;color:var(--text-muted);">${p.wins}승 ${p.losses}패</div>
+      <div style="font-size:.78rem;color:var(--text-muted);min-width:34px;text-align:right;font-variant-numeric:tabular-nums;">${p.diff>0?'+':''}${p.diff}</div>
       <div style="font-size:.85rem;font-weight:700;color:${wr>=50?'var(--primary)':'#FF7070'};min-width:38px;text-align:right;">${wr}%</div>
     </div>`;
   }
