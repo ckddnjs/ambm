@@ -76,6 +76,8 @@ window.addEventListener('DOMContentLoaded',async()=>{
         if(e.origin!==HSDTV_ORIGIN||e.source!==window.parent) return;
         const d=e.data||{};
         if(d.type!=='ambm-session'||!d.access_token||!d.refresh_token) return;
+        // 후생동TV의 라이트·다크 모드를 따른다 — 부팅 때 initTheme()이 이 값을 읽는다
+        if(typeof d.light==='boolean') localStorage.setItem('theme',d.light?'light':'dark');
         try{
           const{data:{session:cur}}=await sb.auth.getSession();
           if(cur?.refresh_token!==d.refresh_token) await sb.auth.setSession({access_token:d.access_token,refresh_token:d.refresh_token});
@@ -89,6 +91,8 @@ window.addEventListener('DOMContentLoaded',async()=>{
       if(e.origin!==HSDTV_ORIGIN||e.source!==window.parent) return;
       const d=e.data||{};
       if(d.type==='ambm-layout'&&Number.isFinite(d.navLift)&&d.navLift>=0&&d.navLift<80) document.documentElement.style.setProperty('--nav-lift',Math.round(d.navLift)+'px');
+      // 다시 열 때 후생동TV 테마가 바뀌어 있으면 맞춘다
+      if(d.type==='ambm-theme-set'&&typeof d.light==='boolean'&&document.body.classList.contains('light-mode')!==d.light) toggleDarkMode();
     });
     // 라이트·다크 모드를 부모에게 알려 후생동TV 상단 줄 색을 맞춘다
     const _postTheme=()=>{
