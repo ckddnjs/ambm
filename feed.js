@@ -338,9 +338,10 @@ async function renderDateSummaryContent(dateStr){
     });
   });
   const players=Object.values(playerMap);
+  // 정렬 = MVP와 같은 기준: 승수 → 득실차 → 승률 (2026-10-05)
   const sortByWR=arr=>[...arr].sort((a,b)=>{
     const wrA=a.wins/(a.wins+a.losses||1), wrB=b.wins/(b.wins+b.losses||1);
-    return wrB-wrA||b.wins-a.wins;
+    return b.wins-a.wins||b.diff-a.diff||wrB-wrA;
   });
   // MVP는 경기 내역 카드와 같은 기준(_feedDayMvp: 승수→득실차, 동률 공동). 비회원은 이름으로 맞춘다
   const mvps=_feedDayMvp(dateStr,allM)||[];
