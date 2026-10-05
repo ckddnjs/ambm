@@ -12,6 +12,7 @@ const APP_URL = 'https://ambm.vercel.app';
 // 메시지는 후생동TV 주소에서 온 것만 받는다.
 const HSDTV_ORIGIN='https://hsdtv.vercel.app';
 const _EMBED_HSDTV=window.self!==window.top && new URLSearchParams(location.search).get('embed')==='hsdtv';
+if(_EMBED_HSDTV) document.documentElement.classList.add('embed-hsdtv');   // 상단 여백은 후생동TV 틀이 맡는다 (app.css)
 
 const {createClient}=supabase;
 // profiles 공개 칼럼 — email은 2026-10-05부터 조회 차단(관리자는 ambm_admin_profile_emails RPC, 본인은 세션)
