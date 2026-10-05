@@ -84,6 +84,14 @@ window.addEventListener('DOMContentLoaded',async()=>{
       });
       window.parent.postMessage({type:'ambm-ready'},HSDTV_ORIGIN);
     });
+    // 라이트·다크 모드를 부모에게 알려 후생동TV 상단 줄 색을 맞춘다
+    const _postTheme=()=>{
+      const h=document.querySelector('.app-header');
+      const cs=h?getComputedStyle(h):null;
+      window.parent.postMessage({type:'ambm-theme',light:document.body.classList.contains('light-mode'),bg:cs?.backgroundColor||'',fg:cs?.color||'',line:cs?.borderBottomColor||''},HSDTV_ORIGIN);
+    };
+    new MutationObserver(()=>setTimeout(_postTheme,50)).observe(document.body,{attributes:true,attributeFilter:['class']});
+    setTimeout(_postTheme,300);
     // 이 화면이 로그인 정보를 갱신하면 부모에게 돌려준다 (두 곳이 따로 갱신하다 충돌해 로그아웃되는 것 방지)
     sb.auth.onAuthStateChange((ev,s)=>{
       if(s&&(ev==='TOKEN_REFRESHED'||ev==='SIGNED_IN')) window.parent.postMessage({type:'ambm-session-update',access_token:s.access_token,refresh_token:s.refresh_token},HSDTV_ORIGIN);

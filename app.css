@@ -469,6 +469,11 @@ body.light-mode .toast.success{background:#E3F2FD;border-color:rgba(21,101,192,.
    하단 홈바 여백은 이 화면(하단 메뉴)이 맡는다 ── */
 html.embed-hsdtv .app-header{padding-top:0!important;min-height:52px!important}
 html.embed-hsdtv #page-stockmarket,html.embed-hsdtv #page-stockdetail{top:52px!important}
+/* 아이폰은 끼워 넣은 화면에서 문서 전체가 스크롤되면 position:fixed 하단 메뉴가 같이 흔들린다
+   → 문서는 고정하고 본문(.app-body)만 스크롤, 끝에서 튕김이 바깥으로 번지지 않게 */
+html.embed-hsdtv,html.embed-hsdtv body{height:100%;overflow:hidden;overscroll-behavior:none}
+html.embed-hsdtv #app{height:100%;min-height:0}
+html.embed-hsdtv .app-body{min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 
 /* 랭킹 CI 색상: var(--primary) 사용 (득실과 동일) */
 .rank-table td:last-child span { color: var(--primary); }
