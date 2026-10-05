@@ -1,4 +1,4 @@
-const CACHE = 'ambm-v64';
+const CACHE = 'ambm-v65';
 const STATIC = [
   '/',
   '/index.html',
@@ -72,7 +72,7 @@ self.addEventListener('fetch', e => {
   // 오프라인이면 저장본으로 대체 (2026-10-05)
   if (isNavigation && url.searchParams.get('embed') === 'hsdtv') {
     e.respondWith(fetch(e.request).then(res => {
-      if (res && res.ok) caches.open(CACHE).then(c => c.put('/index.html', res.clone()));
+      if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put('/index.html', copy)); }   // 복제는 응답을 넘기기 전에
       return res;
     }).catch(() => caches.match('/index.html')));
     return;
