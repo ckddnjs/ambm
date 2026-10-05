@@ -179,7 +179,7 @@ async function renderDashboard(){
 
   document.getElementById('my-overview-card').innerHTML=
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">'+
-      '<div style="font-size:1rem;font-weight:700;color:var(--text);">📊 나의 현황</div>'+
+      '<div style="font-size:1rem;font-weight:700;color:var(--text);"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg>나의 현황</div>'+
     '</div>'+
     // CI 게이지 섹션
     '<div style="background:var(--bg3);border-radius:12px;padding:14px 16px;margin-bottom:12px;">'+
@@ -782,7 +782,7 @@ function showPlayerCard(userId, userName){
         </div>
       </div>
       <div style="height:1px;background:var(--border);margin-bottom:14px;"></div>
-      <div style="font-size:.72rem;font-weight:700;color:var(--text-muted);letter-spacing:.3px;margin-bottom:8px;">📅 이번 시즌 기록</div>
+      <div style="font-size:.72rem;font-weight:700;color:var(--text-muted);letter-spacing:.3px;margin-bottom:8px;"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg>이번 시즌 기록</div>
       <!-- 스탯 그리드 -->
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;">
         ${[['경기',g],['승',w],['패',l],['승률',wr+'%']].map(([lb,vl])=>`
@@ -809,7 +809,7 @@ function showPlayerCard(userId, userName){
       <div style="margin-bottom:14px;">
         <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.ci-toggle-icon').textContent=this.nextElementSibling.style.display==='none'?'▼':'▲';"
           style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;cursor:pointer;font-family:inherit;color:var(--text);">
-          <span style="font-size:.82rem;font-weight:600;">📐 종합점수 산정 내역</span>
+          <span style="font-size:.82rem;font-weight:600;"><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>종합점수 산정 내역</span>
           <span style="display:flex;align-items:center;gap:8px;">
             <span style="font-size:1rem;font-weight:700;color:#5BA4F5;">${ci}점</span>
             <span class="ci-toggle-icon" style="font-size:.72rem;color:var(--text-muted);">▼</span>
@@ -1376,7 +1376,7 @@ function _computeSeasonRanking(matches, users, seasonNum){
 async function openPastSeason(season){
   const body=document.getElementById('past-season-body');
   const titleEl=document.getElementById('past-season-title');
-  if(titleEl) titleEl.textContent='📜 시즌 '+season+' 최종 랭킹';
+  if(titleEl) titleEl.innerHTML='<svg class="ic" aria-hidden="true"><use href="#i-book"/></svg>시즌 '+season+' 최종 랭킹';
   if(body) body.innerHTML='<div style="text-align:center;padding:34px 0;"><div class="spinner" style="margin:0 auto;"></div></div>';
   openModal('modal-past-season');
 

@@ -78,7 +78,7 @@ async function renderStockMarketPage(){
       '<div style="position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--border);">'+
         '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px 10px;">'+
           '<div style="flex:1;">'+
-            '<div style="font-size:.95rem;font-weight:700;">📈 새벽민턴 증권거래소</div>'+
+            '<div style="font-size:.95rem;font-weight:700;"><svg class="ic" aria-hidden="true"><use href="#i-trend"/></svg>새벽민턴 증권거래소</div>'+
             '<div style="font-size:.65rem;color:var(--text-muted);">새벽민턴 증권거래소 · 초기자금 2,000P</div>'+
           '</div>'+
           '<div style="text-align:right;">'+
@@ -231,8 +231,8 @@ function _smRenderMarket(stocks,portfolio,cash){
         '</div>'+
         (held?'<div style="font-size:.78rem;color:var(--primary);text-align:center;margin-bottom:10px;font-weight:700;">현재 '+held+'주 보유 중</div>':'')+
         '<div style="display:flex;gap:8px;">'+
-          '<button onclick="smBuy(\''+s.id+'\',\''+s.name+'\','+s.price+')" style="flex:1;padding:13px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer;">📈 매수</button>'+
-          (held?'<button onclick="smSell(\''+s.id+'\',\''+s.name+'\','+s.price+','+held+')" style="flex:1;padding:13px;border-radius:10px;border:1px solid rgba(255,82,82,.5);background:rgba(255,82,82,.1);color:#FF7070;font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer;">📉 매도</button>':'<button disabled style="flex:1;padding:13px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);color:var(--text-dim);font-family:inherit;font-size:.92rem;cursor:default;">매도</button>')+
+          '<button onclick="smBuy(\''+s.id+'\',\''+s.name+'\','+s.price+')" style="flex:1;padding:13px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer;"><svg class="ic" aria-hidden="true"><use href="#i-trend"/></svg>매수</button>'+
+          (held?'<button onclick="smSell(\''+s.id+'\',\''+s.name+'\','+s.price+','+held+')" style="flex:1;padding:13px;border-radius:10px;border:1px solid rgba(255,82,82,.5);background:rgba(255,82,82,.1);color:#FF7070;font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer;"><svg class="ic" aria-hidden="true"><use href="#i-trend-down"/></svg>매도</button>':'<button disabled style="flex:1;padding:13px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);color:var(--text-dim);font-family:inherit;font-size:.92rem;cursor:default;">매도</button>')+
         '</div>'+
       '</div>'+
     '</div>';
@@ -360,13 +360,13 @@ function _smRenderPortfolio(stocks,portfolio,cash,totalAsset,netTransferIn=0,tra
         +'<div style="font-weight:800;font-size:1.5rem;color:var(--warn);line-height:1.1;">'+totalAsset.toLocaleString()+'p</div>'
       +'</div>'
       +'<div style="text-align:right;">'
-        +'<div style="font-size:.65rem;color:var(--text-muted);margin-bottom:2px;">📈 트레이딩 수익</div>'
+        +'<div style="font-size:.65rem;color:var(--text-muted);margin-bottom:2px;"><svg class="ic" aria-hidden="true"><use href="#i-trend"/></svg>트레이딩 수익</div>'
         +'<div style="font-weight:800;font-size:1.1rem;color:'+tradingColor+';">'+(tradingProfit>=0?'+':'')+tradingProfit.toLocaleString()+'p</div>'
       +'</div>'
     +'</div>'
     // 현금/주식
     +'<div style="display:flex;gap:10px;font-size:.7rem;color:var(--text-muted);">'
-      +'<span>💵 현금 '+cash.toLocaleString()+'p</span><span>📊 보유주식 '+(totalAsset-cash).toLocaleString()+'p</span>'
+      +'<span><svg class="ic" aria-hidden="true"><use href="#i-wallet"/></svg>현금 '+cash.toLocaleString()+'p</span><span><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg>보유주식 '+(totalAsset-cash).toLocaleString()+'p</span>'
     +'</div>'
   +'</div>'
   // 보유 종목 헤더
@@ -698,7 +698,7 @@ async function renderStockDetailPage(){
     '<div style="padding:0 0 16px;">'+
       '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px 11px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10;">'+
         '<button onclick="navigateTo(\'balance\')" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:0;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px;margin-right:2px;">‹</button>'+
-        '<div style="flex:1;"><div style="font-size:.95rem;font-weight:700;">📈 증권통장</div></div>'+
+        '<div style="flex:1;"><div style="font-size:.95rem;font-weight:700;"><svg class="ic" aria-hidden="true"><use href="#i-wallet"/></svg>증권통장</div></div>'+
       '</div>'+
       '<div style="padding:12px 14px 0;">'+
         // 자산 요약

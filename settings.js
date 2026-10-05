@@ -23,7 +23,7 @@ async function renderSettingsPage(){
   const dmBtn=document.getElementById('darkmode-settings-btn');
   if(dmBtn){
     const isLight=document.body.classList.contains('light-mode');
-    dmBtn.textContent=isLight?'🌙 다크로 변경':'☀️ 라이트로 변경';
+    dmBtn.innerHTML=isLight?'<svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg>다크로 변경':'<svg class="ic" aria-hidden="true"><use href="#i-sun"/></svg>라이트로 변경';
   }
 }
 

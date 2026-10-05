@@ -36,7 +36,7 @@ async function renderAdminPending(){
   // 가입 대기 회원 섹션
   if(pendingUsers&&pendingUsers.length){
     html+=`<div style="margin-bottom:16px;">
-      <div style="font-size:.82rem;font-weight:700;color:var(--accent);margin-bottom:8px;">👤 가입 승인 대기 (${pendingUsers.length}명)</div>`;
+      <div style="font-size:.82rem;font-weight:700;color:var(--accent);margin-bottom:8px;"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg>가입 승인 대기 (${pendingUsers.length}명)</div>`;
     pendingUsers.forEach(u=>{
       html+=`<div class="card" style="margin-bottom:6px;padding:10px 12px;border-left:3px solid var(--accent);">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
@@ -45,8 +45,8 @@ async function renderAdminPending(){
             <div style="font-size:.75rem;color:var(--text-muted);">${u.email||'이메일없음'} · ${u.provider||'kakao'}</div>
           </div>
           <div style="display:flex;gap:6px;">
-            <button class="btn btn-success btn-sm" onclick="approveUser('${u.id}')">✅ 승인</button>
-            <button class="btn btn-danger btn-sm" onclick="confirmDenyUser('${u.id}','${u.name}')">❌ 거절</button>
+            <button class="btn btn-success btn-sm" onclick="approveUser('${u.id}')"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>승인</button>
+            <button class="btn btn-danger btn-sm" onclick="confirmDenyUser('${u.id}','${u.name}')"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>거절</button>
           </div>
         </div>
       </div>`;
@@ -62,7 +62,7 @@ async function renderAdminPending(){
         <input type="checkbox" id="chk-all-pending" onchange="toggleAllPending(this.checked)" style="width:16px;height:16px;cursor:pointer;">
         <span style="font-size:.82rem;color:var(--text-muted);">전체 선택</span>
       </div>
-      <button onclick="bulkApprovePending()" class="btn btn-success btn-sm" id="btn-bulk-approve" style="display:none;">✅ 선택 일괄승인</button>
+      <button onclick="bulkApprovePending()" class="btn btn-success btn-sm" id="btn-bulk-approve" style="display:none;"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>선택 일괄승인</button>
     </div>
     <div id="pending-cards">`;
     html+=matches.map(m=>`
@@ -130,7 +130,7 @@ async function renderAdminMembers(){
   const guestModeNames=await _loadGuestModeNames();
 
   // 회원 목록
-  const memberSection=`<div class="flex-between mb-2"><span class="text-muted" style="font-size:.82rem;">총 ${(users||[]).length}명</span><button class="btn btn-primary btn-sm" onclick="openCreateUserModal()">➕ 계정 생성</button></div>`+
+  const memberSection=`<div class="flex-between mb-2"><span class="text-muted" style="font-size:.82rem;">총 ${(users||[]).length}명</span><button class="btn btn-primary btn-sm" onclick="openCreateUserModal()"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>계정 생성</button></div>`+
     (users||[]).map(u=>`<div class="card" style="margin-bottom:8px;padding:10px 12px;">
       <div style="display:flex;align-items:center;gap:8px;">
         <div style="flex:1;min-width:0;">
@@ -138,8 +138,8 @@ async function renderAdminMembers(){
           <div style="font-size:.74rem;color:var(--text-muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${u.email||''}</div>
         </div>
         <div style="display:flex;flex-direction:row;gap:4px;flex-shrink:0;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
-          <button class="btn btn-ghost btn-xs" onclick="openEditUser('${u.id}','${escHtml(u.name)}','${u.gender||''}','${u.status}','${u.role}',${!!u.exclude_stats})">✏️ 수정</button>
-          ${u.status==='pending'?`<button class="btn btn-success btn-xs" onclick="approveUser('${u.id}')">✅ 승인</button>`:''}
+          <button class="btn btn-ghost btn-xs" onclick="openEditUser('${u.id}','${escHtml(u.name)}','${u.gender||''}','${u.status}','${u.role}',${!!u.exclude_stats})"><svg class="ic" aria-hidden="true"><use href="#i-pencil"/></svg>수정</button>
+          ${u.status==='pending'?`<button class="btn btn-success btn-xs" onclick="approveUser('${u.id}')"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>승인</button>`:''}
         </div>
       </div>
     </div>`).join('');
@@ -150,7 +150,7 @@ async function renderAdminMembers(){
 
   const guestSection=guestArr.length?`
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
-      <div style="font-size:.84rem;font-weight:700;color:var(--text);margin-bottom:10px;">👻 비회원 관리 <span style="font-size:.74rem;font-weight:400;color:var(--text-muted);">(${guestArr.length}명)</span></div>
+      <div style="font-size:.84rem;font-weight:700;color:var(--text);margin-bottom:10px;"><svg class="ic" aria-hidden="true"><use href="#i-ghost"/></svg>비회원 관리 <span style="font-size:.74rem;font-weight:400;color:var(--text-muted);">(${guestArr.length}명)</span></div>
       <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:10px;line-height:1.6;">
         연계 버튼을 눌러 회원을 선택하면 해당 비회원의 경기 기록이 회원 이름으로 변경됩니다.<br>
         게스트모드 체크 시 경기 기록은 유지되지만 전체 랭킹에서 제외됩니다.
@@ -165,7 +165,7 @@ async function renderAdminMembers(){
           return `<div style="display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid ${hasMember?'rgba(255,152,0,.45)':'var(--border)'};border-radius:8px;padding:6px 9px;">
             <div style="flex:1;min-width:0;">
               <div style="font-size:.81rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(nm)}</div>
-              ${hasMember?'<div style="font-size:.62rem;color:#E65100;">⚠️ 동명 회원 존재 — 연계 필요</div>':isGM?'<div style="font-size:.62rem;color:#E65100;">랭킹제외</div>':''}
+              ${hasMember?'<div style="font-size:.62rem;color:#E65100;"><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg>동명 회원 존재 — 연계 필요</div>':isGM?'<div style="font-size:.62rem;color:#E65100;">랭킹제외</div>':''}
             </div>
             <label style="display:flex;align-items:center;gap:4px;cursor:pointer;flex-shrink:0;" title="랭킹 제외 (경기 기록은 유지)">
               <input type="checkbox" id="${safeId}" ${isGM?'checked':''} onchange="toggleGuestMode('${escHtml(nm)}',this.checked)"
@@ -188,7 +188,7 @@ async function renderAdminMembers(){
     modalEl.id='modal-link-guest';
     modalEl.className='modal-overlay center';
     modalEl.innerHTML=`<div class="modal center-modal" style="max-width:340px;">
-      <div class="modal-title">🔗 기록 연계</div>
+      <div class="modal-title"><svg class="ic" aria-hidden="true"><use href="#i-link"/></svg>기록 연계</div>
       <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:12px;">
         <span id="link-guest-name" style="font-weight:700;color:var(--text);"></span>의 기록을 연계할 회원을 선택하세요.
       </div>
@@ -231,7 +231,7 @@ async function toggleGuestMode(name, enabled){
   // 레이블 즉시 업데이트
   const safeId='gm-'+name.replace(/[^a-zA-Z0-9가-힣]/g,'_');
   const lbl=document.getElementById(safeId)?.closest('div')?.querySelector('span:last-child');
-  if(lbl){ lbl.style.color=enabled?'#E65100':'var(--text-dim)'; lbl.textContent=enabled?'👻 랭킹 제외':'랭킹 반영'; }
+  if(lbl){ lbl.style.color=enabled?'#E65100':'var(--text-dim)'; lbl.innerHTML=enabled?'<svg class="ic" aria-hidden="true"><use href="#i-ghost"/></svg>랭킹 제외':'랭킹 반영'; }
 }
 
 // 비회원 기록을 기존 회원에 연계
@@ -332,8 +332,8 @@ async function renderAdminBatch(){
   const el=document.getElementById('admin-content');
   el.innerHTML=`
     <div style="margin-bottom:12px;">
-      <div style="font-size:.85rem;font-weight:700;margin-bottom:6px;">📋 경기 일괄 등록</div>
-      <button onclick="document.getElementById('batch-photo-input').click()" class="btn btn-secondary" style="width:100%;margin-bottom:8px;">📷 결과판 사진으로 인식 (AI)</button>
+      <div style="font-size:.85rem;font-weight:700;margin-bottom:6px;"><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>경기 일괄 등록</div>
+      <button onclick="document.getElementById('batch-photo-input').click()" class="btn btn-secondary" style="width:100%;margin-bottom:8px;"><svg class="ic" aria-hidden="true"><use href="#i-camera"/></svg>결과판 사진으로 인식 (AI)</button>
       <input type="file" id="batch-photo-input" accept="image/*" multiple style="display:none;" onchange="batchPhotoOcr(this)">
       <div id="batch-photo-status"></div>
       <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px;line-height:1.6;background:var(--bg2);padding:10px;border-radius:8px;">
@@ -346,7 +346,7 @@ async function renderAdminBatch(){
       <textarea id="batch-input" placeholder="여기에 경기 데이터를 붙여넣으세요..."
         style="width:100%;min-height:160px;box-sizing:border-box;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:.82rem;font-family:monospace;resize:vertical;"></textarea>
     </div>
-    <button onclick="batchParsePreview()" class="btn btn-primary" style="width:100%;margin-bottom:10px;">🔍 파싱 미리보기</button>
+    <button onclick="batchParsePreview()" class="btn btn-primary" style="width:100%;margin-bottom:10px;"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>파싱 미리보기</button>
     <div id="batch-preview"></div>`;
 }
 
@@ -358,7 +358,7 @@ async function batchPhotoOcr(input){
   const st=document.getElementById('batch-photo-status');
   const setSt=(html)=>{if(st)st.innerHTML=html;};
   try{
-    setSt(`<div style="font-size:.78rem;color:var(--text-muted);padding:6px 2px;">🔄 사진 ${files.length}장 압축 중...</div>`);
+    setSt(`<div style="font-size:.78rem;color:var(--text-muted);padding:6px 2px;"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>사진 ${files.length}장 압축 중...</div>`);
     const images=[];
     for(const f of files) images.push({b64:await _photoToB64(f,1800,0.85),mime:'image/jpeg'});
     setSt(`<div style="font-size:.78rem;color:var(--text-muted);padding:6px 2px;">🤖 AI가 결과판 ${files.length}장을 읽는 중... (20~60초)</div>`);
@@ -435,7 +435,7 @@ async function batchParsePreview(){
   if(!results.length&&!errors.length){wrap.innerHTML='<div style="color:var(--text-muted);font-size:.82rem;">내용을 입력하세요</div>';return;}
   let errHtml='';
   if(errors.length){
-    errHtml+=`<div style="font-size:.82rem;font-weight:700;margin:10px 0 6px;color:var(--danger);">⚠️ 파싱 실패 ${errors.length}건</div>`;
+    errHtml+=`<div style="font-size:.82rem;font-weight:700;margin:10px 0 6px;color:var(--danger);"><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg>파싱 실패 ${errors.length}건</div>`;
     errors.forEach(e=>{
       errHtml+=`<div style="font-size:.78rem;color:var(--danger);padding:4px 8px;background:rgba(255,82,82,.08);border-radius:6px;margin-bottom:4px;">${e.line}번줄: ${e.text} → ${e.reason}</div>`;
     });
@@ -494,7 +494,7 @@ function _batchRenderGrid(records,extraHtml){
       ${records.map((r,i)=>_bmRowHtml(i,r)).join('')}
     </div>
     <button onclick="_bmAddRow()" class="btn btn-ghost" style="width:100%;margin-bottom:8px;border:1px dashed var(--border);color:var(--text-muted);">＋ 경기 추가</button>
-    <button onclick="_batchGridSubmit()" class="btn btn-primary" style="width:100%;margin-bottom:12px;">📨 일괄 등록</button>
+    <button onclick="_batchGridSubmit()" class="btn btn-primary" style="width:100%;margin-bottom:12px;"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>일괄 등록</button>
     ${extraHtml||''}`;
   records.forEach((_,i)=>_bmScoreMark(i));
 }
@@ -635,7 +635,7 @@ function renderAdminTournamentImport(){
   if(!el) return;
   el.innerHTML=`
   <div style="margin-bottom:12px;">
-    <div style="font-size:.88rem;font-weight:700;margin-bottom:6px;">🏆 대회 경기 일괄 입력</div>
+    <div style="font-size:.88rem;font-weight:700;margin-bottom:6px;"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg>대회 경기 일괄 입력</div>
     <div style="font-size:.76rem;color:var(--text-muted);background:var(--bg2);border-radius:8px;padding:10px 12px;margin-bottom:10px;line-height:1.7;">
       엑셀에서 <b>탭 구분 텍스트</b>를 복사해서 붙여넣으세요.<br>
       <b>컬럼 순서:</b> 구분 · 날짜 · 선수A · 선수B · 점수1 · 점수2 · 선수C · 선수D · 단계 · 슬롯 · 라운드 · BYE<br>
@@ -649,7 +649,7 @@ function renderAdminTournamentImport(){
     <textarea id="ti-raw" placeholder="여기에 엑셀 데이터를 붙여넣으세요..."
       style="width:100%;min-height:200px;box-sizing:border-box;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:.78rem;font-family:monospace;resize:vertical;"></textarea>
   </div>
-  <button onclick="tiParsePreview()" class="btn btn-primary" style="width:100%;margin-bottom:10px;">🔍 미리보기</button>
+  <button onclick="tiParsePreview()" class="btn btn-primary" style="width:100%;margin-bottom:10px;"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>미리보기</button>
   <div id="ti-preview"></div>`;
 }
 
@@ -729,7 +729,7 @@ function _tiRenderPreview(result){
       if(!bySlot[k]) bySlot[k]=[];
       bySlot[k].push(r);
     });
-    html+=`<div style="font-size:.82rem;font-weight:700;color:var(--primary);margin-bottom:6px;">📋 조별 리그 (${result.league.length}경기)</div>`;
+    html+=`<div style="font-size:.82rem;font-weight:700;color:var(--primary);margin-bottom:6px;"><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>조별 리그 (${result.league.length}경기)</div>`;
     Object.entries(bySlot).forEach(([slot,rows])=>{
       html+=`<div style="margin-bottom:8px;"><div style="font-size:.78rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;">${slot}</div>`;
       rows.forEach(r=>{
@@ -742,7 +742,7 @@ function _tiRenderPreview(result){
 
   // 본선
   if(result.knockout.length){
-    html+=`<div style="font-size:.82rem;font-weight:700;color:var(--info);margin-bottom:6px;margin-top:8px;">🏆 본선 토너먼트 (${result.knockout.length}경기)</div>`;
+    html+=`<div style="font-size:.82rem;font-weight:700;color:var(--info);margin-bottom:6px;margin-top:8px;"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg>본선 토너먼트 (${result.knockout.length}경기)</div>`;
     const stageOrder=['8강','4강','결승'];
     stageOrder.forEach(st=>{
       const rows=result.knockout.filter(r=>r.stage===st);
@@ -757,7 +757,7 @@ function _tiRenderPreview(result){
 
   // 팀전
   if(result.team.length){
-    html+=`<div style="font-size:.82rem;font-weight:700;color:var(--warn);margin-bottom:6px;margin-top:8px;">🚩 팀전 (${result.team.length}경기)</div>`;
+    html+=`<div style="font-size:.82rem;font-weight:700;color:var(--warn);margin-bottom:6px;margin-top:8px;"><svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg>팀전 (${result.team.length}경기)</div>`;
     result.team.forEach(r=>{
       html+=`<div style="font-size:.76rem;padding:3px 6px;display:flex;gap:8px;"><span style="min-width:32px;color:var(--text-muted);">${r.round}</span><span>${r.pA}${r.pB?' / '+r.pB:''}</span><b style="color:var(--primary);">${r.s1??'?'}:${r.s2??'?'}</b><span>${r.pC}${r.pD?' / '+r.pD:''}</span></div>`;
     });
@@ -837,7 +837,7 @@ async function tiSubmit(){
     setTimeout(()=>navigateTo('tournament'),600);
   }catch(e){
     toast(e.message,'error');
-    if(btn){btn.disabled=false;btn.textContent='📥 대회 생성 + 경기내역 등록';}
+    if(btn){btn.disabled=false;btn.innerHTML='<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>대회 생성 + 경기내역 등록';}
   }
 }
 
@@ -973,11 +973,11 @@ async function renderAdminMatchDelete(){
   if(!el) return;
   _delSelectedIds = new Set();
   el.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-    <div style="font-size:.88rem;font-weight:700;">🗑️ 경기내역 일괄 삭제</div>
+    <div style="font-size:.88rem;font-weight:700;"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg>경기내역 일괄 삭제</div>
     <div style="display:flex;gap:6px;align-items:center;">
       <span id="del-count-label" style="font-size:.78rem;color:var(--text-muted);">0건 선택</span>
       <button id="del-all-btn" onclick="delToggleAll()" class="btn btn-ghost btn-sm">전체선택</button>
-      <button onclick="delExecute()" class="btn btn-danger btn-sm" id="del-exec-btn" disabled>🗑️ 삭제</button>
+      <button onclick="delExecute()" class="btn btn-danger btn-sm" id="del-exec-btn" disabled><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg>삭제</button>
     </div>
   </div>
   <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
@@ -1048,7 +1048,7 @@ function _updateDelUI(){
   const btn=document.getElementById('del-exec-btn');
   const allBtn=document.getElementById('del-all-btn');
   if(lbl) lbl.textContent=`${n}건 선택`;
-  if(btn){btn.disabled=n===0;btn.textContent=n>0?`🗑️ ${n}건 삭제`:'🗑️ 삭제';}
+  if(btn){btn.disabled=n===0;btn.innerHTML=n>0?`<svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg>${n}건 삭제`:'<svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg>삭제';}
   const cards=document.querySelectorAll('#del-list [data-id]');
   const allIds=[...cards].map(c=>c.dataset.id);
   if(allBtn) allBtn.textContent=allIds.length&&allIds.every(id=>_delSelectedIds.has(id))?'전체해제':'전체선택';
@@ -1074,7 +1074,7 @@ async function delExecute(){
 async function renderAdminLogs(){
   const{data:logs}=await sb.from('logs').select('*').order('created_at',{ascending:false}).limit(100);
   const el=document.getElementById('admin-content');
-  el.innerHTML=`<div class="flex-between mb-2"><span class="text-muted">최근 로그</span><button class="btn btn-ghost btn-xs" onclick="clearLogs()">🗑 초기화</button></div>
+  el.innerHTML=`<div class="flex-between mb-2"><span class="text-muted">최근 로그</span><button class="btn btn-ghost btn-xs" onclick="clearLogs()"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg>초기화</button></div>
     <div class="card">${(logs||[]).map(l=>`<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.78rem;"><span style="color:var(--text-muted);white-space:nowrap;min-width:90px;">${fmtDate(l.created_at,true)}</span><span style="flex:1;">${l.message}</span></div>`).join('')||'<div class="text-muted" style="text-align:center;padding:16px;">로그 없음</div>'}</div>`;
 }
 
@@ -1434,8 +1434,8 @@ async function renderAdminCraft(){
             <div style="font-size:.68rem;color:var(--text-dim);margin-top:3px;">${new Date(r.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0;">
-            <button class="btn btn-success btn-sm" onclick="adminCraftApprove('${r.id}')">✅ 승인</button>
-            <button class="btn btn-danger btn-sm" onclick="adminCraftReject('${r.id}')">❌ 반려</button>
+            <button class="btn btn-success btn-sm" onclick="adminCraftApprove('${r.id}')"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>승인</button>
+            <button class="btn btn-danger btn-sm" onclick="adminCraftReject('${r.id}')"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>반려</button>
           </div>
         </div>
       </div>`).join('')
@@ -1468,7 +1468,7 @@ async function renderAdminCraft(){
     <div style="padding-bottom:24px;">
       <!-- 교환 요청 -->
       <div style="font-size:.82rem;font-weight:700;color:var(--accent);margin-bottom:10px;">
-        🔄 교환 요청 대기 <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 7px;font-size:.72rem;">${pending.length}</span>
+        <svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>교환 요청 대기 <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 7px;font-size:.72rem;">${pending.length}</span>
       </div>
       ${pendingHtml}
       ${doneHtml}
@@ -1476,7 +1476,7 @@ async function renderAdminCraft(){
       <div style="height:1px;background:var(--border);margin:20px 0;"></div>
 
       <!-- 가격 설정 -->
-      <div style="font-size:.82rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;">⚙️ 재료 가격 설정</div>
+      <div style="font-size:.82rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;"><svg class="ic" aria-hidden="true"><use href="#i-settings"/></svg>재료 가격 설정</div>
       <div class="card" style="padding:12px 14px;">
         ${priceRows}
         <div style="display:flex;align-items:center;gap:10px;padding:9px 0;">
@@ -1489,7 +1489,7 @@ async function renderAdminCraft(){
           </div>
         </div>
       </div>
-      <button onclick="adminCraftSaveConfig()" style="width:100%;margin-top:10px;padding:11px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;">💾 설정 저장</button>
+      <button onclick="adminCraftSaveConfig()" style="width:100%;margin-top:10px;padding:11px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;"><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg>설정 저장</button>
     </div>`;
 }
 
@@ -1582,13 +1582,13 @@ function _renderTradingHaltUI(halts){
       </div>
 
       <!-- 현재 정지 구간 목록 -->
-      <div style="font-size:.82rem;font-weight:700;color:var(--text-muted);margin-bottom:8px;">📋 현재 정지 구간 (${halts.length}건)</div>
+      <div style="font-size:.82rem;font-weight:700;color:var(--text-muted);margin-bottom:8px;"><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>현재 정지 구간 (${halts.length}건)</div>
       <div id="halt-list">${haltRows}</div>
 
       <div style="height:1px;background:var(--border);margin:20px 0;"></div>
 
       <!-- 추가 폼 -->
-      <div style="font-size:.82rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;">➕ 정지 구간 추가</div>
+      <div style="font-size:.82rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>정지 구간 추가</div>
       <div class="card" style="padding:14px;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
           <div>
@@ -1608,7 +1608,7 @@ function _renderTradingHaltUI(halts){
             <select id="halt-end-time" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-family:inherit;font-size:.85rem;">${timeOpts}</select>
           </div>
         </div>
-        <button onclick="adminAddTradingHalt()" style="width:100%;padding:10px;border-radius:10px;border:none;background:var(--danger);color:#fff;font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;">⏸ 구간 추가</button>
+        <button onclick="adminAddTradingHalt()" style="width:100%;padding:10px;border-radius:10px;border:none;background:var(--danger);color:#fff;font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>구간 추가</button>
       </div>
     </div>`;
   // 전역에 현재 halts 저장
@@ -1705,7 +1705,7 @@ async function renderAdminSeasonClose(){
       <div class="card" style="padding:14px;">
         <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:6px;">새 시즌 시작일 (이 날짜 이후 경기부터 랭킹 집계)</div>
         <input id="season-new-start" type="date" value="${todayISO}" style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-family:inherit;font-size:.9rem;margin-bottom:12px;">
-        <button onclick="adminSeasonPreview()" id="season-preview-btn" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--primary);background:var(--bg3);color:var(--primary);font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;">🔍 미리보기 (청산액 계산 · 실행 안 함)</button>
+        <button onclick="adminSeasonPreview()" id="season-preview-btn" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--primary);background:var(--bg3);color:var(--primary);font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>미리보기 (청산액 계산 · 실행 안 함)</button>
       </div>
 
       <div id="season-preview-result" style="margin-top:14px;"></div>
@@ -1739,17 +1739,17 @@ async function adminSeasonPreview(){
       </div>`).join('')||'<div style="text-align:center;padding:14px 0;color:var(--text-muted);font-size:.82rem;">청산할 보유 주식이 없습니다</div>';
     document.getElementById('season-preview-result').innerHTML=`
       <div class="card" style="padding:14px;border:1px solid var(--primary);">
-        <div style="font-size:.82rem;font-weight:700;margin-bottom:10px;">🔍 미리보기 결과 (아직 실행되지 않음)</div>
+        <div style="font-size:.82rem;font-weight:700;margin-bottom:10px;"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>미리보기 결과 (아직 실행되지 않음)</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;font-size:.8rem;">
           <div style="background:var(--bg2);border-radius:8px;padding:9px;"><div style="color:var(--text-muted);margin-bottom:3px;">청산 대상</div><b>${r.holderCount}명 · ${r.portfolioRows}건</b></div>
           <div style="background:var(--bg2);border-radius:8px;padding:9px;"><div style="color:var(--text-muted);margin-bottom:3px;">총 환급액</div><b style="color:var(--accent);">${(r.totalRefund||0).toLocaleString()}p</b></div>
         </div>
         <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:8px;">시즌 ${r.currentSeason} → ${r.newSeason} · 새 컷오프 ${r.newSeasonStart}</div>
         <div style="max-height:260px;overflow-y:auto;margin-bottom:14px;">${rows}</div>
-        <button onclick="adminSeasonExecute()" style="width:100%;padding:12px;border-radius:10px;border:none;background:var(--danger);color:#fff;font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer;">🏁 시즌 마감 실행 (되돌릴 수 없음)</button>
+        <button onclick="adminSeasonExecute()" style="width:100%;padding:12px;border-radius:10px;border:none;background:var(--danger);color:#fff;font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer;"><svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg>시즌 마감 실행 (되돌릴 수 없음)</button>
       </div>`;
   } finally {
-    if(btn){btn.disabled=false;btn.textContent='🔍 미리보기 (청산액 계산 · 실행 안 함)';}
+    if(btn){btn.disabled=false;btn.innerHTML='<svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>미리보기 (청산액 계산 · 실행 안 함)';}
   }
 }
 
@@ -1834,10 +1834,10 @@ async function renderAdminPopupNotice(){
 
       <!-- 버튼 -->
       <div style="display:grid;grid-template-columns:1fr auto;gap:8px;">
-        <button onclick="adminSavePopupNotice()" style="padding:12px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer;">💾 저장</button>
+        <button onclick="adminSavePopupNotice()" style="padding:12px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer;"><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg>저장</button>
         <button onclick="adminPreviewPopup()" style="padding:12px 16px;border-radius:10px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-family:inherit;font-size:.88rem;cursor:pointer;">미리보기</button>
       </div>
-      <button onclick="adminResetMyPopupDismiss()" style="width:100%;margin-top:8px;padding:9px;border-radius:10px;border:1px dashed var(--border);background:none;color:var(--text-muted);font-family:inherit;font-size:.78rem;cursor:pointer;">🔄 내 다시보지않기 초기화 (테스트용)</button>
+      <button onclick="adminResetMyPopupDismiss()" style="width:100%;margin-top:8px;padding:9px;border-radius:10px;border:1px dashed var(--border);background:none;color:var(--text-muted);font-family:inherit;font-size:.78rem;cursor:pointer;"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>내 다시보지않기 초기화 (테스트용)</button>
     </div>`;
 
 
@@ -1907,7 +1907,7 @@ function _showPopupNoticeModal(cfg, dismissKey){
         <button onclick="document.getElementById('popup-notice-overlay').remove();"
           style="width:100%;padding:12px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer;">확인</button>
         ${dismissKey?`<button onclick="localStorage.setItem('${dismissKey}','1');document.getElementById('popup-notice-overlay').remove();"
-          style="width:100%;padding:9px;border-radius:10px;border:1px dashed var(--border);background:none;color:var(--text-muted);font-family:inherit;font-size:.78rem;cursor:pointer;">🔕 다시 보지 않기</button>`:''}
+          style="width:100%;padding:9px;border-radius:10px;border:1px dashed var(--border);background:none;color:var(--text-muted);font-family:inherit;font-size:.78rem;cursor:pointer;"><svg class="ic" aria-hidden="true"><use href="#i-bell-off"/></svg>다시 보지 않기</button>`:''}
       </div>
     </div>`;
   document.body.appendChild(overlay);

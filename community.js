@@ -31,7 +31,7 @@ function riseBlockHTML(){
   if(commTab!=='all' && commTab!=='general') return '';
   return `<div class="rise-card">
     <div class="rise-head">
-      <div class="rise-title">📈 시즌2 상승률 TOP 10 <span class="rise-tag">20경기 이상</span></div>
+      <div class="rise-title"><svg class="ic" aria-hidden="true"><use href="#i-trend"/></svg>시즌2 상승률 TOP 10 <span class="rise-tag">20경기 이상</span></div>
       <div class="rise-sub">시즌1 대비 종합점수(CI)가 가장 많이 오른 순서 · 괄호는 그 시즌 랭킹</div>
     </div>
     <div class="rise-grid">
@@ -137,7 +137,7 @@ function selectPostCat(cat){
 
 function openPostForm(editId=null){
   document.getElementById('post-edit-id').value=editId||'';
-  document.getElementById('post-form-title').textContent=editId?'✏️ 글 수정':'✍️ 글쓰기';
+  document.getElementById('post-form-title').innerHTML=editId?'<svg class="ic" aria-hidden="true"><use href="#i-pencil"/></svg>글 수정':'<svg class="ic" aria-hidden="true"><use href="#i-pencil"/></svg>글쓰기';
   document.getElementById('post-title').value='';
   document.getElementById('post-body').value='';
   // 기본 카테고리: 현재 탭 (all이면 general)
@@ -150,7 +150,7 @@ async function editPost(id){
   const{data:p}=await sb.from('community_posts').select('*').eq('id',id).single();
   if(!p) return;
   document.getElementById('post-edit-id').value=id;
-  document.getElementById('post-form-title').textContent='✏️ 글 수정';
+  document.getElementById('post-form-title').innerHTML='<svg class="ic" aria-hidden="true"><use href="#i-pencil"/></svg>글 수정';
   document.getElementById('post-title').value=p.title;
   document.getElementById('post-body').value=p.body;
   selectPostCat(p.category||'general');
@@ -258,7 +258,7 @@ async function _openBalanceDetail(bt){
   const titleEl=document.getElementById('bd-title');
   const contentEl=document.getElementById('bd-content');
   const actionsEl=document.getElementById('bd-actions');
-  if(titleEl) titleEl.textContent='⚖️ '+bt.name;
+  if(titleEl) titleEl.innerHTML='<svg class="ic" aria-hidden="true"><use href="#i-scale"/></svg>'+escHtml(bt.name||'');
   if(!contentEl) return;
   // score 보완용 pool 미리 로드
   if(!window._balUserPool||window._balUserPool.length===0) await _balLoadAttendees();
@@ -266,8 +266,8 @@ async function _openBalanceDetail(bt){
   contentEl.innerHTML=_renderBalanceSavedView(bt, data);
   if(actionsEl) actionsEl.innerHTML=
     `<button class="btn btn-ghost" onclick="closeModal('modal-bracket-detail')">닫기</button>`+
-    (isAdmin?`<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="balDeleteFromDetail('${bt.id}')">🗑 삭제</button>`+
-    `<button class="btn btn-primary" onclick="closeModal('modal-bracket-detail');balEditFromHistory('${bt.id}')">✏️ 수정</button>`:'');
+    (isAdmin?`<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="balDeleteFromDetail('${bt.id}')"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg>삭제</button>`+
+    `<button class="btn btn-primary" onclick="closeModal('modal-bracket-detail');balEditFromHistory('${bt.id}')"><svg class="ic" aria-hidden="true"><use href="#i-pencil"/></svg>수정</button>`:'');
   openModal('modal-bracket-detail');
 }
 async function balEditFromHistory(btId){

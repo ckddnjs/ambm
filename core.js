@@ -421,7 +421,7 @@ function showPendingScreen(name){
   el.innerHTML=`<div style="font-size:3.5rem;margin-bottom:16px;">⏳</div>
     <div style="font-family:Black Han Sans,sans-serif;font-size:1.5rem;color:var(--primary);margin-bottom:8px;">승인 대기 중</div>
     <div style="color:var(--text-muted);font-size:.9rem;margin-bottom:24px;line-height:1.7;"><b style="color:var(--text);">${name}</b>님, 가입 신청이 완료되었습니다.<br>관리자 승인 후 서비스를 이용할 수 있어요.</div>
-    <button onclick="doLogoutFromPending()" style="background:var(--bg2);border:1px solid var(--border);color:var(--text-muted);border-radius:10px;padding:10px 24px;font-family:inherit;cursor:pointer;">↩ 로그아웃</button>`;
+    <button onclick="doLogoutFromPending()" style="background:var(--bg2);border:1px solid var(--border);color:var(--text-muted);border-radius:10px;padding:10px 24px;font-family:inherit;cursor:pointer;"><svg class="ic" aria-hidden="true"><use href="#i-logout"/></svg>로그아웃</button>`;
   document.body.appendChild(el);
 }
 async function doLogoutFromPending(){_explicitLogout=true;await sb.auth.signOut();ME=null;document.getElementById('pending-screen')?.remove();showLogin();}

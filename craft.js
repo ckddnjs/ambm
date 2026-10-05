@@ -113,7 +113,7 @@ function _renderMarketShop(inv,cash,items){
     '</div>'+
     '<div style="font-size:.78rem;font-weight:700;color:var(--text-muted);margin-bottom:8px;">🏸 제작 재료</div>'+
     craftItems.map(itemCard).join('')+
-    '<div style="font-size:.78rem;font-weight:700;color:var(--text-muted);margin:14px 0 8px;">✨ 특별 아이템</div>'+
+    '<div style="font-size:.78rem;font-weight:700;color:var(--text-muted);margin:14px 0 8px;"><svg class="ic" aria-hidden="true"><use href="#i-sparkles"/></svg>특별 아이템</div>'+
     specialItems.map(itemCard).join('')
   );
 }
@@ -182,10 +182,10 @@ function _renderWorkshop(inv,myShuttles,myDefective){
       '</label>'+
     '</div>'+
     '<button onclick="startCraft()" style="width:100%;margin-top:8px;padding:12px;border-radius:10px;border:none;font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer;background:var(--primary);color:#fff;">🏸 제작 시작 → 비행 테스트</button>'+
-    '<button onclick="previewCraftImages()" style="width:100%;margin-top:6px;padding:10px;border-radius:10px;border:1px solid rgba(255,179,0,.4);background:rgba(255,179,0,.08);color:#FFB300;font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;">🔍 제작 과정 미리보기</button>'+
+    '<button onclick="previewCraftImages()" style="width:100%;margin-top:6px;padding:10px;border-radius:10px;border:1px solid rgba(255,179,0,.4);background:rgba(255,179,0,.08);color:#FFB300;font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>제작 과정 미리보기</button>'+
   '</div>'+
   '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px;">'+
-    '<div style="font-size:.78rem;font-weight:700;margin-bottom:8px;">📋 제작 안내</div>'+
+    '<div style="font-size:.78rem;font-weight:700;margin-bottom:8px;"><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>제작 안내</div>'+
     '<div style="font-size:.72rem;color:var(--text-muted);line-height:1.8;">'+
       '1. 재료 탭에서 증권 현금으로 재료를 구매하세요<br>'+
       '2. 재료가 모이면 이미지로 진행 상황이 표시됩니다<br>'+
@@ -213,7 +213,7 @@ function _renderInventory(inv,myShuttles,myDefective){
         '<div style="flex:1;"><div style="font-size:.88rem;font-weight:700;">완성된 셔틀콕</div><div style="font-size:.72rem;color:var(--text-muted);">실물 교환 가능</div></div>'+
         '<div style="font-family:Black Han Sans,sans-serif;font-size:1.3rem;color:var(--primary);">'+myShuttles+'개</div>'+
       '</div>'+
-      '<button onclick="openExchangeRequest('+myShuttles+')" style="width:100%;padding:9px;border-radius:8px;border:none;background:var(--primary);color:#fff;font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;">🔄 교환 요청</button>'+
+      '<button onclick="openExchangeRequest('+myShuttles+')" style="width:100%;padding:9px;border-radius:8px;border:none;background:var(--primary);color:#fff;font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>교환 요청</button>'+
     '</div>';
   }
   const myGrips=inv['grip']||0;
@@ -224,7 +224,7 @@ function _renderInventory(inv,myShuttles,myDefective){
         '<div style="flex:1;"><div style="font-size:.88rem;font-weight:700;">그립</div><div style="font-size:.72rem;color:var(--text-muted);">실물 교환 가능</div></div>'+
         '<div style="font-family:Black Han Sans,sans-serif;font-size:1.3rem;color:var(--warn);">'+myGrips+'개</div>'+
       '</div>'+
-      '<button onclick="openGripExchange('+myGrips+')" style="width:100%;padding:9px;border-radius:8px;border:none;background:var(--warn);color:#1a1a1a;font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;">🔄 그립 교환 요청</button>'+
+      '<button onclick="openGripExchange('+myGrips+')" style="width:100%;padding:9px;border-radius:8px;border:none;background:var(--warn);color:#1a1a1a;font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>그립 교환 요청</button>'+
     '</div>';
   }
   if(myDefective>0){
@@ -332,7 +332,7 @@ function previewCraftImages(){
   modal.innerHTML=
     '<div style="background:var(--surface);border-radius:16px;width:100%;max-width:360px;overflow:hidden;">'+
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;">'+
-        '<div style="font-size:.95rem;font-weight:700;">🔍 제작 과정 미리보기</div>'+
+        '<div style="font-size:.95rem;font-weight:700;"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>제작 과정 미리보기</div>'+
         '<button onclick="document.getElementById(\'modal-craft-preview\').remove()" style="background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;line-height:1;">×</button>'+
       '</div>'+
       '<div style="padding:0 16px 16px;">'+

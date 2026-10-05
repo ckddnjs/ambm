@@ -19,7 +19,7 @@ async function openBracketDetail(id){
   const titleEl=document.getElementById('bd-title');
   const contentEl=document.getElementById('bd-content');
   const actionsEl=document.getElementById('bd-actions');
-  if(titleEl) titleEl.textContent='🎯 '+bt.name;
+  if(titleEl) titleEl.innerHTML='<svg class="ic" aria-hidden="true"><use href="#i-target"/></svg>'+escHtml(bt.name||'');
   if(!contentEl) return;
   const isAdmin=ME?.role==='admin';
   const typeLabel={individual:'👤 개인전',duo:'👥 듀오전',team:'🚩 팀장전'};
@@ -37,7 +37,7 @@ async function openBracketDetail(id){
   let html=`<div style="font-size:.8rem;color:var(--text-muted);margin-bottom:12px;">📅 ${fmtMatchDate(bt.match_date)} · ${typeLabel[tType]||'대회'} · <span style="color:${bt.status==='done'?'var(--primary)':bt.status==='plan'?'var(--warn)':'var(--info)'};">${statusLabel[bt.status]||bt.status}</span></div>`;
   if(bt.winner_name) html+=`<div style="background:rgba(255,215,0,.1);border:1px solid rgba(255,215,0,.3);border-radius:10px;padding:10px 14px;margin-bottom:12px;text-align:center;"><div style="font-size:.75rem;color:var(--text-muted);margin-bottom:2px;">🏆 우승</div><div style="font-size:1.1rem;font-weight:700;color:#FFD700;">${bt.winner_name}</div></div>`;
   if(groups.length){
-    html+=`<div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:10px;">📋 조별 리그</div>`;
+    html+=`<div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:10px;"><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>조별 리그</div>`;
     groups.forEach((g,gi)=>{
       const gMatches=g.matches||[];
       bdCalcStandings([g],isIndividual);
@@ -78,11 +78,11 @@ async function openBracketDetail(id){
     });
   }
   if(knockout.length){
-    html+=`<div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:10px;margin-top:4px;">🏆 본선 토너먼트</div>`;
+    html+=`<div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:10px;margin-top:4px;"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg>본선 토너먼트</div>`;
     html+=_renderKnockoutBracket(knockout);
   }
   if(teamsList.length||teamRounds.length){
-    html+=`<div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:10px;margin-top:4px;">🚩 팀전</div>`;
+    html+=`<div style="font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:10px;margin-top:4px;"><svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg>팀전</div>`;
     // 팀 구성원 카드 (팀장 지정 포함)
     if(teamsList.length){
       html+=`<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">`;
@@ -92,7 +92,7 @@ async function openBracketDetail(id){
         html+=`<div style="flex:1;min-width:140px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
           <div style="font-weight:700;font-size:.9rem;margin-bottom:6px;">${team.name}</div>
           <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:6px;">
-            🚩 팀장: <span style="color:${captainSet?'var(--primary)':'var(--warn)'};font-weight:700;">${captain}</span>
+            <svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg>팀장: <span style="color:${captainSet?'var(--primary)':'var(--warn)'};font-weight:700;">${captain}</span>
             ${isAdmin?`<button onclick="bdEditTeamCaptain('${id}',${ti})" style="margin-left:4px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:.68rem;cursor:pointer;color:var(--text-muted);">수정</button>`:''}
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:4px;">
@@ -238,7 +238,7 @@ async function bdEditTeamCaptain(btId, teamIdx){
   const btIdSafe=btId.replace(/[^a-zA-Z0-9_-]/g,'');
   const modalHtml=`
     <div style="background:var(--modal-bg,var(--surface));border-radius:16px;padding:20px;max-width:320px;width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.4);">
-      <div style="font-weight:700;font-size:.95rem;margin-bottom:4px;">🚩 팀장 지정 — ${team.name}</div>
+      <div style="font-weight:700;font-size:.95rem;margin-bottom:4px;"><svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg>팀장 지정 — ${team.name}</div>
       <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:14px;">현재: ${team.captain||'미지정'}</div>
       <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
         ${members.map(m=>`
@@ -409,7 +409,7 @@ function _renderTeamRounds(rounds){
   const players=Object.entries(playerStats).sort((a,b)=>a[1].team!==b[1].team?(a[1].team==='A'?-1:1):b[1].wins-a[1].wins);
   if(players.length){
     html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
-      <div style="font-size:.78rem;font-weight:700;color:var(--text-muted);margin-bottom:8px;">📋 개인별 전적</div>
+      <div style="font-size:.78rem;font-weight:700;color:var(--text-muted);margin-bottom:8px;"><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>개인별 전적</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">`;
     ['A','B'].forEach(side=>{
       const T=side==='A'?CA:CB;

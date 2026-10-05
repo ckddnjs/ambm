@@ -292,7 +292,7 @@ function _balRenderDuoPairUI(){
   // 자동 페어링 버튼
   html+=`<button onclick="balDuoAutoPair()" style="
     font-size:.74rem;padding:4px 12px;background:var(--bg2);border:1px solid var(--border);
-    border-radius:8px;cursor:pointer;color:var(--text-muted);">🔄 자동 페어링</button>`;
+    border-radius:8px;cursor:pointer;color:var(--text-muted);"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>자동 페어링</button>`;
 
   wrap.innerHTML=html;
 }
@@ -708,7 +708,7 @@ async function balSave(){
   el.id='modal-bal-save';
   el.className='modal-overlay center open';
   el.innerHTML=`<div class="modal center-modal" style="max-width:320px;">
-    <div class="modal-title">💾 밸런스 저장</div>
+    <div class="modal-title"><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg>밸런스 저장</div>
     <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:10px;">저장할 제목을 입력하세요</div>
     <input id="bal-save-title" class="form-input" value="${escHtml(defaultName)}" style="margin-bottom:14px;font-size:.84rem;" placeholder="제목 입력">
     <div class="modal-actions">
@@ -772,7 +772,7 @@ function toggleBulkImportForm(){
 function _renderBulkImportUI(container){
   container.innerHTML=`
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-    <div style="font-size:.88rem;font-weight:700;">📋 대회 경기 일괄 입력</div>
+    <div style="font-size:.88rem;font-weight:700;"><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>대회 경기 일괄 입력</div>
     <button onclick="document.getElementById('bulk-import-inline').style.display='none'" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:2px 6px;">✕</button>
   </div>
   <div style="font-size:.76rem;color:var(--text-muted);background:var(--bg2);border-radius:8px;padding:10px 12px;margin-bottom:10px;line-height:1.7;">
@@ -786,7 +786,7 @@ function _renderBulkImportUI(container){
   </div>
   <textarea id="ti-raw" placeholder="여기에 엑셀 데이터를 붙여넣으세요..."
     style="width:100%;min-height:180px;box-sizing:border-box;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:.78rem;font-family:monospace;resize:vertical;"></textarea>
-  <button onclick="tiParsePreview()" class="btn btn-primary" style="width:100%;margin-top:8px;margin-bottom:10px;">🔍 미리보기</button>
+  <button onclick="tiParsePreview()" class="btn btn-primary" style="width:100%;margin-top:8px;margin-bottom:10px;"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>미리보기</button>
   <div id="ti-preview"></div>`;
 }
 

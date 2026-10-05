@@ -158,7 +158,7 @@ function openAnalysisPicker(){
   ov.innerHTML = `<div class="sheet-in" style="background:var(--bg);border-radius:18px 18px 0 0;width:100%;max-width:520px;max-height:78vh;display:flex;flex-direction:column;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));">
     <div style="width:44px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 12px;"></div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
-      <b style="font-size:1rem;">📊 분석 대상 선택</b>
+      <b style="font-size:1rem;"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg>분석 대상 선택</b>
       <button onclick="document.getElementById('an-picker').remove()" style="margin-left:auto;background:var(--bg2);border:1px solid var(--border);border-radius:50%;width:30px;height:30px;color:var(--text-muted);font-size:.9rem;cursor:pointer;line-height:1;">✕</button>
     </div>
     <div style="overflow-y:auto;padding-bottom:10px;">
@@ -424,7 +424,7 @@ function _anDrawMomentum(series){
 /* ── 서브탭: 파트너 / 상대 ── */
 function _anSubTabsHtml(active){
   const tab = (key, label) => `<button onclick="_anSetSubTab('${key}')" style="flex:1;padding:10px 0;border:none;border-radius:10px;font-family:inherit;font-size:.88rem;font-weight:800;cursor:pointer;${active===key?'background:var(--primary);color:#fff;':'background:var(--bg2);color:var(--text-muted);'}">${label}</button>`;
-  return `<div style="display:flex;gap:6px;margin-bottom:12px;">${tab('partner','🤝 파트너')}${tab('oppo','⚔️ 상대')}</div>`;
+  return `<div style="display:flex;gap:6px;margin-bottom:12px;">${tab('partner','<svg class="ic" aria-hidden="true"><use href="#i-users"/></svg>파트너')}${tab('oppo','<svg class="ic" aria-hidden="true"><use href="#i-swords"/></svg>상대')}</div>`;
 }
 function _anSetSubTab(key){
   window._anSubTab = key;
@@ -846,13 +846,13 @@ function _anAllHTML(opt){
   const best=[...pr].sort((a,b)=>wrOf(b)-wrOf(a)||b.g-a.g).slice(0,5);
   const worst=[...pr].sort((a,b)=>wrOf(a)-wrOf(b)||b.g-a.g).slice(0,3);
   return tiles
-    + _anSecCard('🏆 시즌 MVP TOP 3', `<div style="padding-top:4px;">${_anMvpPodiumHTML(opt)}</div>
+    + _anSecCard('<svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg>시즌 MVP TOP 3', `<div style="padding-top:4px;">${_anMvpPodiumHTML(opt)}</div>
         <div id="an-rank-full" style="display:none;margin-top:12px;">${_anRankFullHTML(opt)}</div>
         <div style="display:flex;justify-content:center;padding:10px 0 4px;">
           <button onclick="const d=document.getElementById('an-rank-full');const open=d.style.display==='none';d.style.display=open?'':'none';this.textContent=open?'접기 ▴':'전체 랭킹 보기 ▾';" style="background:var(--bg2);border:1px solid var(--border);border-radius:9999px;padding:8px 20px;font-family:inherit;font-size:.82rem;font-weight:700;color:var(--text-muted);cursor:pointer;">전체 랭킹 보기 ▾</button>
         </div>`, 'CI 종합점수 기준 · 5경기 이상')
-    + _anSecCard('🏅 시즌 어워드', _anAwardsHTML(d.players), '시즌 전 경기 기준')
-    + _anSecCard('⚡ 라이벌 매치', _anRivalsHTML(d.players,d.h2h), '3회 이상 맞붙고 전적이 팽팽한 맞대결')
+    + _anSecCard('<svg class="ic" aria-hidden="true"><use href="#i-star"/></svg>시즌 어워드', _anAwardsHTML(d.players), '시즌 전 경기 기준')
+    + _anSecCard('<svg class="ic" aria-hidden="true"><use href="#i-swords"/></svg>라이벌 매치', _anRivalsHTML(d.players,d.h2h), '3회 이상 맞붙고 전적이 팽팽한 맞대결')
     + _anSecCard('💚 환상의 파트너 TOP 5',
         best.length?best.map((x,i)=>_anPairCard(d.players,x,i,true)).join(''):_anEmptyRow('3경기 이상 함께 뛴 조합이 아직 없어요'),
         '같은 팀으로 3경기 이상')
@@ -961,7 +961,7 @@ function _anPersonTiles(d, wr, avgDiff, seqAll){
     ${tile('최장 연승', (bestWin||0)+'연승', bestWin?'var(--accent)':'var(--text-muted)', stTxt)}
   </div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px;">
-    ${relTile('🤝 베스트 파트너', bestP, 'var(--accent)')}
+    ${relTile('<svg class="ic" aria-hidden="true"><use href="#i-users"/></svg>베스트 파트너', bestP, 'var(--accent)')}
     ${relTile('🍗 먹잇감', prey, 'var(--primary)')}
     ${relTile('🔥 천적', nem, 'var(--danger)')}
   </div>`;

@@ -176,7 +176,7 @@ async function renderComparePage(){
 
   el.innerHTML=`
   <div class="flex-between mb-2">
-    <div><div class="page-title">⚔️ 상대전적</div><div class="page-sub">상대 전적 조회 &amp; 승부 예측<br><span style="font-size:.72rem;color:var(--text-muted);">맞대결 히스토리와 점수 기반 승률을 분석합니다.</span></div></div>
+    <div><div class="page-title"><svg class="ic" aria-hidden="true"><use href="#i-swords"/></svg>상대전적</div><div class="page-sub">상대 전적 조회 &amp; 승부 예측<br><span style="font-size:.72rem;color:var(--text-muted);">맞대결 히스토리와 점수 기반 승률을 분석합니다.</span></div></div>
   </div>
   <div class="card">
     <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:start;">
@@ -195,7 +195,7 @@ async function renderComparePage(){
         <select class="form-select" id="cp-c2" onchange="onCompareChange()">${emptyOpt+opts}</select>
       </div>
     </div>
-    <button onclick="runCompare()" class="btn btn-primary" style="width:100%;margin-top:10px;font-size:.92rem;padding:10px;">🔍 조회</button>
+    <button onclick="runCompare()" class="btn btn-primary" style="width:100%;margin-top:10px;font-size:.92rem;padding:10px;"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>조회</button>
   </div>
   <div id="compare-result"></div>`;
 
@@ -349,14 +349,14 @@ function runCompare(){
     </div>
     <!-- 개인 CI -->
     ${h2hMatches.length>0?`<div style="background:var(--bg3);border-radius:10px;padding:10px 14px;margin-bottom:10px;text-align:center;">
-          <div style="font-size:.75rem;color:var(--text-muted);font-weight:700;margin-bottom:6px;">⚔️ 직접 맞대결 기록</div>
+          <div style="font-size:.75rem;color:var(--text-muted);font-weight:700;margin-bottom:6px;"><svg class="ic" aria-hidden="true"><use href="#i-swords"/></svg>직접 맞대결 기록</div>
           <div style="display:flex;align-items:center;justify-content:center;gap:12px;">
             <div style="text-align:center;"><div style="font-size:1.4rem;font-weight:900;font-family:Black Han Sans,sans-serif;color:#1565C0;">${h2hBlueW}</div><div style="font-size:.7rem;color:var(--text-muted);">블루팀 승</div></div>
             <div style="font-size:.8rem;color:var(--text-muted);">${h2hMatches.length}경기</div>
             <div style="text-align:center;"><div style="font-size:1.4rem;font-weight:900;font-family:Black Han Sans,sans-serif;color:#C62828;">${h2hRedW}</div><div style="font-size:.7rem;color:var(--text-muted);">레드팀 승</div></div>
           </div>
         </div>`:''}
-    <div style="font-size:.78rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;">📊 개인 종합점수</div>
+    <div style="font-size:.78rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg>개인 종합점수</div>
     <div style="display:grid;grid-template-columns:repeat(${ids.a2||ids.c2?4:2},1fr);gap:6px;margin-bottom:14px;">
       ${[{n:aName,ci:ciA,st:a,col:'#1565C0'},{n:ids.a2?bName:null,ci:ciB,st:b,col:'#1565C0'},{n:cName,ci:ciC,st:c,col:'#C62828'},{n:ids.c2?dName:null,ci:ciD,st:d,col:'#C62828'}].map(p=>p.n?`
       <div style="background:var(--bg2);border-radius:8px;padding:8px;text-align:center;">
@@ -366,7 +366,7 @@ function runCompare(){
       </div>`:'').join('')}
     </div>
     <!-- 계산 내역 -->
-    <div style="font-size:.78rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;">🔢 산출 내역</div>
+    <div style="font-size:.78rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;"><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>산출 내역</div>
     <table style="width:100%;font-size:.78rem;border-collapse:collapse;">
       <thead>
         <tr style="border-bottom:1px solid var(--border);">

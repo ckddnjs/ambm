@@ -434,7 +434,7 @@ function matchCardHTML(m,isAdmin=false){
       </div>
     </div>
     ${(m.note||m.admin_note)?`<div style="font-size:.78rem;color:var(--text-muted);padding:5px 14px 8px;text-align:center;border-top:1px solid var(--border);line-height:1.5;word-break:break-word;">${[m.note,m.admin_note].filter(Boolean).join(' · ')}</div>`:''}
-    ${isAdmin&&m.status==='pending'?`<div class="btn-row" style="padding:6px 8px 8px;" onclick="event.stopPropagation()"><button class="btn btn-success btn-xs" onclick="approveMatch('${m.id}')">✅ 승인</button><button class="btn btn-danger btn-xs" onclick="confirmRejectMatch('${m.id}')">❌ 반려</button><button class="btn btn-warn btn-xs" onclick="openEditMatch('${m.id}')">✏️ 수정</button></div>`:''}
+    ${isAdmin&&m.status==='pending'?`<div class="btn-row" style="padding:6px 8px 8px;" onclick="event.stopPropagation()"><button class="btn btn-success btn-xs" onclick="approveMatch('${m.id}')"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>승인</button><button class="btn btn-danger btn-xs" onclick="confirmRejectMatch('${m.id}')"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>반려</button><button class="btn btn-warn btn-xs" onclick="openEditMatch('${m.id}')"><svg class="ic" aria-hidden="true"><use href="#i-pencil"/></svg>수정</button></div>`:''}
   </div>`;
 }
 
@@ -477,14 +477,14 @@ async function openMatchDetail(id,isAdmin=false){
     </div>
     <hr class="section-divider">
     <div style="display:flex;gap:8px;font-size:.74rem;color:var(--text-muted);">
-      <span>📨 등록 ${createdAt}</span>
-      ${m.approved_at?`<span>✅ 승인 ${approvedAt}</span>`:''}
+      <span><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>등록 ${createdAt}</span>
+      ${m.approved_at?`<span><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>승인 ${approvedAt}</span>`:''}
     </div>`;
   let acts=`<button class="btn btn-ghost" onclick="closeModal('modal-match')">닫기</button>`;
   if(isAdmin||ME.role==='admin'){
-    acts+=`<button class="btn btn-warn btn-sm" onclick="openEditMatch('${id}')">✏️ 수정</button>`;
-    acts+=`<button class="btn btn-danger btn-sm" onclick="confirmDeleteMatch('${id}')">🗑 삭제</button>`;
-    if(m.status==='pending') acts+=`<button class="btn btn-success btn-sm" onclick="approveMatch('${id}')">✅ 승인</button><button class="btn btn-danger btn-sm" onclick="confirmRejectMatch('${id}')">❌ 반려</button>`;
+    acts+=`<button class="btn btn-warn btn-sm" onclick="openEditMatch('${id}')"><svg class="ic" aria-hidden="true"><use href="#i-pencil"/></svg>수정</button>`;
+    acts+=`<button class="btn btn-danger btn-sm" onclick="confirmDeleteMatch('${id}')"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg>삭제</button>`;
+    if(m.status==='pending') acts+=`<button class="btn btn-success btn-sm" onclick="approveMatch('${id}')"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>승인</button><button class="btn btn-danger btn-sm" onclick="confirmRejectMatch('${id}')"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>반려</button>`;
   } else if(canCancel){
     acts+=`<button class="btn btn-danger" onclick="confirmCancelMatch('${id}')">취소</button>`;
   }
@@ -533,7 +533,7 @@ async function openPairPicker(){
   ov.innerHTML=`<div class="sheet-in" style="background:var(--bg);border-radius:18px 18px 0 0;width:100%;max-width:520px;max-height:78vh;display:flex;flex-direction:column;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));">
     <div style="width:44px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 12px;"></div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
-      <b style="font-size:1rem;">👥 조합 선택</b>
+      <b style="font-size:1rem;"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg>조합 선택</b>
       <span id="pp-hint" style="font-size:.72rem;color:var(--text-muted);">두 명을 골라주세요 (0/2)</span>
       <button onclick="document.getElementById('pair-picker').remove()" style="margin-left:auto;background:var(--bg2);border:1px solid var(--border);border-radius:50%;width:30px;height:30px;color:var(--text-muted);font-size:.9rem;cursor:pointer;line-height:1;">✕</button>
     </div>

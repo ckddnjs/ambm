@@ -259,7 +259,7 @@ function _reRenderRegister(){
 
   const nextSlot  = _nextEmptySlot();
   const hintMap   = {a1:'① A팀 첫번째 선수를 탭하세요', a2:'② A팀 두번째 선수를 탭하세요', b1:'③ B팀 첫번째 선수를 탭하세요', b2:'④ B팀 두번째 선수를 탭하세요'};
-  const hintTxt   = nextSlot ? (hintMap[nextSlot] || '') : '✅ 선수 선택 완료';
+  const hintTxt   = nextSlot ? (hintMap[nextSlot] || '') : '<svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>선수 선택 완료';
   const hintColor = nextSlot ? 'var(--text-muted)' : 'var(--primary)';
 
   wrap.innerHTML = `
@@ -282,7 +282,7 @@ function _reRenderRegister(){
       <div style="font-size:.72rem;color:${hintColor};text-align:center;margin-bottom:8px;">${hintTxt}</div>
       <div style="display:flex;flex-wrap:wrap;gap:7px;">${memberChips || ''}${guestChips ? (memberChips?'':'') + guestChips : (!memberChips?'<span style="font-size:.8rem;color:var(--text-muted);">해당 초성 없음</span>':'')}</div>
       <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">
-        <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:6px;">✏️ 비회원 직접 입력</div>
+        <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:6px;"><svg class="ic" aria-hidden="true"><use href="#i-pencil"/></svg>비회원 직접 입력</div>
         <div style="display:flex;gap:6px;">
           <input id="reg-guest-input" class="form-input" placeholder="비회원 이름" style="flex:1;font-size:.88rem;" onkeydown="if(event.key==='Enter')_addGuestPlayer()">
           <button onclick="_addGuestPlayer()" style="padding:9px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:.82rem;cursor:pointer;white-space:nowrap;font-weight:600;">추가</button>
@@ -305,7 +305,7 @@ function _reRenderRegister(){
       </div>
     </div>
     <input class="form-input mb-2" type="text" id="reg-note" placeholder="메모 (선택)">
-    <button class="btn btn-primary" style="width:100%;padding:14px;font-size:.95rem;" onclick="submitMatch()">📨 등록 요청</button>
+    <button class="btn btn-primary" style="width:100%;padding:14px;font-size:.95rem;" onclick="submitMatch()"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>등록 요청</button>
   `;
 }
 
@@ -318,7 +318,7 @@ async function submitMatch(){
   try { await _doSubmitMatch(); }
   finally {
     window._submitLock = false;
-    if(btn){ btn.disabled = false; btn.textContent = '📨 등록 요청'; }
+    if(btn){ btn.disabled = false; btn.innerHTML= '<svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>등록 요청'; }
   }
 }
 
