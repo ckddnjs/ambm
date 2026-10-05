@@ -29,6 +29,7 @@
   - 지갑 `wallet_transfer` / 제작소 `shop_buy`·`craft_start`(성공판정 서버난수)·`craft_recycle`·`shuttle_exchange`(아이템가 `ambm_item_price`)
   - 경기 게스트연결 `link_guest_matches`, 관리자판정 `ambm_is_admin`
   - `stock_portfolio`·`stock_trades`·`market_inventory`는 직접 INSERT/UPDATE/DELETE가 revoke됨 — 반드시 RPC 경유. 새 기능도 이 원칙을 따른다.
+- **profiles 보안(2026-10-05, `sql/2026-10-05-profiles-hardening.sql`)**: 수정=본인 또는 관리자, 삭제=관리자, 비로그인 쓰기 불가. 트리거 `profiles_guard`가 비관리자의 role·status·exclude_stats·전적 칸 변경을 무시한다. **email 칸은 조회 권한이 없다** — `select('*')` 금지, 공용 상수 `PROFILE_COLS`(core.js) 사용. 관리자 이메일은 `ambm_admin_profile_emails()` RPC, 본인 이메일은 세션(`ME.email`). 칼럼을 추가하면 `PROFILE_COLS`와 칼럼 GRANT 둘 다 갱신.
 - **matches RLS**: 등록은 본인(submitter_id) + status=pending만, 승인/수정/삭제는 admin만. 교환요청은 `shuttle_exchange_requests`(+`exchange_approve/reject` RPC).
 
 ## 도메인 규칙
