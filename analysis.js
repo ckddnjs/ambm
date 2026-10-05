@@ -424,7 +424,7 @@ function _anDrawMomentum(series){
 /* ── 서브탭: 파트너 / 상대 ── */
 function _anSubTabsHtml(active){
   const tab = (key, label) => `<button onclick="_anSetSubTab('${key}')" style="flex:1;padding:10px 0;border:none;border-radius:10px;font-family:inherit;font-size:.88rem;font-weight:800;cursor:pointer;${active===key?'background:var(--primary);color:#fff;':'background:var(--bg2);color:var(--text-muted);'}">${label}</button>`;
-  return `<div style="display:flex;gap:6px;margin-bottom:12px;">${tab('partner','<svg class="ic" aria-hidden="true"><use href="#i-users"/></svg>파트너')}${tab('oppo','<svg class="ic" aria-hidden="true"><use href="#i-swords"/></svg>상대')}</div>`;
+  return `<div style="display:flex;gap:6px;margin-bottom:12px;">${tab('partner','🤝 파트너')}${tab('oppo','⚔️ 상대')}</div>`;
 }
 function _anSetSubTab(key){
   window._anSubTab = key;
@@ -961,7 +961,7 @@ function _anPersonTiles(d, wr, avgDiff, seqAll){
     ${tile('최장 연승', (bestWin||0)+'연승', bestWin?'var(--accent)':'var(--text-muted)', stTxt)}
   </div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px;">
-    ${relTile('<svg class="ic" aria-hidden="true"><use href="#i-users"/></svg>베스트 파트너', bestP, 'var(--accent)')}
+    ${relTile('🤝 베스트 파트너', bestP, 'var(--accent)')}
     ${relTile('🍗 먹잇감', prey, 'var(--primary)')}
     ${relTile('🔥 천적', nem, 'var(--danger)')}
   </div>`;
