@@ -566,3 +566,18 @@ body.light-mode .bottom-nav-item.active{background:linear-gradient(180deg,rgba(2
 .app-body{padding-bottom:calc(62px + var(--nav-lift) + 24px)}
 @media (display-mode: standalone){.app-body{padding-bottom:calc(62px + var(--nav-lift) + 24px)}}
 
+/* 기록 탭 날짜 머리 + 그날 MVP 카드 (2026-10-05, 후생동TV와 같은 구조) */
+.feed-day-head{display:flex;align-items:baseline;gap:8px;padding:14px 2px 6px}
+.feed-day-head b{font-size:.92rem;font-weight:800}
+.feed-day-head span{font-size:.74rem;color:var(--text-muted)}
+.feed-day-head button{margin-left:auto;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text-muted);font-family:inherit;font-size:.68rem;cursor:pointer}
+.feed-day-mvp{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid rgba(217,162,27,.4);border-radius:14px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
+.fdm-avs{display:flex;flex-shrink:0}
+.fdm-av{width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;background:var(--bg3);color:var(--text-muted);font-weight:800;font-size:.8rem;box-shadow:0 0 0 2px var(--surface)}
+.fdm-t{flex:1;min-width:0}
+.fdm-t small{display:flex;align-items:center;gap:4px;font-size:.66rem;font-weight:800;color:#B58A2E}
+.fdm-t small svg{color:#D9A21B;flex-shrink:0}
+.fdm-t b{display:block;font-size:.95rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fdm-r{text-align:right;flex-shrink:0}
+.fdm-r b{display:block;font-size:.88rem;font-weight:800;color:var(--primary)}
+.fdm-r small{font-size:.68rem;color:var(--text-muted)}

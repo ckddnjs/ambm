@@ -243,20 +243,51 @@ function renderMatchesWithDateHeaders(matches, fullCountByDate){
   let html='', lastDate='';
   matches.forEach(m=>{
     const d=m.match_date||'';
-    if(d!==lastDate){ html+=feedDateHeader(d,countByDate[d]); lastDate=d; }
+    if(d!==lastDate){ html+=feedDateHeader(d,countByDate[d])+_feedDayMvpHTML(d,matches); lastDate=d; }
     html+=matchCardHTML(m);
   });
   return html;
 }
 
-/* ── 날짜 구분선 헤더 생성 ── */
+/* ── 날짜 머리: 날짜·경기 수(왼쪽) + 더보기(오른쪽) — MVP 카드가 바로 아래 붙는다 (2026-10-05, 후생동TV와 같은 구조) ── */
 function feedDateHeader(dateStr,count){
   const d=new Date(dateStr+'T00:00:00');
   const days=['일','월','화','수','목','금','토'];
   const yy=String(d.getFullYear()).slice(2);
   const label=`${yy}.${d.getMonth()+1}.${d.getDate()}.(${days[d.getDay()]})`;
-  const countBadge=count>1?` <span style="font-size:.68rem;color:var(--text-muted);font-weight:400;">${count}경기</span>`:'';
-  return `<div style="display:flex;align-items:center;gap:6px;padding:10px 0 6px;margin-top:2px;"><div style="flex:1;height:1px;background:var(--border);"></div><span style="font-size:.75rem;font-weight:700;color:var(--text-muted);white-space:nowrap;padding:0 6px;">${label}${countBadge}</span><button onclick="event.stopPropagation();openDateSummaryPage('${dateStr}')" style="flex-shrink:0;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text-muted);font-family:inherit;font-size:.68rem;cursor:pointer;">더보기 ›</button><div style="flex:1;height:1px;background:var(--border);"></div></div>`;
+  return `<div class="feed-day-head"><b>${label}</b>${count>1?`<span>${count}경기</span>`:''}<button type="button" onclick="event.stopPropagation();openDateSummaryPage('${dateStr}')">더보기 ›</button></div>`;
+}
+
+/* ── 그날의 MVP: 승수 1위, 같으면 득실차 1위, 그래도 같으면 공동 MVP (경기 수 문턱 없음)
+   기준 = 그날 승인 경기 전체(검색·필터 무관): 대시보드가 받아 둔 전체 경기 캐시, 없으면 화면 목록.
+   비회원(id 없음)은 이름으로 묶는다 */
+function _feedDayMvp(dateStr,fallback){
+  let games=(window._allMatchesCache||[]).filter(m=>m.match_date===dateStr&&m.status==='approved');
+  if(!games.length) games=(fallback||[]).filter(m=>m.match_date===dateStr&&(m.status||'approved')==='approved');
+  if(!games.length) return null;
+  const st={};
+  const add=(id,nm,win,diff)=>{ const k=id||(nm?'n:'+nm:''); if(!k) return; const r=st[k]||(st[k]={id,nm,w:0,l:0,d:0}); win?r.w++:r.l++; r.d+=diff; };
+  games.forEach(m=>{
+    const a=+m.score_a||0, b=+m.score_b||0; if(a===b) return;
+    add(m.a1_id,m.a1_name,a>b,a-b); add(m.a2_id,m.a2_name,a>b,a-b); add(m.b1_id,m.b1_name,b>a,b-a); add(m.b2_id,m.b2_name,b>a,b-a);
+  });
+  const arr=Object.values(st); if(!arr.length) return null;
+  arr.sort((x,y)=>y.w-x.w||y.d-x.d);
+  const top=arr[0]; if(!top.w) return null;
+  return arr.filter(r=>r.w===top.w&&r.d===top.d);
+}
+function _feedDayMvpHTML(dateStr,fallback){
+  const mv=_feedDayMvp(dateStr,fallback); if(!mv) return '';
+  const prof=window._profilesCache||[];
+  const nameOf=r=>(r.id&&(prof.find(u=>u.id===r.id)||{}).name)||r.nm||'?';
+  const av=(r,i)=>{ const url=r.id&&(prof.find(u=>u.id===r.id)||{}).avatar_url; const st=i?' style="margin-left:-9px"':'';
+    return url?`<img class="fdm-av" src="${escHtml(url)}" alt="" loading="lazy"${st}>`:`<span class="fdm-av"${st}>${escHtml(nameOf(r).slice(0,1))}</span>`; };
+  const r=mv[0];
+  return `<div class="feed-day-mvp" onclick="openDateSummaryPage('${dateStr}')">
+    <div class="fdm-avs">${mv.slice(0,4).map(av).join('')}</div>
+    <div class="fdm-t"><small><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18h18M4 8l4 4 4-7 4 7 4-4-2 10H6Z"/></svg>${mv.length>1?'공동 MVP':'오늘의 MVP'}</small><b>${mv.map(x=>escHtml(nameOf(x))).join('·')}</b></div>
+    <div class="fdm-r"><b>${r.w}승 ${r.l}패</b><small>득실 ${r.d>0?'+':''}${r.d}</small></div>
+  </div>`;
 }
 
 /* ── 날짜별 요약 페이지 ── */
