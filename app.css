@@ -534,7 +534,7 @@ button:active{transform:scale(.96)}
    화면 끝에서 띄우고(--nav-lift), 둥근 반투명 판 위에 항목을 얹는다. 선택 항목은 파란 알약으로 표시.
    '분석'만 파란 원으로 강조하되 알약 밖으로 튀어나오지 않게 줄였다. 위 기존 규칙을 덮어쓴다(되돌리려면 이 블록 삭제). */
 :root{--nav-lift:max(calc(env(safe-area-inset-bottom,0px) - 12px),12px)}
-.bottom-nav{left:21px;right:21px;bottom:var(--nav-lift);min-height:62px;padding:4px;overflow:visible;border-radius:29px;border-top:none;
+.bottom-nav{left:21px;right:21px;bottom:var(--nav-lift);min-height:54px;padding:4px;overflow:visible;border-radius:27px;border-top:none;
   background:linear-gradient(180deg,rgba(132,138,152,.32) 0%,rgba(108,115,130,.27) 100%);
   -webkit-backdrop-filter:blur(24px) saturate(150%);backdrop-filter:blur(24px) saturate(150%);
   border:1px solid rgba(255,255,255,.09);
@@ -543,9 +543,10 @@ button:active{transform:scale(.96)}
 body.light-mode .bottom-nav{border-top:none;border:1px solid rgba(0,0,0,.06);
   background:linear-gradient(180deg,rgba(255,255,255,.86) 0%,rgba(241,245,249,.82) 100%);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 8px 24px rgba(15,23,42,.14),0 2px 6px rgba(15,23,42,.08)}
-@media (display-mode: standalone){.bottom-nav{padding-bottom:4px;min-height:62px}}
+@media (display-mode: standalone){.bottom-nav{padding-bottom:4px;min-height:54px}}
 @media (min-width:600px){.bottom-nav{left:50%;right:auto;width:calc(100% - 42px);max-width:560px;transform:translateX(-50%)}}
-.bottom-nav-item{padding:6px 2px 7px;font-size:.68rem;font-weight:800;line-height:1.2;gap:3px;border-radius:9999px;min-width:0}
+.bottom-nav-item{padding:5px 2px 7px;font-size:.66rem;font-weight:800;line-height:1.15;gap:1px;border-radius:9999px;min-width:0}   /* 후생동TV와 같은 수치 */
+.bottom-nav-item>span:last-child{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-height:13px}
 .bottom-nav-item .nav-icon{opacity:.62}
 .bottom-nav-item .nav-icon{width:27px;height:27px;display:flex;align-items:center;justify-content:center}
 .bottom-nav-item .nav-icon svg{width:27px;height:27px}
@@ -558,7 +559,7 @@ body.light-mode .bottom-nav-item.active{background:linear-gradient(180deg,rgba(2
 .bottom-nav-item.nav-fab{top:0}
 .nav-fab-circle{width:27px;height:27px;margin:0;border-radius:0;background:none;box-shadow:none!important;display:flex;align-items:center;justify-content:center;opacity:.62;transition:opacity .2s}
 .nav-fab-circle svg{width:27px;height:27px;fill:currentColor}
-.bottom-nav-item.nav-fab span{color:inherit;font-size:.68rem;font-weight:800}
+.bottom-nav-item.nav-fab span{color:inherit;font-size:.66rem;font-weight:800}
 .bottom-nav-item.nav-fab.active .nav-fab-circle{opacity:1}
 .bottom-nav-item.nav-fab:active .nav-fab-circle{transform:none}
 /* 본문 끝이 떠 있는 메뉴에 가리지 않게 */
