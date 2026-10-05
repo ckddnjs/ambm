@@ -9,11 +9,20 @@ function switchAdminTab(tab){
   });
   switch(tab){case 'pending':renderAdminPending();break;case 'members':renderAdminMembers();break;case 'logs':renderAdminLogs();break;case 'tournamentImport':renderAdminTournamentImport();break;case 'matchDelete':renderAdminMatchDelete();break;case 'craft':renderAdminCraft();break;case 'tradingHalt':renderAdminTradingHalt();break;case 'popupNotice':renderAdminPopupNotice();break;case 'seasonClose':renderAdminSeasonClose();break;}
 }
+// 이메일은 일반 조회가 막혀 있어 관리자 전용 RPC로 받아 붙인다 (2026-10-05)
+async function _attachAdminEmails(list){
+  if(!list||!list.length) return;
+  const{data,error}=await sb.rpc('ambm_admin_profile_emails');
+  if(error){console.warn('[admin] 이메일 조회 실패',error.message);return;}
+  const map=new Map((data||[]).map(r=>[r.id,r.email]));
+  list.forEach(u=>{u.email=map.get(u.id)||'';});
+}
 async function renderAdminPending(){
   const el=document.getElementById('admin-content');
   el.innerHTML=`<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:.82rem;">불러오는 중...</div>`;
   // 가입 대기 회원
-  const{data:pendingUsers,error:e1}=await sb.from('profiles').select('*').eq('status','pending').order('created_at',{ascending:false});
+  const{data:pendingUsers,error:e1}=await sb.from('profiles').select(PROFILE_COLS).eq('status','pending').order('created_at',{ascending:false});
+  await _attachAdminEmails(pendingUsers);
   // 경기 승인 대기
   const{data:matches,error:e2}=await sb.from('matches').select('*').eq('status','pending').order('created_at',{ascending:false});
 
@@ -105,7 +114,8 @@ function filterAdminAll(){
   if(wrap) wrap.innerHTML=list.map(m=>matchCardHTML(m,true)).join('')||`<div class="empty-state"><div class="empty-icon">🔍</div><div>결과 없음</div></div>`;
 }
 async function renderAdminMembers(){
-  const{data:users}=await sb.from('profiles').select('*').order('created_at',{ascending:false});
+  const{data:users}=await sb.from('profiles').select(PROFILE_COLS).order('created_at',{ascending:false});
+  await _attachAdminEmails(users);
   const el=document.getElementById('admin-content');
   // 비회원(이름만 있는) 경기 목록에서 이름 추출
   const{data:guestMatches}=await sb.from('matches').select('a1_name,a2_name,b1_name,b2_name,a1_id,a2_id,b1_id,b2_id').eq('status','approved');

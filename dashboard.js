@@ -1,7 +1,7 @@
 /* ── DASHBOARD ── */
 async function renderDashboard(){
   await ensureSeasonStart(); // 시즌 컷오프 보장 (랭킹·개인성적 집계용)
-  const{data:prof}=await sb.from('profiles').select('*').eq('id',ME.id).single();
+  const{data:prof}=await sb.from('profiles').select(PROFILE_COLS).eq('id',ME.id).single();
   if(prof) ME=prof;
   // 경기 캐시: 30초 이내면 재조회 생략
   const _now=Date.now();
@@ -16,7 +16,7 @@ async function renderDashboard(){
 
   // 전체 유저 통계로 순위 계산 (renderRankTable과 동일한 기준: 회원+비회원)
   if(!window._profilesCache||window._profilesCache.length===0){
-    const{data:pCache}=await sb.from('profiles').select('*').eq('status','approved');
+    const{data:pCache}=await sb.from('profiles').select(PROFILE_COLS).eq('status','approved');
     window._profilesCache=pCache||[];
     window._guestModeNamesCache=await _loadGuestModeNames();
   }
@@ -275,7 +275,7 @@ async function renderDashboard(){
   await renderRankTable(_allMatchesCache);
   // profilesCache 보장 후 MVP 렌더
   if(!window._profilesCache||!window._profilesCache.length){
-    const{data:pCache}=await sb.from('profiles').select('*').eq('status','approved');
+    const{data:pCache}=await sb.from('profiles').select(PROFILE_COLS).eq('status','approved');
     window._profilesCache=pCache||[];
   }
   renderMvpPodium(_allMatchesCache, window._profilesCache||[]);
@@ -1390,7 +1390,7 @@ async function openPastSeason(season){
     _allMatchesCache=am||[]; window._allMatchesCache=_allMatchesCache;
   }
   if(!window._profilesCache||!window._profilesCache.length){
-    const{data:pc}=await sb.from('profiles').select('*').eq('status','approved'); window._profilesCache=pc||[];
+    const{data:pc}=await sb.from('profiles').select(PROFILE_COLS).eq('status','approved'); window._profilesCache=pc||[];
   }
   const inRange=m=>{const md=String(m.match_date||'').slice(0,10); return (!s.start||md>=s.start)&&(!s.end||md<s.end);};
   const matches=_allMatchesCache.filter(m=>m.status==='approved'&&inRange(m));

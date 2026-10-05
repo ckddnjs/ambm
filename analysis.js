@@ -186,7 +186,7 @@ async function renderAnalysisPage(){
     if(typeof _allMatchesCache !== 'undefined') _allMatchesCache = window._allMatchesCache;
   }
   if(!window._profilesCache || !window._profilesCache.length){
-    const {data:pc} = await sb.from('profiles').select('*').eq('status','approved');
+    const {data:pc} = await sb.from('profiles').select(PROFILE_COLS).eq('status','approved');
     window._profilesCache = pc || [];
   }
 

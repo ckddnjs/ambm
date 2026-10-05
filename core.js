@@ -10,6 +10,8 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const APP_URL = 'https://ambm.vercel.app';
 
 const {createClient}=supabase;
+// profiles 공개 칼럼 — email은 2026-10-05부터 조회 차단(관리자는 ambm_admin_profile_emails RPC, 본인은 세션)
+const PROFILE_COLS='id,name,role,status,provider,wins,losses,games,exclude_stats,created_at,updated_at,avatar_url';
 const sb=createClient(SUPABASE_URL,SUPABASE_ANON,{
   auth:{
     redirectTo:APP_URL,
@@ -166,7 +168,7 @@ async function loadProfile(authUser){
   // 네트워크 불안정 대비 최대 3회 재시도
   let data,error;
   for(let _attempt=0;_attempt<3;_attempt++){
-    const res=await sb.from('profiles').select('*').eq('id',authUser.id).single();
+    const res=await sb.from('profiles').select(PROFILE_COLS).eq('id',authUser.id).single();
     data=res.data; error=res.error;
     if(!error||error.code==='PGRST116') break;
     await new Promise(r=>setTimeout(r,800*(_attempt+1)));
@@ -181,18 +183,18 @@ async function loadProfile(authUser){
       name=await _promptKakaoName(authUser);
     }
     if(!name) name=authUser.user_metadata?.full_name||authUser.user_metadata?.name||authUser.user_metadata?.nickname||authUser.email?.split('@')[0]||'신규회원';
-    const gender='';
     const{data:np,error:insErr}=await sb.from('profiles').upsert({
       id:authUser.id,email:authUser.email||'',name,role:'user',status:'pending',
       provider:authUser.app_metadata?.provider||'email',
-      gender,wins:0,losses:0,games:0
-    }).select().single();
+      wins:0,losses:0,games:0
+    }).select(PROFILE_COLS).single();
     if(insErr) console.error('profile insert error',insErr);
     if(np) ME=np;
     addLog(`신규 가입: ${name}`);
   } else if(data){
     ME=data;
   }
+  if(ME) ME.email=authUser.email||'';
   // 비회원 기록 자동 연계 — 가입 순간 1회가 아니라 매 로그인마다(멱등: 이름 일치 + id null 슬롯만).
   // 가입 시점에 배포·캐시 타이밍으로 놓쳐도 다음 접속에서 자동 치유 (심재성 케이스 재발 방지)
   if(ME) sb.rpc('link_guest_matches').then(({data:n,error})=>{ if(!error&&n>0) console.log(`[연계] 비회원 기록 ${n}건 자동 연결`); });

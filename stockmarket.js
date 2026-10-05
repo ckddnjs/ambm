@@ -20,7 +20,7 @@ async function renderStockMarketPage(){
     if(!window._allMatchesCache?.length)
       toFetch.push(sb.from('matches').select('id,match_type,match_date,a1_id,a1_name,a2_id,a2_name,b1_id,b1_name,b2_id,b2_name,score_a,score_b,status,created_at').eq('status','approved').then(({data:m})=>{window._allMatchesCache=m||[];}));
     if(!window._profilesCache?.length)
-      toFetch.push(sb.from('profiles').select('*').eq('status','approved').then(({data:u})=>{window._profilesCache=u||[];}));
+      toFetch.push(sb.from('profiles').select(PROFILE_COLS).eq('status','approved').then(({data:u})=>{window._profilesCache=u||[];}));
     if(toFetch.length) await Promise.all(toFetch);
   }
 
@@ -650,7 +650,7 @@ async function renderStockDetailPage(){
     window._allMatchesCache=m||[];
   }
   if(!window._profilesCache||!window._profilesCache.length){
-    const {data:u,error:_e0}=await sb.from('profiles').select('id,name,gender,role,status,exclude_stats,avatar_url,player_tag').eq('status','approved');
+    const {data:u,error:_e0}=await sb.from('profiles').select('id,name,role,status,exclude_stats,avatar_url').eq('status','approved');
     window._profilesCache=u||[];
   }
 
