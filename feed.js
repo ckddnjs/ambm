@@ -23,6 +23,80 @@ function toggleBatchPanel(){
   if(btn) btn.style.color=open?'var(--text-muted)':'var(--primary)';
 }
 
+/* ── 경기내역 엑셀 다운로드 (관리자) ── */
+function _ymd(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+
+async function toggleExportPanel(){
+  const panel=document.getElementById('export-panel');
+  const btn=document.getElementById('btn-feed-export');
+  if(!panel) return;
+  const open=panel.style.display!=='none';
+  panel.style.display=open?'none':'block';
+  if(btn) btn.style.color=open?'var(--text-muted)':'var(--primary)';
+  if(!open && !document.getElementById('export-from').value) await setExportRange('season');
+}
+
+async function setExportRange(kind){
+  const from=document.getElementById('export-from'), to=document.getElementById('export-to');
+  const now=new Date();
+  to.value=_ymd(now);
+  if(kind==='month') from.value=_ymd(new Date(now.getFullYear(),now.getMonth(),1));
+  else if(kind==='season'){
+    if(typeof ensureSeasonStart==='function') await ensureSeasonStart();
+    from.value=window._seasonStart||'';
+  } else { from.value=''; to.value=''; }
+}
+
+function _loadXlsxLib(){
+  if(window.XLSX) return Promise.resolve();
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload=res; s.onerror=()=>rej(new Error('엑셀 라이브러리 로드 실패'));
+    document.head.appendChild(s);
+  });
+}
+
+async function exportMatchesXlsx(){
+  if(ME?.role!=='admin') return;
+  const from=document.getElementById('export-from').value, to=document.getElementById('export-to').value;
+  if(from&&to&&from>to){ toast('시작일이 종료일보다 늦어요','error'); return; }
+  const btn=document.getElementById('btn-export-run');
+  btn.disabled=true; btn.textContent='불러오는 중...';
+  try{
+    await _loadXlsxLib();
+    const rows=[];
+    for(let off=0;;off+=1000){
+      let q=sb.from('matches').select('match_date,a1_name,a2_name,score_a,score_b,b1_name,b2_name,note')
+        .eq('status','approved')
+        .order('match_date',{ascending:true}).order('created_at',{ascending:true}).order('id',{ascending:true})
+        .range(off,off+999);
+      if(from) q=q.gte('match_date',from);
+      if(to) q=q.lte('match_date',to);
+      const{data,error}=await q;
+      if(error) throw error;
+      rows.push(...data);
+      if(data.length<1000) break;
+    }
+    if(!rows.length){ toast('해당 기간에 경기가 없어요'); return; }
+    const res=(a,b)=>a>b?'승':a<b?'패':'무';
+    const aoa=[['연번','경기일자','선수1','선수2','승패1','점수1','점수2','승패2','선수3','선수4','비고']];
+    rows.forEach((m,i)=>aoa.push([i+1,m.match_date,m.a1_name||'',m.a2_name||'',res(m.score_a,m.score_b),m.score_a,m.score_b,res(m.score_b,m.score_a),m.b1_name||'',m.b2_name||'',(m.note||'').trim()]));
+    const ws=XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols']=[6,12,10,10,6,6,6,6,10,10,24].map(w=>({wch:w}));
+    ws['!autofilter']={ref:ws['!ref']};
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'경기내역');
+    const tag=(from||rows[0].match_date).replace(/-/g,'')+'-'+(to||rows[rows.length-1].match_date).replace(/-/g,'');
+    XLSX.writeFile(wb,`새벽민턴_경기내역_${tag}.xlsx`);
+    toast(`${rows.length}경기 다운로드`,'success');
+  }catch(e){
+    console.error('[Export]',e); toast('다운로드 실패: '+(e.message||e),'error');
+  }finally{
+    btn.disabled=false; btn.textContent='엑셀 다운로드';
+  }
+}
+
 /* ── 초성 추출 ── */
 function _getChosung(str){
   const cho=['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
@@ -54,6 +128,8 @@ async function renderFeed(forceNameQ){
   _feedLoadingMore=false;
   const batchBtn=document.getElementById('btn-batch-register');
   if(batchBtn) batchBtn.style.display=ME?.role==='admin'?'':'none';
+  const exportBtn=document.getElementById('btn-feed-export');
+  if(exportBtn) exportBtn.style.display=ME?.role==='admin'?'':'none';
   _detachFeedScroll();
   window._feedAllMatches=null;
   const token=++_feedRenderToken;
