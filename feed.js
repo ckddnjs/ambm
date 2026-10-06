@@ -23,6 +23,28 @@ function toggleBatchPanel(){
   if(btn) btn.style.color=open?'var(--text-muted)':'var(--primary)';
 }
 
+/* ── 경기 등록 버튼: 관리자는 개별/일괄 선택, 일반회원은 바로 등록 화면 ── */
+function feedRegisterClick(e){
+  if(ME?.role!=='admin'){ navigateTo('register'); return; }
+  e.stopPropagation();
+  const menu=document.getElementById('feed-register-menu');
+  const open=menu.style.display!=='none';
+  menu.style.display=open?'none':'block';
+  if(!open) setTimeout(()=>document.addEventListener('click',_closeFeedRegisterMenu,{once:true}),0);
+}
+function _closeFeedRegisterMenu(){
+  const menu=document.getElementById('feed-register-menu');
+  if(menu) menu.style.display='none';
+}
+function feedRegisterPick(kind){
+  _closeFeedRegisterMenu();
+  if(kind==='batch'){
+    const panel=document.getElementById('batch-panel');
+    if(panel&&panel.style.display==='none') toggleBatchPanel();
+    panel?.scrollIntoView({behavior:'smooth',block:'start'});
+  } else navigateTo('register');
+}
+
 /* ── 경기내역 엑셀 다운로드 (관리자) ── */
 function _ymd(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 
@@ -126,8 +148,6 @@ async function renderFeed(forceNameQ){
   _feedOffset=0;
   _feedHasMore=false;
   _feedLoadingMore=false;
-  const batchBtn=document.getElementById('btn-batch-register');
-  if(batchBtn) batchBtn.style.display=ME?.role==='admin'?'':'none';
   const exportBtn=document.getElementById('btn-feed-export');
   if(exportBtn) exportBtn.style.display=ME?.role==='admin'?'':'none';
   _detachFeedScroll();
