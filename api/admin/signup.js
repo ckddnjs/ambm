@@ -7,9 +7,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { email, password, name } = req.body;
+  const { email, password } = req.body || {};
+  const name = String(req.body?.name || '').trim();
   if (!email || !password || !name) {
     return res.status(400).json({ error: '필수 항목 누락' });
+  }
+  // 이름은 관리자 승인 화면 등에 그려진다 — HTML 특수문자 거부 (DB 제약 profiles_name_safe와 같은 규칙)
+  if (name.length > 20 || /[<>"'`&\\]/.test(name)) {
+    return res.status(400).json({ error: '이름은 20자 이내로, 특수문자 없이 입력해 주세요' });
   }
   if (password.length < 4) {
     return res.status(400).json({ error: '비밀번호 4자 이상' });

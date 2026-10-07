@@ -453,7 +453,7 @@ async function renderDateSummaryContent(dateStr){
       :`<div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;">${p.name[0]}</div>`;
     return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:.5px solid var(--border);">
       ${av}
-      <div style="flex:1;font-size:.87rem;font-weight:${isMvp?700:400};">${p.name}${isMvp?' 🏆':''}</div>
+      <div style="flex:1;font-size:.87rem;font-weight:${isMvp?700:400};">${escHtml(p.name)}${isMvp?' 🏆':''}</div>
       <div style="font-size:.8rem;color:var(--text-muted);">${p.wins}승 ${p.losses}패</div>
       <div style="font-size:.78rem;color:var(--text-muted);min-width:34px;text-align:right;font-variant-numeric:tabular-nums;">${p.diff>0?'+':''}${p.diff}</div>
       <div style="font-size:.85rem;font-weight:700;color:${wr>=50?'var(--primary)':'#FF7070'};min-width:38px;text-align:right;">${wr}%</div>
@@ -479,8 +479,8 @@ function matchCardHTML(m,isAdmin=false){
 
   const aPlayers=[m.a1_name,m.a2_name].filter(Boolean);
   const bPlayers=[m.b1_name,m.b2_name].filter(Boolean);
-  const aNamesHtml=aPlayers.map(n=>`<div class="mc-pname ${aWin?'win':'lose'}">${n}</div>`).join('');
-  const bNamesHtml=bPlayers.map(n=>`<div class="mc-pname ${aWin?'lose':'win'}">${n}</div>`).join('');
+  const aNamesHtml=aPlayers.map(n=>`<div class="mc-pname ${aWin?'win':'lose'}">${escHtml(n)}</div>`).join('');
+  const bNamesHtml=bPlayers.map(n=>`<div class="mc-pname ${aWin?'lose':'win'}">${escHtml(n)}</div>`).join('');
 
   const emojiSlotL=`<span class="mc-me-slot">${onATeam?myEmoji:''}</span>`;
   const emojiSlotR=`<span class="mc-me-slot">${onBTeam?myEmoji:''}</span>`;
@@ -552,7 +552,7 @@ async function openMatchDetail(id,isAdmin=false){
     <div class="detail-row"><span class="detail-key">상태</span><span class="detail-val">${statusBadge(m.status)}</span></div>
     <div class="detail-row"><span class="detail-key">경기일</span><span class="detail-val">${fmtMatchDate(m.match_date)}</span></div>
     <div class="detail-row"><span class="detail-key">등록자</span><span class="detail-val">${m.submitter_name||'-'}</span></div>
-    ${m.note?`<div class="detail-row"><span class="detail-key">메모</span><span class="detail-val">${m.note}</span></div>`:''}
+    ${m.note?`<div class="detail-row"><span class="detail-key">메모</span><span class="detail-val">${escHtml(m.note)}</span></div>`:''}
     ${m.admin_note?`<div class="detail-row"><span class="detail-key">관리자 메모</span><span class="detail-val" style="color:var(--primary);">${m.admin_note}</span></div>`:''}
     <hr class="section-divider">
     <!-- 점수 한 줄: 이름 · 점수 · 이름 -->

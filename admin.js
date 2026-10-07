@@ -41,12 +41,12 @@ async function renderAdminPending(){
       html+=`<div class="card" style="margin-bottom:6px;padding:10px 12px;border-left:3px solid var(--accent);">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
           <div>
-            <div style="font-weight:700;font-size:.9rem;">${u.name}</div>
+            <div style="font-weight:700;font-size:.9rem;">${escHtml(u.name)}</div>
             <div style="font-size:.75rem;color:var(--text-muted);">${u.email||'이메일없음'} · ${u.provider||'kakao'}</div>
           </div>
           <div style="display:flex;gap:6px;">
             <button class="btn btn-success btn-sm" onclick="approveUser('${u.id}')"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>승인</button>
-            <button class="btn btn-danger btn-sm" onclick="confirmDenyUser('${u.id}','${u.name}')"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>거절</button>
+            <button class="btn btn-danger btn-sm" onclick="confirmDenyUser('${u.id}',this.dataset.name)" data-name="${escHtml(u.name)}"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>거절</button>
           </div>
         </div>
       </div>`;
@@ -134,7 +134,7 @@ async function renderAdminMembers(){
     (users||[]).map(u=>`<div class="card" style="margin-bottom:8px;padding:10px 12px;">
       <div style="display:flex;align-items:center;gap:8px;">
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;font-size:.92rem;">${u.name}${u.role==='writer'?'<span class="admin-tag" style="background:rgba(92,107,192,.12);border-color:rgba(92,107,192,.3);color:#5C6BC0;">작성자</span>':u.role==='admin'?'<span class="admin-tag">ADMIN</span>':''} ${u.exclude_stats?'<span class="admin-tag" style="background:rgba(255,152,0,.12);border-color:rgba(255,152,0,.3);color:#E65100;">통계제외</span>':''} <span style="font-size:.72rem;color:${u.status==='approved'?'var(--primary)':u.status==='pending'?'var(--accent)':'var(--danger)'}">${u.status==='approved'?'승인':u.status==='pending'?'대기':'정지'}</span></div>
+          <div style="font-weight:700;font-size:.92rem;">${escHtml(u.name)}${u.role==='writer'?'<span class="admin-tag" style="background:rgba(92,107,192,.12);border-color:rgba(92,107,192,.3);color:#5C6BC0;">작성자</span>':u.role==='admin'?'<span class="admin-tag">ADMIN</span>':''} ${u.exclude_stats?'<span class="admin-tag" style="background:rgba(255,152,0,.12);border-color:rgba(255,152,0,.3);color:#E65100;">통계제외</span>':''} <span style="font-size:.72rem;color:${u.status==='approved'?'var(--primary)':u.status==='pending'?'var(--accent)':'var(--danger)'}">${u.status==='approved'?'승인':u.status==='pending'?'대기':'정지'}</span></div>
           <div style="font-size:.74rem;color:var(--text-muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${u.email||''}</div>
         </div>
         <div style="display:flex;flex-direction:row;gap:4px;flex-shrink:0;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
@@ -146,7 +146,7 @@ async function renderAdminMembers(){
 
   // 비회원 관리 섹션 (회원 목록 아래) - 테이블 형태
   const approvedUsers=(users||[]).filter(u=>u.status==='approved');
-  const memberOptHtml=approvedUsers.map(u=>`<option value="${u.id}|${escHtml(u.name)}">${u.name}</option>`).join('');
+  const memberOptHtml=approvedUsers.map(u=>`<option value="${u.id}|${escHtml(u.name)}">${escHtml(u.name)}</option>`).join('');
 
   const guestSection=guestArr.length?`
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
@@ -1117,7 +1117,7 @@ async function openEditMatch(id){
   const mkPlayerField=(fid,selId,selName,required)=>{
     const isGuest=!selId&&selName; // id 없고 이름만 있으면 비회원
     const noneOpt=required?'':`<option value="">없음</option>`;
-    const memberOpts=(users||[]).map(u=>`<option value="${u.id}" ${u.id===selId?'selected':''}>${u.name}</option>`).join('');
+    const memberOpts=(users||[]).map(u=>`<option value="${u.id}" ${u.id===selId?'selected':''}>${escHtml(u.name)}</option>`).join('');
     const guestSel=isGuest?'selected':'';
     return `<div>
       <select class="form-select" id="${fid}" onchange="emToggleGuest('${fid}')" style="margin-bottom:4px;">

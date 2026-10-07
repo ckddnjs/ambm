@@ -42,7 +42,7 @@ async function openBracketDetail(id){
       const gMatches=g.matches||[];
       bdCalcStandings([g],isIndividual);
       const standings=g.standings||[];
-      html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px;"><div style="font-weight:700;font-size:.88rem;color:var(--primary);margin-bottom:8px;">${g.name}</div>`;
+      html+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px;"><div style="font-weight:700;font-size:.88rem;color:var(--primary);margin-bottom:8px;">${escHtml(g.name)}</div>`;
       if(standings.length){
         html+=`<table style="width:100%;font-size:.76rem;border-collapse:collapse;margin-bottom:8px;"><thead><tr style="border-bottom:1px solid var(--border);"><th style="padding:4px 2px;text-align:left;color:var(--text-muted);">순위</th><th style="padding:4px 2px;text-align:left;color:var(--text-muted);">선수</th><th style="padding:4px 2px;text-align:center;color:var(--text-muted);">승</th><th style="padding:4px 2px;text-align:center;color:var(--text-muted);">패</th><th style="padding:4px 2px;text-align:center;color:var(--text-muted);">득실</th></tr></thead><tbody>`;
         standings.forEach((s,si)=>{
@@ -90,7 +90,7 @@ async function openBracketDetail(id){
         const captain=team.captain||'(미지정)';
         const captainSet=!!team.captain;
         html+=`<div style="flex:1;min-width:140px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
-          <div style="font-weight:700;font-size:.9rem;margin-bottom:6px;">${team.name}</div>
+          <div style="font-weight:700;font-size:.9rem;margin-bottom:6px;">${escHtml(team.name)}</div>
           <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:6px;">
             <svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg>팀장: <span style="color:${captainSet?'var(--primary)':'var(--warn)'};font-weight:700;">${captain}</span>
             ${isAdmin?`<button onclick="bdEditTeamCaptain('${id}',${ti})" style="margin-left:4px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:.68rem;cursor:pointer;color:var(--text-muted);">수정</button>`:''}
@@ -184,7 +184,7 @@ function _renderBalanceSavedView(bt, data){
     const pct=maxSc>0?Math.round(scores[gi]/maxSc*100):0;
     html+=`<div style="margin-bottom:14px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-        <div style="font-size:.92rem;font-weight:700;color:${color};">${g.name}</div>
+        <div style="font-size:.92rem;font-weight:700;color:${color};">${escHtml(g.name)}</div>
         <div style="font-size:.84rem;font-weight:700;color:${color};">평균 ${rpDisp(scores[gi])}</div>
       </div>
       <div style="height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:10px;">
@@ -194,7 +194,7 @@ function _renderBalanceSavedView(bt, data){
     if(g.isTeam){
       (g.players||[]).forEach(p=>{
         html+=`<div style="display:flex;align-items:center;gap:5px;background:var(--bg3);border-radius:8px;padding:6px 12px;">
-          <span style="font-size:.92rem;font-weight:600;">${p.name}${p.name===g.captain?'⭐':''}</span>
+          <span style="font-size:.92rem;font-weight:600;">${escHtml(p.name)}${p.name===g.captain?'⭐':''}</span>
           <span style="font-size:.78rem;color:var(--text-muted);">${rpDisp(p.score||0)}</span>
         </div>`;
       });
@@ -211,7 +211,7 @@ function _renderBalanceSavedView(bt, data){
     } else {
       (g.players||[]).forEach(p=>{
         html+=`<div style="display:flex;align-items:center;gap:5px;background:var(--bg3);border-radius:8px;padding:6px 12px;">
-          <span style="font-size:.92rem;font-weight:600;">${p.name}</span>
+          <span style="font-size:.92rem;font-weight:600;">${escHtml(p.name)}</span>
           <span style="font-size:.78rem;color:var(--text-muted);">${rpDisp(p.score||0)}</span>
         </div>`;
       });
@@ -238,7 +238,7 @@ async function bdEditTeamCaptain(btId, teamIdx){
   const btIdSafe=btId.replace(/[^a-zA-Z0-9_-]/g,'');
   const modalHtml=`
     <div style="background:var(--modal-bg,var(--surface));border-radius:16px;padding:20px;max-width:320px;width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.4);">
-      <div style="font-weight:700;font-size:.95rem;margin-bottom:4px;"><svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg>팀장 지정 — ${team.name}</div>
+      <div style="font-weight:700;font-size:.95rem;margin-bottom:4px;"><svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg>팀장 지정 — ${escHtml(team.name)}</div>
       <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:14px;">현재: ${team.captain||'미지정'}</div>
       <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
         ${members.map(m=>`
@@ -488,7 +488,7 @@ async function renderBracketPage(){
     return `<div class="card" style="margin-bottom:12px;cursor:pointer;${isBalance?'border-left:3px solid #00C896;':''}" onclick="openBracketDetail('${bt.id}')">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;font-size:.95rem;margin-bottom:3px;">${bt.name}</div>
+          <div style="font-weight:700;font-size:.95rem;margin-bottom:3px;">${escHtml(bt.name)}</div>
           <div style="font-size:.78rem;color:var(--text-muted);">📅 ${fmtMatchDate(bt.match_date)} · ${tLabel}</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
