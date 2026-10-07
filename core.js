@@ -182,14 +182,13 @@ async function fadeOutLoading(){
 async function _promptKakaoName(authUser){
   return new Promise(resolve=>{
     // 카카오 메타데이터에서 닉네임 먼저 시도
-    const kakaoNick=authUser.user_metadata?.name||authUser.user_metadata?.full_name||authUser.user_metadata?.nickname||'';
     const overlay=document.createElement('div');
     overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.innerHTML=`
       <div style="background:var(--surface);border-radius:20px;padding:28px 22px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.4);">
         <div style="font-family:'Black Han Sans',sans-serif;font-size:1.2rem;margin-bottom:6px;">🏸 새벽민턴</div>
         <div style="font-size:.88rem;color:var(--text-muted);margin-bottom:18px;">사용할 이름을 입력해 주세요</div>
-        <input id="_kakao_name_input" class="form-input" placeholder="이름 (예: 홍길동)" value="${kakaoNick}" style="margin-bottom:14px;">
+        <input id="_kakao_name_input" class="form-input" placeholder="이름 (예: 홍길동)" value="" style="margin-bottom:14px;">
         <button id="_kakao_name_btn" class="btn btn-primary" style="width:100%;padding:12px;font-size:.95rem;">확인</button>
         <div style="font-size:.72rem;color:var(--text-muted);margin-top:10px;text-align:center;">이름은 이후 설정에서 변경할 수 없습니다</div>
       </div>`;
@@ -220,6 +219,9 @@ async function loadProfile(authUser){
   }
   const pn=localStorage.getItem('kakao_pending_name');
   if(pn) localStorage.removeItem('kakao_pending_name');
+  // 가입 트리거(handle_new_user)가 카카오 닉네임으로 프로필을 먼저 만들어 두므로, 적어 둔 이름은 이름 확인 팝업이 채운다
+  window._kakaoNick=authUser.user_metadata?.name||authUser.user_metadata?.full_name||authUser.user_metadata?.nickname||'';
+  window._kakaoPendingName=pn||'';
   if(error?.code==='PGRST116'){
     // 카카오 신규 가입: 이름 입력 팝업
     const isKakao=(authUser.app_metadata?.provider==='kakao');
@@ -275,6 +277,11 @@ async function kakaoLoginDirect(){
 }
 async function kakaoSignup(){
   if(!document.getElementById('privacy-agree')?.checked){toast('개인정보 수집·이용 동의가 필요합니다','error');return;}
+  // 카카오 화면에 다녀오면 폼 값이 사라진다 → 떠나기 전에 저장
+  try{
+    const nm=document.getElementById('signup-name')?.value.trim()||'';
+    if(nm) localStorage.setItem('kakao_pending_name',nm); else localStorage.removeItem('kakao_pending_name');
+  }catch(e){}
   const{error}=await sb.auth.signInWithOAuth({provider:'kakao',options:{redirectTo:APP_URL,scopes:'profile_nickname,account_email',queryParams:{prompt:'select_account'}}});
   if(error) toast('오류: '+error.message,'error');
 }
@@ -422,7 +429,44 @@ function showPendingScreen(name){
     <div style="font-family:Black Han Sans,sans-serif;font-size:1.5rem;color:var(--primary);margin-bottom:8px;">승인 대기 중</div>
     <div style="color:var(--text-muted);font-size:.9rem;margin-bottom:24px;line-height:1.7;"><b style="color:var(--text);">${name}</b>님, 가입 신청이 완료되었습니다.<br>관리자 승인 후 서비스를 이용할 수 있어요.</div>
     <button onclick="doLogoutFromPending()" style="background:var(--bg2);border:1px solid var(--border);color:var(--text-muted);border-radius:10px;padding:10px 24px;font-family:inherit;cursor:pointer;"><svg class="ic" aria-hidden="true"><use href="#i-logout"/></svg>로그아웃</button>`;
-  document.body.appendChild(el);
+  document.body.appendChild(el);  _confirmKakaoName();
+}
+/* ── 카카오 가입자 이름 확인 (2026-10-08) ──
+   가입 트리거가 카카오 닉네임으로 프로필을 만들고, 폼에 적은 이름은 카카오 화면에 다녀오며 사라질 수 있다.
+   승인 대기 중인 카카오 가입자에게 실명을 한 번 확인받는다. 확인하면 이 기기에선 다시 안 묻는다. */
+function _confirmKakaoName(){
+  if(!ME||ME.provider!=='kakao'||ME.status!=='pending') return;
+  const key='name_ok_'+ME.id;
+  try{ if(localStorage.getItem(key)) return; }catch(e){}
+  if(document.getElementById('kakao-name-confirm')) return;
+  const nick=window._kakaoNick||'';
+  const pre=window._kakaoPendingName||((ME.name&&ME.name!==nick)?ME.name:'');
+  const ov=document.createElement('div');ov.id='kakao-name-confirm';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  ov.innerHTML=`<div style="background:var(--surface);border-radius:20px;padding:26px 22px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.4);">
+      <div style="font-weight:800;font-size:1.1rem;margin-bottom:6px;">이름을 확인해 주세요</div>
+      <div style="font-size:.85rem;color:var(--text-muted);margin-bottom:16px;line-height:1.6;">카카오톡 닉네임 대신 동호회에서 쓸 실명을 적어 주세요.</div>
+      <input id="kn-name" class="form-input" maxlength="20" placeholder="이름 (예: 홍길동)" value="${escHtml(pre)}" oninput="this.value=this.value.replace(/[0-9]/g,'')" style="width:100%;margin-bottom:12px;">
+      <div id="kn-err" style="display:none;color:var(--danger);font-size:.8rem;font-weight:700;margin-bottom:10px;"></div>
+      <button id="kn-ok" class="btn btn-primary" style="width:100%;padding:12px;">확인</button>
+    </div>`;
+  document.body.appendChild(ov);
+  const $=id=>ov.querySelector('#'+id), err=m=>{const d=$('kn-err');d.textContent=m;d.style.display='block';};
+  $('kn-name').focus();
+  $('kn-ok').onclick=async()=>{
+    const name=$('kn-name').value.trim();
+    if(!name) return err('이름을 입력해 주세요');
+    if(/[<>"'`&\\]/.test(name)) return err('이름에 쓸 수 없는 기호가 있어요');
+    $('kn-ok').disabled=true;
+    const{error}=await sb.from('profiles').update({name}).eq('id',ME.id);
+    $('kn-ok').disabled=false;
+    if(error) return err('저장 실패: '+error.message);
+    ME={...ME,name};
+    try{ localStorage.setItem(key,'1'); }catch(e){}
+    window._kakaoPendingName='';
+    ov.remove();
+    showPendingScreen(ME.name);
+  };
 }
 async function doLogoutFromPending(){_explicitLogout=true;await sb.auth.signOut();ME=null;document.getElementById('pending-screen')?.remove();showLogin();}
 function switchTab(t){
