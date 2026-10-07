@@ -1518,7 +1518,7 @@ async function adminCraftReject(reqId){
 }
 
 async function adminCraftSaveConfig(){
-  const ITEM_IDS=['feather_bundle','cork','thread','tape','artisan_craft','recycle'];
+  const ITEM_IDS=['feather_bundle','cork','thread','tape','artisan_craft','recycle','grip'];
   const prices={};
   ITEM_IDS.forEach(id=>{
     const v=parseInt(document.getElementById('price-'+id)?.value||'0');
@@ -1526,10 +1526,12 @@ async function adminCraftSaveConfig(){
   });
   const flightRate=Math.min(100,Math.max(1,parseInt(document.getElementById('price-flight_rate')?.value||'40')));
 
-  await Promise.all([
+  const results=await Promise.all([
     sb.from('app_settings').upsert({key:'market_prices',value:JSON.stringify(prices)},{onConflict:'key'}),
     sb.from('app_settings').upsert({key:'market_config',value:JSON.stringify({flight_rate:flightRate})},{onConflict:'key'}),
   ]);
+  const saveErr=results.find(r=>r.error)?.error;
+  if(saveErr){ toast('저장 실패: '+saveErr.message,'error'); return; }
   addLog('craft_config_updated',ME.id,JSON.stringify({prices,flightRate}));
   toast('✅ 설정이 저장됐습니다','success');
   // 캐시 초기화 (다음 진입 시 새 설정 반영)
