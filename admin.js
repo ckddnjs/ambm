@@ -114,7 +114,7 @@ function filterAdminAll(){
   if(wrap) wrap.innerHTML=list.map(m=>matchCardHTML(m,true)).join('')||`<div class="empty-state"><div class="empty-icon">🔍</div><div>결과 없음</div></div>`;
 }
 async function renderAdminMembers(){
-  const{data:users}=await sb.from('profiles').select(PROFILE_COLS).order('created_at',{ascending:false});
+  const{data:users}=await sb.from('profiles').select(PROFILE_COLS).neq('status','linked').order('created_at',{ascending:false});
   await _attachAdminEmails(users);
   const el=document.getElementById('admin-content');
   // 비회원(이름만 있는) 경기 목록에서 이름 추출

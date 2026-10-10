@@ -29,13 +29,15 @@ const sb=createClient(SUPABASE_URL,SUPABASE_ANON,{
 });
 
 /* ── STATE ── */
-let ME=null, currentPage='', rankTab='all', sortBy='ci', sortDir=1; // sortDir: 1=내림차순, -1=오름차순
+let ME=null, AUTH_USER_ID=null, currentPage='', rankTab='all', sortBy='ci', sortDir=1; // sortDir: 1=내림차순, -1=오름차순
 let _explicitLogout=false; // 명시적 로그아웃 여부 (네트워크 오류 구분용)
 let regMatchType='doubles', adminTab='pending', editMatchId='';
 
 let _allMatchesCache=[];window._allMatchesCache=_allMatchesCache;
 let commTab='all';
 let _directInputA=false, _directInputB=false;
+
+function myPlayerId(){return ME?.player_id||ME?.id||null;}
 
 /* ── BOOT ── */
 window.addEventListener('DOMContentLoaded',async()=>{
@@ -160,11 +162,11 @@ window.addEventListener('DOMContentLoaded',async()=>{
       }
       _explicitLogout=false;
       _authResolved=false;
-      ME=null;
+      ME=null;AUTH_USER_ID=null;
       initTheme();initFontScale();document.body.classList.add('ready');
       showLogin();
     } else if(event==='TOKEN_REFRESHED'){
-      if(session?.user&&ME&&session.user.id===ME.id) return;
+      if(session?.user&&ME&&session.user.id===(AUTH_USER_ID||ME.id)) return;
       try{ if(session?.user) await loadProfile(session.user); }catch(e){}
     }
   });
@@ -209,10 +211,13 @@ async function _promptKakaoName(authUser){
 
 
 async function loadProfile(authUser){
+  AUTH_USER_ID=authUser.id;
+  const{data:effectiveId,error:linkError}=await sb.rpc('ambm_my_player_id');
+  const profileId=(!linkError&&effectiveId)||authUser.id;
   // 네트워크 불안정 대비 최대 3회 재시도
   let data,error;
   for(let _attempt=0;_attempt<3;_attempt++){
-    const res=await sb.from('profiles').select(PROFILE_COLS).eq('id',authUser.id).single();
+    const res=await sb.from('profiles').select(PROFILE_COLS).eq('id',profileId).single();
     data=res.data; error=res.error;
     if(!error||error.code==='PGRST116') break;
     await new Promise(r=>setTimeout(r,800*(_attempt+1)));
@@ -241,10 +246,15 @@ async function loadProfile(authUser){
   } else if(data){
     ME=data;
   }
-  if(ME) ME.email=authUser.email||'';
+  if(ME){
+    ME.email=authUser.email||'';
+    ME.auth_id=authUser.id;
+    ME.player_id=profileId;
+    ME.linked_account=profileId!==authUser.id;
+  }
   // 비회원 기록 자동 연계 — 가입 순간 1회가 아니라 매 로그인마다(멱등: 이름 일치 + id null 슬롯만).
   // 가입 시점에 배포·캐시 타이밍으로 놓쳐도 다음 접속에서 자동 치유 (심재성 케이스 재발 방지)
-  if(ME) sb.rpc('link_guest_matches').then(({data:n,error})=>{ if(!error&&n>0) console.log(`[연계] 비회원 기록 ${n}건 자동 연결`); });
+  if(ME&&!ME.linked_account) sb.rpc('link_guest_matches').then(({data:n,error})=>{ if(!error&&n>0) console.log(`[연계] 비회원 기록 ${n}건 자동 연결`); });
 }
 
 
@@ -303,7 +313,7 @@ async function doEmailLogin(){
     }
     if(!ME){toast('프로필 로드 실패, 다시 시도해 주세요','error');return;}
     if(ME.status==='pending'){showPendingScreen(ME.name);return;}
-    if(ME.status==='rejected'){toast('이용 불가 계정','error');await sb.auth.signOut();ME=null;return;}
+    if(ME.status==='rejected'){toast('이용 불가 계정','error');await sb.auth.signOut();ME=null;AUTH_USER_ID=null;return;}
     addLog(`로그인: ${ME.name}`,ME.id);
     showApp();toast(`어서오세요, ${ME.name}님! 🏸`,'success');
   } finally {
@@ -403,7 +413,7 @@ function initTheme(){
 async function doLogout(){
   if(ME) addLog(`로그아웃: ${ME.name}`,ME.id);
   _explicitLogout=true;
-  await sb.auth.signOut();ME=null;showLogin();
+  await sb.auth.signOut();ME=null;AUTH_USER_ID=null;showLogin();
 }
 
 function showLogin(){document.getElementById('pending-screen')?.remove();document.getElementById('app').style.display='none';document.getElementById('login-page').style.display='block';}
@@ -468,7 +478,7 @@ function _confirmKakaoName(){
     showPendingScreen(ME.name);
   };
 }
-async function doLogoutFromPending(){_explicitLogout=true;await sb.auth.signOut();ME=null;document.getElementById('pending-screen')?.remove();showLogin();}
+async function doLogoutFromPending(){_explicitLogout=true;await sb.auth.signOut();ME=null;AUTH_USER_ID=null;document.getElementById('pending-screen')?.remove();showLogin();}
 function switchTab(t){
   document.querySelectorAll('.login-tab').forEach((el,i)=>el.classList.toggle('active',(i===0&&t==='login')||(i===1&&t==='signup')));
   document.querySelectorAll('.login-panel').forEach(p=>p.classList.remove('active'));

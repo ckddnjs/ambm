@@ -11,8 +11,9 @@ async function renderDashboard(){
     window._matchCacheTime=_now;
     window._profilesCache=null; // 경기 새로 불러오면 프로필도 갱신
   }
-  const myMatches=_allMatchesCache.filter(m=>inSeason(m)&&[m.a1_id,m.a2_id,m.b1_id,m.b2_id].includes(ME.id)); // 시즌 경기만
-  const stats=computeStats(myMatches,ME.id);
+  const playerId=myPlayerId();
+  const myMatches=_allMatchesCache.filter(m=>inSeason(m)&&[m.a1_id,m.a2_id,m.b1_id,m.b2_id].includes(playerId)); // 시즌 경기만
+  const stats=computeStats(myMatches,playerId);
 
   // 전체 유저 통계로 순위 계산 (renderRankTable과 동일한 기준: 회원+비회원)
   if(!window._profilesCache||window._profilesCache.length===0){
@@ -62,14 +63,14 @@ async function renderDashboard(){
   const wrRanked=[...rankedAll].sort((a,b)=>wrOf(b)-wrOf(a)||b.wins-a.wins);
   const diffRanked=[...rankedAll].sort((a,b)=>b.diff-a.diff||wrOf(b)-wrOf(a));
   const gamesRanked=[...rankedAll].sort((a,b)=>b.games-a.games);
-  const myWrRank=stats.total.games>=MIN_G?wrRanked.findIndex(u=>u.id===ME.id)+1:0;
-  const myDiffRank=stats.total.games>=MIN_G?diffRanked.findIndex(u=>u.id===ME.id)+1:0;
-  const myGamesRank=stats.total.games>=MIN_G?gamesRanked.findIndex(u=>u.id===ME.id)+1:0;
+  const myWrRank=stats.total.games>=MIN_G?wrRanked.findIndex(u=>u.id===playerId)+1:0;
+  const myDiffRank=stats.total.games>=MIN_G?diffRanked.findIndex(u=>u.id===playerId)+1:0;
+  const myGamesRank=stats.total.games>=MIN_G?gamesRanked.findIndex(u=>u.id===playerId)+1:0;
   const total=rankedAll.length;
   const ciRanked=[...rankedAll].sort((a,b)=>b.ci-a.ci||wrOf(b)-wrOf(a)||(b.diff-a.diff)||(b.games-a.games));
-  const myCIRank=stats.total.games>=MIN_G?ciRanked.findIndex(u=>u.id===ME.id)+1:0;
+  const myCIRank=stats.total.games>=MIN_G?ciRanked.findIndex(u=>u.id===playerId)+1:0;
 
-  const ci=calcCI(stats.total.wins,stats.total.games,stats.total.diff||0,uStats[ME.id]?.closeWins||0);
+  const ci=calcCI(stats.total.wins,stats.total.games,stats.total.diff||0,uStats[playerId]?.closeWins||0);
   const grade=ciToLabel(ci);
 
   // 맞춤형 인사말: 시간대 + 연승/연패 + 경기수 상황 반영
@@ -78,10 +79,10 @@ async function renderDashboard(){
   const _sortedM=[...myMatches].sort((a,b)=>new Date(b.match_date)-new Date(a.match_date));
   let _curStreak=0,_curType='';
   if(_sortedM.length>0){
-    const _first=[_sortedM[0].a1_id,_sortedM[0].a2_id].includes(ME.id)?_sortedM[0].score_a>_sortedM[0].score_b:_sortedM[0].score_b>_sortedM[0].score_a;
+    const _first=[_sortedM[0].a1_id,_sortedM[0].a2_id].includes(playerId)?_sortedM[0].score_a>_sortedM[0].score_b:_sortedM[0].score_b>_sortedM[0].score_a;
     _curType=_first?'승':'패';
     for(const _m of _sortedM){
-      const _onA=[_m.a1_id,_m.a2_id].includes(ME.id);
+      const _onA=[_m.a1_id,_m.a2_id].includes(playerId);
       const _w=_onA?_m.score_a>_m.score_b:_m.score_b>_m.score_a;
       if((_w&&_curType==='승')||(!_w&&_curType==='패')) _curStreak++;
       else break;
@@ -105,7 +106,7 @@ async function renderDashboard(){
     return dd!==0?dd:new Date(b.created_at||0)-new Date(a.created_at||0);
   }).slice(0,10);
   const streakDots=recentMatches.map(m=>{
-    const onA=[m.a1_id,m.a2_id].includes(ME.id);
+    const onA=[m.a1_id,m.a2_id].includes(myPlayerId());
     const won=(m.score_a>m.score_b)===onA;
     return won?'<span style="color:var(--primary);font-size:1rem;" title="승">●</span>':'<span style="color:var(--danger);font-size:1rem;" title="패">●</span>';
   }).join('');
@@ -127,17 +128,17 @@ async function renderDashboard(){
   // 베스트 파트너 계산 (회원 + 비회원 모두 포함)
   const _partnerMap={};
   myMatches.forEach(m=>{
-    const onA=[m.a1_id,m.a2_id].includes(ME.id);
+    const onA=[m.a1_id,m.a2_id].includes(playerId);
     const won=(m.score_a>m.score_b)===onA;
     let pkey=null,pname=null;
     if(onA){
-      if(m.a1_id===ME.id){
+      if(m.a1_id===playerId){
         pkey=m.a2_id||('name:'+m.a2_name); pname=m.a2_name;
       } else {
         pkey=m.a1_id||('name:'+m.a1_name); pname=m.a1_name;
       }
     } else {
-      if(m.b1_id===ME.id){
+      if(m.b1_id===playerId){
         pkey=m.b2_id||('name:'+m.b2_name); pname=m.b2_name;
       } else {
         pkey=m.b1_id||('name:'+m.b1_name); pname=m.b1_name;
@@ -161,7 +162,7 @@ async function renderDashboard(){
   const diffColor=diff>0?'var(--primary)':diff<0?'var(--danger)':'var(--text-muted)';
   const diffStr=(diff>0?'+':'')+diff;
   const streak5HTML=streak5.map(m=>{
-    const onA=[m.a1_id,m.a2_id].includes(ME.id);
+    const onA=[m.a1_id,m.a2_id].includes(playerId);
     const won=(m.score_a>m.score_b)===onA;
     const wonStyle=won?'background:rgba(0,200,150,.2);color:#00C896;border:1.5px solid rgba(0,200,150,.5);':'background:rgba(255,82,82,.15);color:#FF5252;border:1.5px solid rgba(255,82,82,.4);';
     const wonLabel=won?'W':'L';
@@ -437,7 +438,7 @@ function renderWrTrend(myMatches){
   filtered.forEach(m=>{
     const dateKey=(m.match_date||'').slice(0,10);
     if(!dateKey) return;
-    const onA=[m.a1_id,m.a2_id].includes(ME.id);
+    const onA=[m.a1_id,m.a2_id].includes(myPlayerId());
     const aWin=m.score_a>m.score_b;
     const won=onA?aWin:!aWin;
     const myScore=onA?m.score_a:m.score_b;
@@ -944,7 +945,7 @@ function renderRankTable(allMatches){
     const nameOnclick=u.isGuest
       ?`goToFeedByName('${u.name.replace(/'/g,"\\'")}')`
       :`showPlayerCard('${u.id}','${u.name.replace(/'/g,"\\'")}')`;
-    return `<tr class="${u.id===ME.id?'me':''}" ${!isRanked?'style="opacity:0.55;"':''}>
+    return `<tr class="${u.id===myPlayerId()?'me':''}" ${!isRanked?'style="opacity:0.55;"':''}>
     <td>${rankCell}</td>
     <td><span class="rank-name" onclick="${nameOnclick}">${u.name}</span>${guestBadge}</td>
     <td style="text-align:center;">${u.games}</td>
@@ -1031,18 +1032,18 @@ function renderPartner(allMatches){
   });
   const partners={};
   filtered.forEach(m=>{
-    const onA=[m.a1_id,m.a2_id].includes(ME.id);
-    const onB=[m.b1_id,m.b2_id].includes(ME.id);
+    const onA=[m.a1_id,m.a2_id].includes(myPlayerId());
+    const onB=[m.b1_id,m.b2_id].includes(myPlayerId());
     if(!onA&&!onB) return;
     const aWin=m.score_a>m.score_b;
     const won=onA?aWin:!aWin;
     let partnerId=null, partnerName=null;
     if(onA){
-      if(m.a1_id===ME.id){ partnerId=m.a2_id||('name:'+m.a2_name); partnerName=m.a2_name; }
-      else if(m.a2_id===ME.id){ partnerId=m.a1_id||('name:'+m.a1_name); partnerName=m.a1_name; }
+      if(m.a1_id===myPlayerId()){ partnerId=m.a2_id||('name:'+m.a2_name); partnerName=m.a2_name; }
+      else if(m.a2_id===myPlayerId()){ partnerId=m.a1_id||('name:'+m.a1_name); partnerName=m.a1_name; }
     } else {
-      if(m.b1_id===ME.id){ partnerId=m.b2_id||('name:'+m.b2_name); partnerName=m.b2_name; }
-      else if(m.b2_id===ME.id){ partnerId=m.b1_id||('name:'+m.b1_name); partnerName=m.b1_name; }
+      if(m.b1_id===myPlayerId()){ partnerId=m.b2_id||('name:'+m.b2_name); partnerName=m.b2_name; }
+      else if(m.b2_id===myPlayerId()){ partnerId=m.b1_id||('name:'+m.b1_name); partnerName=m.b1_name; }
     }
     if(!partnerId||!partnerName) return;
     if(!partners[partnerId]) partners[partnerId]={id:partnerId,name:partnerName,games:0,wins:0};
@@ -1461,10 +1462,10 @@ async function renderSeasonOnboard(myGames){
       const prev=seasons&&seasons.length?seasons[0]:null;
       if(prev){
         const inRange=m=>{const md=String(m.match_date||'').slice(0,10);return (!prev.start||md>=prev.start)&&(!prev.end||md<prev.end);};
-        const mine=(window._allMatchesCache||[]).filter(m=>m.status==='approved'&&inRange(m)&&[m.a1_id,m.a2_id,m.b1_id,m.b2_id].includes(ME?.id));
+        const mine=(window._allMatchesCache||[]).filter(m=>m.status==='approved'&&inRange(m)&&[m.a1_id,m.a2_id,m.b1_id,m.b2_id].includes(myPlayerId()));
         const recapEl=document.getElementById('onboard-recap');
         if(mine.length&&recapEl){
-          let w=0; mine.forEach(m=>{const onA=[m.a1_id,m.a2_id].includes(ME.id);if(onA?(m.score_a>m.score_b):(m.score_b>m.score_a))w++;});
+          let w=0; mine.forEach(m=>{const onA=[m.a1_id,m.a2_id].includes(myPlayerId());if(onA?(m.score_a>m.score_b):(m.score_b>m.score_a))w++;});
           recapEl.innerHTML='<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:.76rem;color:var(--text-muted);">지난 시즌 '+prev.season+': '+mine.length+'경기 '+w+'승 '+(mine.length-w)+'패 · 승률 '+Math.round(w/mine.length*100)+'%</div>';
         }
       }
