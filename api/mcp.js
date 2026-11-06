@@ -16,11 +16,11 @@ const YMD = /^\d{4}-\d{2}-\d{2}$/;
 
 const TOOLS = [
   { name: 'list_matches',
-    description: '새벽민턴 승인된 경기 내역을 날짜순으로 돌려준다(연번·경기일자·선수1·선수2·점수·선수3·선수4·승패·비고). 기간을 생략하면 이번 시즌 전체. player를 주면 그 선수가 뛴 경기만.',
+    description: '새벽민턴 승인된 경기 내역을 날짜순으로 돌려준다(연번·경기일자·선수1·선수2·점수·선수3·선수4·승패·비고). 기간을 생략하면 처음부터 오늘까지 전체 기록. season=true면 이번 시즌만. player를 주면 그 선수가 뛴 경기만.',
     inputSchema: { type: 'object', properties: {
-      from: { type: 'string', description: '시작일 YYYY-MM-DD. 생략하면 이번 시즌 시작일' },
+      from: { type: 'string', description: '시작일 YYYY-MM-DD. 생략하면 처음부터' },
       to: { type: 'string', description: '종료일 YYYY-MM-DD. 생략하면 오늘까지' },
-      all: { type: 'boolean', description: 'true면 기간 제한 없이 전체 기록' },
+      season: { type: 'boolean', description: 'true면 이번 시즌(시즌 시작일~)만. from을 주면 무시' },
       player: { type: 'string', description: '선수 이름(정확히 일치). 생략하면 모든 경기' } },
       additionalProperties: false } },
 ];
@@ -28,7 +28,7 @@ const TOOLS = [
 async function listMatches(sb, args) {
   let from = String(args.from || '').trim(), to = String(args.to || '').trim();
   if ((from && !YMD.test(from)) || (to && !YMD.test(to))) return '날짜는 YYYY-MM-DD 형식으로 주세요.';
-  if (!from && !args.all) {
+  if (!from && args.season) {
     const { data } = await sb.from('app_settings').select('value').eq('key', 'season_start').maybeSingle();
     from = data?.value || '';
   }
