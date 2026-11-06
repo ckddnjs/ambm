@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 const SUPABASE_URL = 'https://wkclmrbdsinvliaaqjol.supabase.co';
 const MCP_KEYS = {
   'bf416066227b0e4d40cb8dbb6a5dd3eaf659962ae0be43a760ac7ab39408c33f': '이영배',
+  '64c4f9d58d487bf3d70cfd4e70a2bd7eb1f4109f273b7e5dc0800027e3fbd9d4': '강창원',
 };
 const MAX_ROWS = 3000;
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
