@@ -39,6 +39,8 @@ let _directInputA=false, _directInputB=false;
 
 function myPlayerId(){return ME?.player_id||ME?.id||null;}
 
+/* 홈 첫 화면이 다 그려지면 풀리는 약속 — 로딩 화면을 그때 걷는다 */
+window._homeReady=new Promise(r=>{window._homeReadyDone=r;});
 /* ── BOOT ── */
 window.addEventListener('DOMContentLoaded',async()=>{
   // 로고 이미지 주입 (logo.js의 base64 사용)
@@ -60,12 +62,17 @@ window.addEventListener('DOMContentLoaded',async()=>{
     _authResolved=true;
     clearTimeout(_safetyTimer);
     initTheme();initFontScale();document.body.classList.add('ready');
+    if(ME&&ME.status==='approved'){
+      // 홈을 로딩 화면 '아래'에서 다 그린 뒤 걷어낸다 (예전엔 걷은 다음에 그리기 시작해 빈 홈이 보였다). 최대 4초까지만 기다림
+      showApp();
+      await Promise.race([window._homeReady,new Promise(r=>setTimeout(r,4000))]);
+      await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+      await fadeOutLoading();
+      if(isNewLogin) toast(`어서오세요, ${ME.name}님!`,'success');
+      return;
+    }
     await fadeOutLoading();
     if(!ME) showLogin();
-    else if(ME.status==='approved'){
-      showApp();
-      if(isNewLogin) toast(`어서오세요, ${ME.name}님!`,'success');
-    }
     else if(ME.status==='pending') showPendingScreen(ME.name);
     else{await sb.auth.signOut();showLogin();}
   };
@@ -668,7 +675,7 @@ function navigateTo(page){
     }
   }
   switch(page){
-    case 'dashboard':renderDashboard();break;
+    case 'dashboard':Promise.resolve(renderDashboard()).catch(e=>console.error('[dashboard]',e)).finally(()=>window._homeReadyDone?.());break;
     case 'feed':
       window._feedAllMatches=null;
       renderFeed();
@@ -734,7 +741,7 @@ window.addEventListener('popstate',e=>{
   document.querySelector('.app-body').scrollTop=0;
   if(page!=='feed'&&typeof _detachFeedScroll==='function') _detachFeedScroll();
   switch(page){
-    case 'dashboard':renderDashboard();break;
+    case 'dashboard':Promise.resolve(renderDashboard()).catch(e=>console.error('[dashboard]',e)).finally(()=>window._homeReadyDone?.());break;
     case 'feed':window._feedAllMatches=null;renderFeed();break;
     case 'register':renderRegisterPage();break;
     case 'analysis':renderAnalysisPage();break;
