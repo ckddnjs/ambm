@@ -358,21 +358,64 @@ function _awardGroups(awards){
   return out;
 }
 
+/* ── 시상 카드 (5안: 시상대 + 말풍선). 색은 --primary 하나만, 나머지는 중립 톤 + 이모지 ── */
+const AWARD_QUIPS={
+  peace:[
+    n=>`구구… <b>${n}</b> 님, 오늘 딱 중간이었어요. 이기지도 지지도 않는 평화의 아이콘 🫶`,
+    n=>`구구구~ <b>${n}</b> 님 덕분에 코트에 평화가 찾아왔습니다 🕊️`,
+    n=>`<b>${n}</b> 님, 너무 이기지도 너무 지지도 않는 그 균형감… 존경합니다 🫡`,
+  ],
+  cheer:[
+    n=>`<b>${n}</b> 님! 오늘은 콕이 안 따라줬을 뿐. 다음 주엔 단상 위에서 만나요 💪`,
+    n=>`<b>${n}</b> 님, 오늘 진 만큼 다음 주에 다 돌려받는 겁니다 🔥`,
+    n=>`괜찮아요 <b>${n}</b> 님… 라켓 탓이에요. 화이팅! 💪`,
+  ],
+};
+function _awardKind(group){
+  if(/평화/.test(group)) return 'peace';
+  if(/힘내|화이팅|파이팅/.test(group)) return 'cheer';
+  return 'rank';
+}
+function _awardSeed(str){let h=0;for(const c of str||'') h=(h*31+c.charCodeAt(0))|0;return Math.abs(h);}
+function _awardCock(a){return +a.cock?`<span class="aw-cock">콕 ${+a.cock}</span>`:'';}
+function _awardRankNo(a,i){const m=String(a.prize||'').match(/\d+/);return m?m[0]:String(i+1);}
+
+function _awardPodiumHTML(items){
+  const top=items.slice(0,3), rest=items.slice(3);
+  const pod=(a,i,cls)=>a?`<div class="aw-pod ${cls}">
+      ${cls==='p1'?'<div class="aw-crown">👑</div>':''}
+      <div class="aw-pnm">${escHtml(a.name)}</div>${_awardCock(a)}
+      <div class="aw-blk">${escHtml(_awardRankNo(a,i))}</div>
+    </div>`:'<div></div>';
+  return `<div class="aw-podium">${pod(top[1],1,'p2')}${pod(top[0],0,'p1')}${pod(top[2],2,'p3')}</div>
+    ${rest.length?`<div class="aw-minis">${rest.map((a,i)=>`<span class="aw-mini"><b>${escHtml(_awardRankNo(a,i+3))}</b>${escHtml(a.name)}${+a.cock?` · 콕 ${+a.cock}`:''}</span>`).join('')}</div>`:''}`;
+}
+function _awardTalkHTML(kind,items,seed){
+  const names=items.map(a=>escHtml(a.name)+(+a.cock?`(콕 ${+a.cock})`:'')).join(' · ');
+  const list=AWARD_QUIPS[kind];
+  const face=kind==='peace'?'🕊️':'😤';
+  return `<div class="aw-talk"><div class="aw-face">${face}</div><div class="aw-bubble">${list[seed%list.length](names)}</div></div>`;
+}
+
 function awardPostHTML(p){
-  const {awards}=_awardParse(p);
+  const {date,awards}=_awardParse(p);
   const isAdmin=ME.role==='admin';
+  const seed=_awardSeed(date||p.id);
   const total=awards.reduce((s,a)=>s+(+a.cock||0),0);
-  const groupsHTML=_awardGroups(awards).map(g=>`
-    ${g.group?`<div style="font-size:.72rem;font-weight:700;color:var(--text-muted);margin:12px 0 2px;">${escHtml(g.group)}</div>`:''}
-    ${g.items.map(a=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:.5px solid var(--border);">
-      <span style="min-width:40px;font-size:.8rem;font-weight:700;color:var(--primary);font-variant-numeric:tabular-nums;">${escHtml(a.prize||'')}</span>
-      <span style="flex:1;font-size:.87rem;color:var(--text);">${escHtml(a.name)}</span>
-      ${+a.cock?`<span style="font-size:.78rem;color:var(--text-muted);font-variant-numeric:tabular-nums;">콕 ${+a.cock}</span>`:''}
-    </div>`).join('')}`).join('');
-  return `<div class="comm-post" id="post-${p.id}" style="cursor:default;">
+  let rankUsed=false;
+  const secs=_awardGroups(awards).map(g=>{
+    const kind=_awardKind(g.group);
+    let inner;
+    if(kind==='rank'&&!rankUsed){rankUsed=true;inner=_awardPodiumHTML(g.items);}
+    else if(kind==='rank') inner=`<div class="aw-minis">${g.items.map((a,i)=>`<span class="aw-mini"><b>${escHtml(_awardRankNo(a,i))}</b>${escHtml(a.name)}</span>`).join('')}</div>`;
+    else inner=_awardTalkHTML(kind,g.items,seed);
+    const icon=kind==='rank'?'🏆 ':'';
+    return `<div class="aw-sec"><div class="aw-sec-h">${icon}${escHtml(g.group||'시상')}</div>${inner}</div>`;
+  }).join('');
+  return `<div class="comm-post aw-card" id="post-${p.id}">
     <div class="comm-post-header">
       <div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1;">
-        <span style="font-size:.68rem;font-weight:700;padding:1px 7px;border-radius:10px;border:1px solid var(--border);color:var(--text-muted);flex-shrink:0;">시상</span>
+        <span class="aw-chip">시상</span>
         <span class="comm-post-title">${escHtml(p.title)}</span>
       </div>
       ${isAdmin?`<div class="comm-post-meta">
@@ -380,9 +423,8 @@ function awardPostHTML(p){
         <button onclick="event.stopPropagation();deletePost('${p.id}')" style="background:none;border:none;color:var(--danger);font-size:.78rem;cursor:pointer;padding:0 4px;">🗑</button>
       </div>`:''}
     </div>
-    <div>${groupsHTML||'<div style="font-size:.8rem;color:var(--text-muted);padding:8px 0;">수상자 없음</div>'}
-      ${total?`<div style="text-align:right;font-size:.7rem;color:var(--text-dim);margin-top:8px;">콕 총 ${total}개 · 현장 지급</div>`:''}
-    </div>
+    ${secs||'<div style="font-size:.8rem;color:var(--text-muted);padding:8px 0;">수상자 없음</div>'}
+    ${total?`<div class="aw-total">콕 총 ${total}개 · 현장 지급</div>`:''}
   </div>`;
 }
 
