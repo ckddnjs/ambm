@@ -443,7 +443,7 @@ async function renderDateSummaryContent(dateStr){
   const mvps=_feedDayMvp(dateStr,allM)||[];
   const mvpKeys=new Set(mvps.map(r=>r.id||('name:'+r.nm)));
   const mvpName=r=>(r.id&&(users.find(u=>u.id===r.id)||{}).name)||r.nm||'?';
-  function playerRow(p,rank){
+  function playerRow(p,rank,tied){
     const total=p.wins+p.losses;
     const wr=total?Math.round(p.wins/total*100):0;
     const isMvp=mvpKeys.has(p.id);
@@ -452,7 +452,7 @@ async function renderDateSummaryContent(dateStr){
       ?`<img src="${u.avatar_url}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">`
       :`<div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;">${p.name[0]}</div>`;
     return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:.5px solid var(--border);">
-      <div style="width:20px;text-align:center;font-size:.82rem;font-weight:${rank<=3?800:600};color:${rank<=3?'var(--primary)':'var(--text-muted)'};font-variant-numeric:tabular-nums;flex-shrink:0;">${rank}</div>
+      <div style="width:24px;text-align:center;font-size:.82rem;line-height:1.1;font-weight:${rank<=3?800:600};color:${rank<=3?'var(--primary)':'var(--text-muted)'};font-variant-numeric:tabular-nums;flex-shrink:0;">${tied?'<div style="font-size:.56rem;font-weight:600;">공동</div>':''}${rank}</div>
       ${av}
       <div style="flex:1;font-size:.87rem;font-weight:${isMvp?700:400};">${escHtml(p.name)}${isMvp?' 🏆':''}</div>
       <div style="font-size:.8rem;color:var(--text-muted);">${p.wins}승 ${p.losses}패</div>
@@ -473,7 +473,8 @@ async function renderDateSummaryContent(dateStr){
       let rank=0;
       return sorted.map((p,i)=>{
         if(i===0||!same(p,sorted[i-1])) rank=i+1;
-        return playerRow(p,rank);
+        const tied=(i>0&&same(p,sorted[i-1]))||(i<sorted.length-1&&same(p,sorted[i+1]));
+        return playerRow(p,rank,tied);
       }).join('');
     })();
 }
