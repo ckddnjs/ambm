@@ -43,6 +43,18 @@ const TOOLS = [
 ];
 
 const clean = (v, max = 30) => String(v ?? '').replace(/[\t\r\n]+/g, ' ').trim().slice(0, max);
+function readMcpAccessToken(token) {
+  const [prefix, encoded, supplied, extra] = String(token || '').split('.');
+  if (prefix !== 'ambm1' || !encoded || !supplied || extra) return null;
+  try {
+    const expected = createHmac('sha256', secret()).update(encoded).digest();
+    const actual = Buffer.from(supplied, 'base64url');
+    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
+    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+    if (payload?.v !== 1 || payload?.typ !== 'ambm_mcp_access' || !UUID.test(payload?.sub || '') || !clean(payload?.name)) return null;
+    return payload;
+  } catch { return null; }
+}
 const validDate = v => {
   if (!YMD.test(v)) return false;
   const d = new Date(`${v}T00:00:00Z`);
@@ -209,10 +221,18 @@ async function commitScorecard(sb, actorName, keyHash, args) {
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  const key = String(req.query?.key || (req.headers.authorization || '').replace(/^Bearer\s+/i, '')), keyHash = key ? createHash('sha256').update(key).digest('hex') : '', actorName = keyHash && MCP_KEYS[keyHash];
-  if (!actorName) return res.status(401).json({ error: 'unauthorized' });
   if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return res.status(405).json({ error: 'POST only' }); }
   const sb = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
+  const key = String(req.query?.key || (req.headers.authorization || '').replace(/^Bearer\s+/i, '')), keyHash = key ? createHash('sha256').update(key).digest('hex') : '';
+  let actorName = keyHash && MCP_KEYS[keyHash];
+  if (!actorName) {
+    const access = readMcpAccessToken(key);
+    if (access) {
+      const { data: actor } = await sb.from('profiles').select('id,name,status').eq('id', access.sub).maybeSingle();
+      if (actor?.status === 'approved' && actor.name === access.name) actorName = actor.name;
+    }
+  }
+  if (!actorName) return res.status(401).json({ error: 'unauthorized' });
   let body = req.body; if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = null; } }
   const one = async msg => {
     if (!msg || typeof msg !== 'object') return { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'parse error' } };
