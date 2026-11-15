@@ -668,7 +668,7 @@ body.light-mode .hdr-logo{filter:none}
 .ov-tiles .stat-card,.an-tiles .stat-card{background:none!important;border:none!important;border-radius:0;box-shadow:none}
 .ov-tiles>*+*,.an-tiles>*+*{border-left:1px solid var(--border)}
 .ov-tiles .ov-col3 .stat-card+.stat-card{border-top:1px solid var(--border)}
-.an-tiles .stat-card>div:last-child{font-size:1.55rem!important}
+.an-sum .stat-card>div:last-child{font-size:1.55rem!important}
 /* 이모지 → 선 아이콘 (빈 화면·확인창·팀 점·검색창·헤더) */
 .empty-icon{color:var(--text-dim)}
 .empty-icon .ic{width:2.6rem;height:2.6rem;margin:0;stroke-width:1.5}
@@ -684,3 +684,5 @@ body.light-mode .hdr-logo{filter:none}
 .hdr-icbtn:active{background:var(--bg2)}
 .header-right{gap:2px}
 #weather-line .ic{margin:0}
+.an-pair:last-child{border-bottom:none!important}
+.an-rel .stat-card>div:nth-child(2){font-size:.98rem!important}

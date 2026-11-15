@@ -789,32 +789,25 @@ function _anRivalsHTML(players,h2h){
 
 /* 💚/💧 페어 카드 */
 function _anPairCard(players,pr,rank,isBest){
+  // 2026-11-15 정리: 메달·💧😅🙈·금색 테두리 대신 순위 숫자, 상자 대신 얇은 선 (제목의 💚·💧만 남김)
   const P1=players.get(pr.ids[0]), P2=players.get(pr.ids[1]);
   const wr=pr.g?Math.round(pr.w/pr.g*100):0;
-  const first=isBest&&rank===0;
-  const medal=isBest?(['🥇','🥈','🥉'][rank]||`<span style="font-size:.72rem;font-weight:900;color:var(--text-muted);">${rank+1}위</span>`):(['💧','😅','🙈'][rank]||'💧');
-  const pctColor=isBest?'var(--primary)':'var(--danger)';
-  const barGrad=isBest?'linear-gradient(90deg,#2979FF,#4D9FFF)':'linear-gradient(90deg,#f87171,#dc2626)';
-  const border=first?'1.5px solid #FFB300':'1px solid var(--border)';
-  const bg=first?'linear-gradient(135deg,rgba(255,179,0,.1),var(--bg2) 55%)':'var(--bg2)';
-  const ring='border:2px solid var(--bg2);border-radius:50%;';
+  const rkCol=isBest&&rank<3?'var(--primary)':'var(--text-muted)';
+  const pctColor=isBest?'var(--primary)':'var(--text-muted)';
+  const ring='border:2px solid var(--surface);border-radius:50%;';
+  const rec=pr.w===pr.g?`${pr.g}전 ${pr.w}승`:pr.w===0?`${pr.g}전 ${pr.g}패`:`${pr.g}전 ${pr.w}승 ${pr.g-pr.w}패`;
   return `
-  <div style="display:flex;align-items:center;gap:9px;padding:${first?'12px':'10px'} 11px;border:${border};border-radius:13px;margin-bottom:7px;background:${bg};">
-    <span style="width:26px;flex-shrink:0;text-align:center;font-size:${first?'1.25rem':'1.05rem'};">${medal}</span>
+  <div class="an-pair" style="display:flex;align-items:center;gap:9px;padding:9px 2px;border-bottom:1px solid var(--border);">
+    <span style="width:18px;flex-shrink:0;text-align:center;font-weight:800;font-size:.86rem;color:${rkCol};font-variant-numeric:tabular-nums;">${rank+1}</span>
     <span style="flex-shrink:0;display:inline-flex;">
-      <span style="${ring}display:inline-flex;z-index:1;">${_anAv(P1||{name:pr.names?.[0]},first?32:28)}</span>
-      <span style="${ring}display:inline-flex;margin-left:-9px;">${_anAv(P2||{name:pr.names?.[1]},first?32:28)}</span>
+      <span style="${ring}display:inline-flex;z-index:1;">${_anAv(P1||{name:pr.names?.[0]},26)}</span>
+      <span style="${ring}display:inline-flex;margin-left:-8px;">${_anAv(P2||{name:pr.names?.[1]},26)}</span>
     </span>
     <div style="flex:1;min-width:0;">
-      <div style="font-size:.8rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(pr.names?.[0]||'?')} <span style="color:var(--text-dim);">✚</span> ${escHtml(pr.names?.[1]||'?')}</div>
-      <div style="font-size:.64rem;color:var(--text-muted);margin-top:1px;">${pr.g}전 ${pr.w}승 ${pr.g-pr.w}패</div>
+      <div style="font-size:.84rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(pr.names?.[0]||'?')} · ${escHtml(pr.names?.[1]||'?')}</div>
+      <div style="font-size:.68rem;color:var(--text-muted);margin-top:1px;">${rec}</div>
     </div>
-    <div style="flex-shrink:0;text-align:right;">
-      <div style="font-size:${first?'1.05rem':'.92rem'};font-weight:900;color:${pctColor};line-height:1;">${wr}%</div>
-      <div style="width:54px;height:6px;border-radius:3px;background:var(--bg3);overflow:hidden;margin-top:4px;">
-        <div style="height:100%;width:${Math.max(wr,3)}%;background:${barGrad};"></div>
-      </div>
-    </div>
+    <div style="flex-shrink:0;font-size:.95rem;font-weight:800;color:${pctColor};font-variant-numeric:tabular-nums;">${wr}%</div>
   </div>`;
 }
 
@@ -827,7 +820,7 @@ function _anAllHTML(opt){
       <div style="margin-top:8px;font-weight:700;">${isCurrent?'이번 시즌':'이 시즌'} 승인된 경기가 없어요</div>
     </div></div>`;
   }
-  const tiles=`<div class="card an-tiles" style="display:grid;grid-template-columns:repeat(3,1fr);padding:4px 0;margin-bottom:12px;">
+  const tiles=`<div class="card an-tiles an-sum" style="display:grid;grid-template-columns:repeat(3,1fr);padding:4px 0;margin-bottom:12px;">
     <div class="stat-card" style="text-align:center;padding:14px 4px;">
       <div class="stat-label" style="margin-bottom:4px;">모인 날</div>
       <div style="font-family:'Black Han Sans',sans-serif;font-size:1.4rem;line-height:1;color:var(--accent);">${d.days}</div>
@@ -955,14 +948,14 @@ function _anPersonTiles(d, wr, avgDiff, seqAll){
   const relTile = (label, x, col) => x
     ? tile(label, escHtml(x.name), col, x.wins+'승'+(x.games-x.wins)+'패 · '+Math.round(wrOf(x)*100)+'%', '.95rem')
     : tile(label, '-', 'var(--text-dim)', '2경기 이상 필요');
-  return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:8px;">
+  return `<div class="card an-tiles" style="display:grid;grid-template-columns:repeat(3,1fr);padding:2px 0;margin-bottom:8px;">
     ${tile('시즌 전적', d.wins+'승 '+d.losses+'패', 'var(--text)', d.games+'경기 · 평균 득실 '+diffStr)}
     ${tile('시즌 승률', wr+'%', wr>=50?'var(--primary)':'var(--text-muted)', '최근 '+recent.length+'경기 '+rw+'승 '+rl+'패')}
     ${tile('최장 연승', (bestWin||0)+'연승', bestWin?'var(--accent)':'var(--text-muted)', stTxt)}
   </div>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px;">
-    ${relTile('🤝 베스트 파트너', bestP, 'var(--accent)')}
-    ${relTile('🍗 먹잇감', prey, 'var(--primary)')}
+  <div class="card an-tiles an-rel" style="display:grid;grid-template-columns:repeat(3,1fr);padding:2px 0;margin-bottom:12px;">
+    ${relTile('🤝 베스트 파트너', bestP, 'var(--text)')}
+    ${relTile('🍗 먹잇감', prey, 'var(--text)')}
     ${relTile('🔥 천적', nem, 'var(--danger)')}
   </div>`;
 }
