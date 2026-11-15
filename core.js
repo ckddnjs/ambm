@@ -532,6 +532,11 @@ function _startWeatherInterval(){
 function initApp(){
   refreshHeader();buildNav();
   if(typeof refreshCommBadge==='function') refreshCommBadge(); // 소식 안 읽은 글 숫자
+  // 홈을 그린 뒤 쉬는 틈에 기록탭·소식탭 데이터를 미리 받아 둔다 (첫 진입 로딩 줄이기)
+  setTimeout(()=>{
+    const go=()=>{ if(typeof prefetchFeed==='function') prefetchFeed(); if(typeof prefetchCommunity==='function') prefetchCommunity(); };
+    'requestIdleCallback' in window?requestIdleCallback(go,{timeout:3000}):go();
+  },1500);
   ensureSeasonStart(); // 시즌 컷오프 미리 로드 (랭킹·주가 집계용)
   document.getElementById('reg-date').value=todayStr();
   const commWriteBtn=document.getElementById('btn-comm-write');

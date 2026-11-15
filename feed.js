@@ -714,3 +714,22 @@ function _renderPairBanner(pf,matches){
      </span>
    </div>`;
 }
+
+/* ── 기록탭 미리 받기 (2026-11-15 속도 개선): 홈을 다 그린 뒤 쉬는 틈에 기본 목록·날짜별 개수를 받아 둔다.
+   그러면 처음 기록탭을 열 때도 _renderFeedInner가 캐시를 바로 그린다 ── */
+async function prefetchFeed(){
+  if(window._feedCache||window._feedPrefetching) return;
+  window._feedPrefetching=true;
+  try{
+    const cols='id,match_type,match_date,a1_id,a1_name,a2_id,a2_name,b1_id,b1_name,b2_id,b2_name,score_a,score_b,status,note,admin_note,submitter_id,submitter_name,approved_at,created_at';
+    const [lst,dates]=await Promise.all([
+      sb.from('matches').select(cols).eq('status','approved').order('match_date',{ascending:false}).order('created_at',{ascending:false}).range(0,_FEED_BATCH-1),
+      window._feedFullCountByDate?Promise.resolve(null):sb.from('matches').select('match_date').eq('status','approved'),
+    ]);
+    if(!window._feedCache&&lst?.data) window._feedCache=lst.data;
+    if(dates?.data&&!window._feedFullCountByDate){
+      const cnt={}; dates.data.forEach(m=>{const d=m.match_date||'';cnt[d]=(cnt[d]||0)+1;});
+      window._feedFullCountByDate=cnt;
+    }
+  }catch(e){} finally{window._feedPrefetching=false;}
+}

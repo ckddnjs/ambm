@@ -64,57 +64,80 @@ function riseRowsHTML(){
   }).join('');
 }
 
-async function renderCommunityPage(){
-  markCommSeen();
-  // 최신 role DB에서 재확인 (관리자가 권한 변경했을 수 있음)
-  const{data:fresh}=await sb.from('profiles').select('role').eq('id',ME.id).single();
-  if(fresh&&fresh.role!==ME.role){
-    ME.role=fresh.role;
-  }
-  const commWriteBtn=document.getElementById('btn-comm-write');
-  if(commWriteBtn) commWriteBtn.style.display=(ME.role==='admin'||ME.role==='writer')?'':'none';
-  const commAwardBtn=document.getElementById('btn-comm-award');
-  if(commAwardBtn) commAwardBtn.style.display=ME.role==='admin'?'':'none';
-
-  const el=document.getElementById('community-list');
-  if(!el) return;
-  el.innerHTML=`<div class="skeleton sk-card"></div>`.repeat(3);
-  let q=sb.from('community_posts').select('*').order('created_at',{ascending:false});
-  if(commTab!=='all') q=q.eq('category',commTab);
-  const{data:posts,error}=await q;
-  if(error){
-    el.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div>불러오기 실패<br><span style="font-size:.78rem;color:var(--text-muted);">community_posts 테이블이 필요합니다</span></div></div>`;
-    return;
-  }
+/* 소식탭 (2026-11-15 속도 개선): 지난번 목록을 먼저 그리고 뒤에서 새로 받아 바뀐 경우만 다시 그린다.
+   권한 재확인·글·프로필 사진은 동시에 요청하고, 시상 전적은 홈이 받아 둔 전체 경기 캐시로 먼저 계산한다 */
+window._commCache=window._commCache||{};
+function _commButtons(){
+  const w=document.getElementById('btn-comm-write');
+  if(w) w.style.display=(ME.role==='admin'||ME.role==='writer')?'':'none';
+  const a=document.getElementById('btn-comm-award');
+  if(a) a.style.display=ME.role==='admin'?'':'none';
+}
+function _awardRecFill(dates,ms){
+  window._awardRec=window._awardRec||{};
+  dates.forEach(d=>window._awardRec[d]={});
+  (ms||[]).forEach(m=>{
+    const R=window._awardRec[m.match_date]; if(!R) return;
+    const aWin=(+m.score_a||0)>(+m.score_b||0);
+    [[m.a1_name,true],[m.a2_name,true],[m.b1_name,false],[m.b2_name,false]].forEach(([n,onA])=>{
+      if(!n) return;
+      const r=R[n]||(R[n]={w:0,l:0,d:0});
+      (onA===aWin)?r.w++:r.l++;
+      r.d+=onA?(+m.score_a||0)-(+m.score_b||0):(+m.score_b||0)-(+m.score_a||0);
+    });
+  });
+}
+function _commPaint(el,posts){
   if(!posts||!posts.length){
     el.innerHTML=riseBlockHTML()+`<div class="empty-state"><div class="empty-icon">💬</div><div>아직 게시글이 없어요<br><span style="font-size:.82rem;">첫 글을 남겨보세요!</span></div></div>`;
     return;
-  }
-  // 시상 날짜별 그날 전적(승·패·득실) — 시상대에 표시
-  const _awDates=[...new Set(posts.filter(p=>p.category==='award').map(p=>_awardParse(p).date).filter(Boolean))];
-  window._awardRec=window._awardRec||{};
-  const _need=_awDates.filter(d=>!window._awardRec[d]);
-  if(_need.length){
-    const{data:ms}=await sb.from('matches').select('match_date,a1_name,a2_name,b1_name,b2_name,score_a,score_b').in('match_date',_need).eq('status','approved');
-    _need.forEach(d=>window._awardRec[d]={});
-    (ms||[]).forEach(m=>{
-      const R=window._awardRec[m.match_date], aWin=(+m.score_a||0)>(+m.score_b||0);
-      [[m.a1_name,true],[m.a2_name,true],[m.b1_name,false],[m.b2_name,false]].forEach(([n,onA])=>{
-        if(!n) return;
-        const r=R[n]||(R[n]={w:0,l:0,d:0});
-        (onA===aWin)?r.w++:r.l++;
-        r.d+=onA?(+m.score_a||0)-(+m.score_b||0):(+m.score_b||0)-(+m.score_a||0);
-      });
-    });
-  }
-  if(!window._awardAvatars&&posts.some(p=>p.category==='award')){
-    const{data:av}=await sb.from('profiles').select('name,avatar_url').eq('status','approved');
-    window._awardAvatars={};(av||[]).forEach(u=>{if(u.avatar_url) window._awardAvatars[u.name]=u.avatar_url;});
   }
   // 시상 글은 가장 최근 날짜 1개만 펼치고 나머지는 접는다
   const _aw=posts.filter(p=>p.category==='award');
   window._awardLatestId=_aw.length?_aw.reduce((m,p)=>((_awardParse(p).date||p.created_at)>(_awardParse(m).date||m.created_at)?p:m)).id:null;
   el.innerHTML=riseBlockHTML()+posts.map(p=>commPostHTML(p)).join('');
+}
+async function renderCommunityPage(){
+  markCommSeen();
+  _commButtons();
+  const el=document.getElementById('community-list');
+  if(!el) return;
+  const tab=commTab;
+  const cached=window._commCache[tab];
+  if(cached) _commPaint(el,cached);
+  else el.innerHTML=`<div class="skeleton sk-card"></div>`.repeat(3);
+
+  let q=sb.from('community_posts').select('*').order('created_at',{ascending:false});
+  if(tab!=='all') q=q.eq('category',tab);
+  const [roleRes,postRes,avRes]=await Promise.all([
+    sb.from('profiles').select('role').eq('id',ME.id).single(),          // 관리자가 권한을 바꿨을 수 있어 재확인
+    q,
+    window._awardAvatars?Promise.resolve(null):sb.from('profiles').select('name,avatar_url').eq('status','approved'),
+  ]);
+  if(roleRes?.data&&roleRes.data.role!==ME.role){ME.role=roleRes.data.role;_commButtons();}
+  if(avRes){window._awardAvatars={};(avRes.data||[]).forEach(u=>{if(u.avatar_url) window._awardAvatars[u.name]=u.avatar_url;});}
+  if(commTab!==tab) return;   // 그 사이 다른 탭으로 바뀜
+  const{data:posts,error}=postRes;
+  if(error){
+    if(!cached) el.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div>불러오기 실패<br><span style="font-size:.78rem;color:var(--text-muted);">잠시 후 다시 시도해 주세요</span></div></div>`;
+    return;
+  }
+  // 시상 날짜별 그날 전적: 홈이 받아 둔 전체 경기 캐시가 있으면 쿼리 없이 계산
+  const dates=[...new Set((posts||[]).filter(p=>p.category==='award').map(p=>_awardParse(p).date).filter(Boolean))];
+  const need=dates.filter(d=>!(window._awardRec||{})[d]);
+  if(need.length){
+    const all=window._allMatchesCache||[];
+    if(all.length&&need.every(d=>all.some(m=>m.match_date===d))){
+      _awardRecFill(need,all.filter(m=>m.status==='approved'&&need.includes(m.match_date)));
+    }else{
+      const{data:ms}=await sb.from('matches').select('match_date,a1_name,a2_name,b1_name,b2_name,score_a,score_b').in('match_date',need).eq('status','approved');
+      _awardRecFill(need,ms);
+    }
+  }
+  if(commTab!==tab) return;
+  const same=cached&&JSON.stringify(cached)===JSON.stringify(posts||[])&&!avRes&&!need.length;
+  window._commCache[tab]=posts||[];
+  if(!same) _commPaint(el,posts||[]);   // 같으면 다시 그리지 않음 (펼친 카드 유지)
 }
 
 const _catLabel={'general':'일반','info':'정보','rules':'규칙','award':'시상'};
@@ -669,3 +692,10 @@ async function refreshCommBadge(){
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&typeof ME!=='undefined'&&ME) refreshCommBadge();
 });
+
+/* 소식탭 미리 받기: 전체 탭 글 목록만 캐시에 넣어 둔다 (core.js initApp에서 호출) */
+async function prefetchCommunity(){
+  if(window._commCache.all) return;
+  const{data}=await sb.from('community_posts').select('*').order('created_at',{ascending:false});
+  if(data&&!window._commCache.all) window._commCache.all=data;
+}
