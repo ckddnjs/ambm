@@ -443,7 +443,7 @@ async function renderDateSummaryContent(dateStr){
   const mvps=_feedDayMvp(dateStr,allM)||[];
   const mvpKeys=new Set(mvps.map(r=>r.id||('name:'+r.nm)));
   const mvpName=r=>(r.id&&(users.find(u=>u.id===r.id)||{}).name)||r.nm||'?';
-  function playerRow(p){
+  function playerRow(p,rank){
     const total=p.wins+p.losses;
     const wr=total?Math.round(p.wins/total*100):0;
     const isMvp=mvpKeys.has(p.id);
@@ -452,6 +452,7 @@ async function renderDateSummaryContent(dateStr){
       ?`<img src="${u.avatar_url}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">`
       :`<div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;">${p.name[0]}</div>`;
     return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:.5px solid var(--border);">
+      <div style="width:20px;text-align:center;font-size:.82rem;font-weight:${rank<=3?800:600};color:${rank<=3?'var(--primary)':'var(--text-muted)'};font-variant-numeric:tabular-nums;flex-shrink:0;">${rank}</div>
       ${av}
       <div style="flex:1;font-size:.87rem;font-weight:${isMvp?700:400};">${escHtml(p.name)}${isMvp?' 🏆':''}</div>
       <div style="font-size:.8rem;color:var(--text-muted);">${p.wins}승 ${p.losses}패</div>
@@ -465,7 +466,16 @@ async function renderDateSummaryContent(dateStr){
       <div style="min-width:0"><div style="font-size:.68rem;color:var(--text-muted);">${mvps.length>1?'공동 MVP':'오늘의 MVP'}</div><div style="font-size:.92rem;font-weight:700;">${mvps.map(r=>escHtml(mvpName(r))).join('·')} <span style="font-size:.75rem;color:var(--text-muted);font-weight:400;">${mvps[0].w}승 ${mvps[0].l}패 · 득실 ${mvps[0].d>0?'+':''}${mvps[0].d}</span></div></div>
     </div>`:'')+
     `<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:4px;">총 ${allM.length}경기 · 참석 ${players.length}명</div>`+
-    sortByWR(players).map(playerRow).join('');
+    // 순위: 정렬 기준(승수·득실차·승률)이 같으면 공동 순위 (1,1,3 방식)
+    (()=>{
+      const sorted=sortByWR(players);
+      const same=(a,b)=>a.wins===b.wins&&a.diff===b.diff&&a.losses===b.losses;
+      let rank=0;
+      return sorted.map((p,i)=>{
+        if(i===0||!same(p,sorted[i-1])) rank=i+1;
+        return playerRow(p,rank);
+      }).join('');
+    })();
 }
 
 /* ── 경기 카드: hsdTV 스타일 (좌우 팀 + 가운데 점수) ── */
