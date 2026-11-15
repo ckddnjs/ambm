@@ -71,6 +71,8 @@ async function renderCommunityPage(){
   }
   const commWriteBtn=document.getElementById('btn-comm-write');
   if(commWriteBtn) commWriteBtn.style.display=(ME.role==='admin'||ME.role==='writer')?'':'none';
+  const commAwardBtn=document.getElementById('btn-comm-award');
+  if(commAwardBtn) commAwardBtn.style.display=ME.role==='admin'?'':'none';
 
   const el=document.getElementById('community-list');
   if(!el) return;
@@ -89,10 +91,11 @@ async function renderCommunityPage(){
   el.innerHTML=riseBlockHTML()+posts.map(p=>commPostHTML(p)).join('');
 }
 
-const _catLabel={'general':'일반','info':'정보','rules':'규칙'};
-const _catColor={'general':'var(--primary)','info':'var(--info)','rules':'var(--accent)'};
+const _catLabel={'general':'일반','info':'정보','rules':'규칙','award':'시상'};
+const _catColor={'general':'var(--primary)','info':'var(--info)','rules':'var(--accent)','award':'#E0A800'};
 
 function commPostHTML(p){
+  if(p.category==='award') return awardPostHTML(p);
   const isAdmin=ME.role==='admin';
   const isMyPost=p.author_id===ME?.id&&(ME?.role==='writer'||ME?.role==='admin');
   const canEdit=isAdmin||isMyPost;
@@ -125,7 +128,7 @@ function togglePost(id){
 
 function switchCommTab(tab){
   commTab=tab;
-  document.querySelectorAll('#comm-tabs .sub-tab').forEach((el,i)=>el.classList.toggle('active',['all','general','info','rules'][i]===tab));
+  document.querySelectorAll('#comm-tabs .sub-tab').forEach((el,i)=>el.classList.toggle('active',['all','general','info','rules','award'][i]===tab));
   renderCommunityPage();
 }
 
@@ -149,6 +152,7 @@ function openPostForm(editId=null){
 async function editPost(id){
   const{data:p}=await sb.from('community_posts').select('*').eq('id',id).single();
   if(!p) return;
+  if(p.category==='award'){openAwardForm(p);return;}
   document.getElementById('post-edit-id').value=id;
   document.getElementById('post-form-title').innerHTML='<svg class="ic" aria-hidden="true"><use href="#i-pencil"/></svg>글 수정';
   document.getElementById('post-title').value=p.title;
@@ -316,4 +320,133 @@ async function balEditFromHistory(btId){
     _balRenderStep2();
     toast('수정 모드로 불러왔습니다','success');
   },150);
+}
+
+/* ══════════════════════════════════════════════════
+   🏆 일요일 시상 — 소식탭 'award' 게시글 (2026-11-15)
+   body = JSON {v:1,date:'YYYY-MM-DD',awards:[{prize,name,cock}]}
+   콕은 기록만(실물은 현장 지급) — 인벤토리는 건드리지 않는다.
+   등록·수정은 관리자만(버튼 노출 기준). DB 쓰기 권한은 기존 community_posts RLS.
+══════════════════════════════════════════════════ */
+const AWARD_DEFAULT_PRIZES=['1등','2등','3등','4등','5등','평화상','힘내요상'];
+
+function _awardParse(p){
+  try{const o=JSON.parse(p.body||'{}');return {date:o.date||'',awards:Array.isArray(o.awards)?o.awards:[]};}
+  catch(e){return {date:'',awards:[]};}
+}
+function _awardDateLabel(d){
+  if(!d) return '';
+  const dt=new Date(d+'T00:00:00');
+  return `${dt.getMonth()+1}월 ${dt.getDate()}일(${'일월화수목금토'[dt.getDay()]})`;
+}
+
+function awardPostHTML(p){
+  const {awards}=_awardParse(p);
+  const isAdmin=ME.role==='admin';
+  const total=awards.reduce((s,a)=>s+(+a.cock||0),0);
+  const rows=awards.map(a=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:.5px solid var(--border);">
+      <span style="min-width:64px;font-size:.78rem;font-weight:700;color:#E0A800;">${escHtml(a.prize)}</span>
+      <span style="flex:1;font-size:.88rem;font-weight:600;">${escHtml(a.name)}</span>
+      <span style="font-size:.8rem;color:var(--text-muted);font-variant-numeric:tabular-nums;">${+a.cock?`콕 ${+a.cock}개`:''}</span>
+    </div>`).join('');
+  return `<div class="comm-post" id="post-${p.id}" style="cursor:default;">
+    <div class="comm-post-header">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+        <span style="font-size:.68rem;font-weight:700;padding:1px 7px;border-radius:10px;border:1px solid #E0A800;color:#E0A800;background:#E0A80018;flex-shrink:0;">시상</span>
+        <span class="comm-post-title">🏆 ${escHtml(p.title)}</span>
+      </div>
+      <div class="comm-post-meta">
+        ${isAdmin?`<button onclick="event.stopPropagation();editPost('${p.id}')" style="background:none;border:none;color:var(--text-muted);font-size:.78rem;cursor:pointer;padding:0 4px;">✏️</button>
+        <button onclick="event.stopPropagation();deletePost('${p.id}')" style="background:none;border:none;color:var(--danger);font-size:.78rem;cursor:pointer;padding:0 4px;">🗑</button>`:''}
+      </div>
+    </div>
+    <div style="padding:2px 0 4px;">${rows||'<div style="font-size:.8rem;color:var(--text-muted);padding:8px 0;">수상자 없음</div>'}
+      ${total?`<div style="text-align:right;font-size:.72rem;color:var(--text-dim);margin-top:6px;">총 콕 ${total}개 · 현장 지급</div>`:''}
+    </div>
+  </div>`;
+}
+
+function _awardRowHTML(a={}){
+  const cock=(a.cock!=null&&a.cock!=='')?(+a.cock):'';
+  return `<div class="award-row" style="display:grid;grid-template-columns:1fr 1.3fr 60px 26px;gap:6px;margin-bottom:6px;align-items:center;">
+    <input class="form-input aw-prize" type="text" placeholder="상 이름" value="${escHtml(a.prize||'')}" style="padding:8px;">
+    <input class="form-input aw-name" type="text" list="award-names" placeholder="이름" value="${escHtml(a.name||'')}" style="padding:8px;">
+    <input class="form-input aw-cock" type="number" min="0" inputmode="numeric" placeholder="콕" value="${cock}" style="padding:8px;text-align:center;">
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--danger);font-size:1rem;cursor:pointer;" aria-label="줄 삭제">✕</button>
+  </div>`;
+}
+function awardAddRow(){document.getElementById('award-rows').insertAdjacentHTML('beforeend',_awardRowHTML());}
+
+/* 가장 최근 일요일(오늘이 일요일이면 오늘) */
+function _awardLastSunday(){
+  const d=new Date(); d.setDate(d.getDate()-d.getDay());
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function openAwardForm(post=null){
+  const data=post?_awardParse(post):{date:_awardLastSunday(),awards:AWARD_DEFAULT_PRIZES.map(prize=>({prize}))};
+  document.getElementById('award-edit-id').value=post?.id||'';
+  document.getElementById('award-form-title').textContent=post?'🏆 시상 수정':'🏆 시상 등록';
+  document.getElementById('award-date').value=data.date||_awardLastSunday();
+  document.getElementById('award-rows').innerHTML=data.awards.map(_awardRowHTML).join('');
+  openModal('modal-award-form');
+  awardLoadDay();
+}
+
+/* 그날 참석자를 이름 자동완성에 넣는다 (일별 요약과 같은 순위: 승수→득실→패수, 셋 다 같으면 공동) */
+async function awardLoadDay(){
+  const d=document.getElementById('award-date').value;
+  const info=document.getElementById('award-day-info');
+  const dl=document.getElementById('award-names');
+  dl.innerHTML=''; info.textContent='';
+  if(!d) return;
+  const{data:ms,error}=await sb.from('matches').select('a1_id,a1_name,a2_id,a2_name,b1_id,b1_name,b2_id,b2_name,score_a,score_b')
+    .eq('match_date',d).eq('status','approved');
+  if(error){info.textContent='참석자 불러오기 실패';return;}
+  if(!ms||!ms.length){info.textContent='이 날짜에 승인된 경기가 없어요 (이름은 직접 입력 가능)';return;}
+  const map={};
+  ms.forEach(m=>{
+    const aWin=(+m.score_a||0)>(+m.score_b||0);
+    [[m.a1_id,m.a1_name,true],[m.a2_id,m.a2_name,true],[m.b1_id,m.b1_name,false],[m.b2_id,m.b2_name,false]].forEach(([id,name,onA])=>{
+      if(!name) return;
+      const k=id||('name:'+name);
+      const r=map[k]||(map[k]={name,w:0,l:0,d:0});
+      (onA===aWin)?r.w++:r.l++;
+      r.d+=onA?(+m.score_a||0)-(+m.score_b||0):(+m.score_b||0)-(+m.score_a||0);
+    });
+  });
+  const list=Object.values(map).sort((a,b)=>b.w-a.w||b.d-a.d||a.l-b.l);
+  let rank=0;
+  list.forEach((r,i)=>{
+    const p=list[i-1];
+    if(!p||p.w!==r.w||p.d!==r.d||p.l!==r.l) rank=i+1;
+    const o=document.createElement('option');
+    o.value=r.name; o.label=`${rank}위 · ${r.w}승 ${r.l}패 ${r.d>0?'+':''}${r.d}`;
+    dl.appendChild(o);
+  });
+  info.textContent=`${_awardDateLabel(d)} · ${ms.length}경기 · 참석 ${list.length}명 — 이름 칸을 누르면 참석자가 순위순으로 나와요`;
+}
+
+async function submitAward(){
+  if(ME.role!=='admin'){toast('관리자만 등록할 수 있어요','error');return;}
+  const editId=document.getElementById('award-edit-id').value;
+  const date=document.getElementById('award-date').value;
+  if(!date){toast('날짜를 선택하세요','error');return;}
+  const awards=[...document.querySelectorAll('#award-rows .award-row')].map(r=>({
+    prize:r.querySelector('.aw-prize').value.trim(),
+    name:r.querySelector('.aw-name').value.trim(),
+    cock:Math.max(0,parseInt(r.querySelector('.aw-cock').value,10)||0),
+  })).filter(a=>a.name);   // 이름 없는 줄은 버린다
+  if(!awards.length){toast('수상자를 한 명 이상 입력하세요','error');return;}
+  if(awards.some(a=>!a.prize)){toast('상 이름이 빈 줄이 있어요','error');return;}
+  const title=`${_awardDateLabel(date)} 시상`;
+  const body=JSON.stringify({v:1,date,awards});
+  const q=editId
+    ?sb.from('community_posts').update({title,body,category:'award',updated_at:nowISO()}).eq('id',editId)
+    :sb.from('community_posts').insert({category:'award',title,body,author_id:ME.id,author_name:ME.name});
+  const{error}=await q;
+  if(error){toast((editId?'수정':'등록')+' 실패: '+error.message,'error');return;}
+  toast(editId?'✅ 시상 수정 완료':'✅ 시상 등록 완료','success');
+  closeModal('modal-award-form');
+  renderCommunityPage();
 }
