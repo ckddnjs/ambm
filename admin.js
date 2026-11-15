@@ -130,7 +130,7 @@ async function renderAdminMembers(){
   const guestModeNames=await _loadGuestModeNames();
 
   // 회원 목록
-  const memberSection=`<div class="flex-between mb-2"><span class="text-muted" style="font-size:.82rem;">총 ${(users||[]).length}명</span><button class="btn btn-primary btn-sm" onclick="openCreateUserModal()"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>계정 생성</button></div>`+
+  const memberSection=`<div class="flex-between mb-2"><span class="text-muted" style="font-size:.82rem;">총 ${(users||[]).length}명</span><span style="display:flex;gap:6px;"><button class="btn btn-ghost btn-sm" onclick="adminShrinkAvatars(this)">사진 용량 줄이기</button><button class="btn btn-primary btn-sm" onclick="openCreateUserModal()"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>계정 생성</button></span></div>`+
     (users||[]).map(u=>`<div class="card" style="margin-bottom:8px;padding:10px 12px;">
       <div style="display:flex;align-items:center;gap:8px;">
         <div style="flex:1;min-width:0;">
@@ -1913,4 +1913,44 @@ function _showPopupNoticeModal(cfg, dismissKey){
       </div>
     </div>`;
   document.body.appendChild(overlay);
+}
+
+
+/* ── 프로필 사진 용량 줄이기 (2026-11-15): 120KB 넘는 사진을 320px JPEG로 줄여 서버(api/admin/avatar-shrink)가 교체 ── */
+function _shrinkImageB64(blob,max=320,q=0.85){
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(blob), img=new Image();
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      let w=img.width,h=img.height; const r=Math.min(1,max/Math.max(w,h)); w=Math.round(w*r); h=Math.round(h*r);
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      resolve(c.toDataURL('image/jpeg',q).split(',')[1]);
+    };
+    img.onerror=reject; img.src=url;
+  });
+}
+async function adminShrinkAvatars(btn){
+  if(ME.role!=='admin') return;
+  const{data:us}=await sb.from('profiles').select('id,name,avatar_url').not('avatar_url','is',null);
+  const session=await sb.auth.getSession(); const token=session.data.session?.access_token;
+  if(!token){toast('로그인 세션 없음','error');return;}
+  if(btn){btn.disabled=true;btn.textContent='확인 중...';}
+  let done=0,skip=0,fail=0,before=0,after=0;
+  for(const u of us||[]){
+    try{
+      const blob=await (await fetch(u.avatar_url,{cache:'no-store'})).blob();
+      if(blob.size<=120*1024){skip++;continue;}
+      const b64=await _shrinkImageB64(blob);
+      const res=await fetch('/api/admin/avatar-shrink',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({user_id:u.id,b64})});
+      const j=await res.json();
+      if(!res.ok||!j.ok) throw new Error(j.error||res.status);
+      before+=blob.size; after+=j.bytes; done++;
+      if(btn) btn.textContent=`줄이는 중 ${done}명...`;
+    }catch(e){console.warn('[avatar-shrink]',u.name,e);fail++;}
+  }
+  window._awardAvatars=null; window._profilesCache=null;
+  if(btn){btn.disabled=false;btn.textContent='사진 용량 줄이기';}
+  toast(`사진 ${done}장 줄임 (${Math.round(before/1024)}KB → ${Math.round(after/1024)}KB)${skip?` · ${skip}장은 이미 작음`:''}${fail?` · 실패 ${fail}`:''}`,fail?'error':'success');
+  addLog(`프로필 사진 용량 줄이기: ${done}장`,ME.id);
 }

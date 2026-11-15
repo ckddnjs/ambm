@@ -53,14 +53,15 @@ async function uploadAvatar(input){
   if(!file) return;
   input.value='';
 
-  if(file.size>2*1024*1024){
+  // 2026-11-15: 크기와 상관없이 항상 320px로 줄여 올린다 (아바타는 최대 80px로만 보여서 원본은 낭비)
+  if(file.size>60*1024){
     toast('이미지 최적화 중...','info');
     file=await new Promise(resolve=>{
       const img=new Image();
       const url=URL.createObjectURL(file);
       img.onload=()=>{
         URL.revokeObjectURL(url);
-        const MAX=640;   // 2026-10-05: 1200px·.88은 장당 수백KB라 작은 아바타가 늦게 떴다
+        const MAX=320;   // 2026-11-15: 640→320 (장당 수십KB). 이전: 1200px·.88은 장당 수백KB라 작은 아바타가 늦게 떴다
         let w=img.width,h=img.height;
         if(w>h&&w>MAX){h=Math.round(h*MAX/w);w=MAX;}
         else if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
