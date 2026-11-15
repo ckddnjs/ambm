@@ -1,4 +1,4 @@
-const CACHE = 'ambm-v100';
+const CACHE = 'ambm-v101';
 const STATIC = [
   '/',
   '/index.html',

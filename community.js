@@ -451,9 +451,9 @@ function _awardPodiumHTML(items,date){
   const isLight=document.body.classList.contains('light-mode');
   const recOf=n=>((window._awardRec||{})[date]||{})[n];
   const META=[ // 홈 renderMvpPodium과 같은 색 (2·1·3 순)
-    {color:isLight?'#5B7A9A':'#A8B8C8',glow:'rgba(168,184,200,.2)',av:56,podH:62,nm:'.76rem',num:'1.15rem',lbl:'2nd'},
-    {color:isLight?'#1565C0':'#42A5F5',glow:'rgba(66,165,245,.3)', av:70,podH:84,nm:'.84rem',num:'1.45rem',lbl:'1st'},
-    {color:isLight?'#8B4E1A':'#C87941',glow:'rgba(200,121,65,.18)',av:52,podH:50,nm:'.72rem',num:'1.05rem',lbl:'3rd'},
+    {color:isLight?'#5B7A9A':'#A8B8C8',glow:'rgba(168,184,200,.2)',av:56,podH:70,nm:'.76rem',num:'1.15rem',lbl:'2nd'},
+    {color:isLight?'#1565C0':'#42A5F5',glow:'rgba(66,165,245,.3)', av:70,podH:92,nm:'.84rem',num:'1.45rem',lbl:'1st'},
+    {color:isLight?'#8B4E1A':'#C87941',glow:'rgba(200,121,65,.18)',av:52,podH:58,nm:'.72rem',num:'1.05rem',lbl:'3rd'},
   ];
   const crown=c=>`<svg width="22" height="16" viewBox="0 0 22 16" fill="none" style="display:block;"><path d="M1 14 L4 4 L8 9 L11 2 L14 9 L18 4 L21 14 Z" fill="${c}" opacity=".9"/><rect x="1" y="13" width="20" height="2.5" rx="1.2" fill="${c}"/><circle cx="11" cy="2" r="1.6" fill="${c}"/><circle cx="4.5" cy="4.5" r="1.2" fill="${c}" opacity=".7"/><circle cx="17.5" cy="4.5" r="1.2" fill="${c}" opacity=".7"/></svg>`;
   const col=(a,i,slot)=>{
@@ -472,10 +472,12 @@ function _awardPodiumHTML(items,date){
         <div style="position:absolute;bottom:-2px;right:-2px;width:18px;height:18px;border-radius:50%;background:${m.color};border:2px solid var(--surface);display:flex;align-items:center;justify-content:center;"><span style="font-size:.48rem;font-weight:900;color:#fff;letter-spacing:-.3px;">${m.lbl}</span></div>
       </div>
       <div style="font-weight:800;font-size:${m.nm};color:var(--text);width:100%;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 3px;margin-bottom:2px;">${escHtml(a.name)}</div>
-      <div style="font-size:${first?'.78rem':'.7rem'};font-weight:800;color:${m.color};margin-bottom:7px;font-variant-numeric:tabular-nums;">${wl||'&nbsp;'}${+a.cock?` <span style="font-weight:600;color:var(--text-muted);">· 콕 ${+a.cock}</span>`:''}</div>
+      ${+a.cock?`<div style="font-size:.66rem;color:var(--text-muted);margin-bottom:2px;">콕 ${+a.cock}</div>`:''}
+      <div style="height:5px;"></div>
       <div style="width:100%;height:${m.podH}px;background:linear-gradient(170deg,${m.color}28 0%,${m.color}14 70%,transparent 100%);border:1px solid ${m.color}55;border-bottom:none;border-radius:10px 10px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;">
-        <span style="font-family:'Black Han Sans',sans-serif;font-size:${m.num};color:${m.color};line-height:1;">${escHtml(_awardRankNo(a,i))}</span>
-        ${df?`<span style="font-size:.58rem;color:${m.color}cc;font-weight:700;font-variant-numeric:tabular-nums;">${df}</span>`:''}
+        <span style="font-family:'Black Han Sans',sans-serif;font-size:${m.num};color:${m.color};line-height:1;margin-bottom:1px;">${escHtml(_awardRankNo(a,i))}</span>
+        ${wl?`<span style="font-size:${first?'.7rem':'.64rem'};color:${m.color};font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1;">${wl}</span>`:''}
+        ${df?`<span style="font-size:.58rem;color:${m.color}cc;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1;">${df}</span>`:''}
       </div>
     </div>`;
   };
