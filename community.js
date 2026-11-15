@@ -480,7 +480,7 @@ function _awardPodiumHTML(items,date){
     </div>`;
   };
   return `<div style="display:flex;align-items:flex-end;gap:5px;padding:0 2px;">${col(top[1],1,0)}${col(top[0],0,1)}${col(top[2],2,2)}</div>
-    ${rest.length?`<div class="aw-minis">${rest.map((a,i)=>{const r=recOf(a.name);return `<span class="aw-mini"><b>${escHtml(_awardRankNo(a,i+3))}등</b>${escHtml(a.name)}${r?` <span style="color:var(--text-muted);font-size:.7rem;">${r.w}승 ${r.l}패</span>`:''}${+a.cock?` · 콕 ${+a.cock}`:''}</span>`;}).join('')}</div>`:''}`;
+    ${rest.length?`<div class="aw-minis">${rest.map((a,i)=>`<span class="aw-mini"><b>${escHtml(_awardRankNo(a,i+3))}등</b>${escHtml(a.name)}${+a.cock?` · 콕 ${+a.cock}`:''}</span>`).join('')}</div>`:''}`;
 }
 function _awardTalkHTML(kind,items,seed){
   const names=items.map((a,i)=>{
