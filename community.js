@@ -65,6 +65,7 @@ function riseRowsHTML(){
 }
 
 async function renderCommunityPage(){
+  markCommSeen();
   // 최신 role DB에서 재확인 (관리자가 권한 변경했을 수 있음)
   const{data:fresh}=await sb.from('profiles').select('role').eq('id',ME.id).single();
   if(fresh&&fresh.role!==ME.role){
@@ -547,3 +548,33 @@ async function submitAward(){
   closeModal('modal-award-form');
   renderCommunityPage();
 }
+
+/* ══════════════════════════════════════════════════
+   소식 안 읽은 글 숫자 (하단 '소식' 아이콘 배지) — 2026-11-15
+   기준 시각은 기기별 localStorage(ambm_comm_seen). DB 변경 없음.
+   처음 쓰는 기기는 최근 7일 글만 '새 글'로 센다.
+══════════════════════════════════════════════════ */
+const COMM_SEEN_KEY='ambm_comm_seen';
+function _commSeenGet(){try{return localStorage.getItem(COMM_SEEN_KEY);}catch(e){return null;}}
+function _commBadgeSet(n){
+  const btn=document.getElementById('nav-community');
+  if(!btn) return;
+  let b=btn.querySelector('.nav-badge');
+  if(!n){b?.remove();return;}
+  if(!b){b=document.createElement('span');b.className='nav-badge';btn.appendChild(b);}
+  b.textContent=n>99?'99+':String(n);
+}
+function markCommSeen(){
+  try{localStorage.setItem(COMM_SEEN_KEY,new Date().toISOString());}catch(e){}
+  _commBadgeSet(0);
+}
+async function refreshCommBadge(){
+  if(typeof currentPage!=='undefined'&&currentPage==='community'){_commBadgeSet(0);return;}
+  const since=_commSeenGet()||new Date(Date.now()-7*864e5).toISOString();
+  const{count,error}=await sb.from('community_posts').select('id',{count:'exact',head:true}).gt('created_at',since);
+  if(error) return;
+  _commBadgeSet(count||0);
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&typeof ME!=='undefined'&&ME) refreshCommBadge();
+});

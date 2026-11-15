@@ -531,6 +531,7 @@ function _startWeatherInterval(){
 
 function initApp(){
   refreshHeader();buildNav();
+  if(typeof refreshCommBadge==='function') refreshCommBadge(); // 소식 안 읽은 글 숫자
   ensureSeasonStart(); // 시즌 컷오프 미리 로드 (랭킹·주가 집계용)
   document.getElementById('reg-date').value=todayStr();
   const commWriteBtn=document.getElementById('btn-comm-write');

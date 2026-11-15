@@ -618,3 +618,5 @@ body.light-mode .bottom-nav-item.active{background:linear-gradient(180deg,rgba(2
 .aw-pod.p2 .aw-blk{height:40px;border-radius:8px 0 0 0}
 .aw-pod.p3 .aw-blk{height:28px;border-radius:0 8px 0 0}
 .aw-rk{font-style:normal;font-weight:700;color:var(--primary);font-size:.72rem;margin-right:3px}
+/* 하단 메뉴 안 읽은 숫자 배지 */
+.nav-badge{position:absolute;top:4px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 5px;border-radius:9px;background:var(--danger);color:#fff;font-size:.62rem;font-weight:800;line-height:17px;text-align:center;font-variant-numeric:tabular-nums;box-shadow:0 0 0 2px var(--bg);pointer-events:none}
