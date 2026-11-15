@@ -743,19 +743,16 @@ function _anAwardsHTML(players){
     {ic:'zap',    col:'#00C896', t:'압도왕', grad:'linear-gradient(135deg,#00C8962e,#00C89612)', s:min10.length?top(min10,x=>x.avg):null, v:x=>`평균 ${x.avg>=0?'+':''}${x.avg.toFixed(1)}점`, note:'10경기↑'},
     {ic:'users',  col:'#F06292', t:'마당발', grad:'linear-gradient(135deg,#F062922e,#F0629212)', s:top(S,x=>x.mates), v:x=>`파트너 ${x.mates}명`},
   ];
-  const cards=defs.filter(d=>d.s).map(d=>`
-    <div style="position:relative;overflow:hidden;border:1px solid var(--border);border-radius:14px;padding:11px 12px;background:${d.grad};">
-      <span style="position:absolute;right:-8px;bottom:-12px;opacity:.16;transform:rotate(-8deg);">${_anIcon(d.ic,64,d.col)}</span>
-      <div style="display:flex;align-items:center;gap:5px;font-size:.68rem;font-weight:800;color:var(--text-muted);margin-bottom:7px;">${_anIcon(d.ic,13,d.col)}<span>${d.t}${d.note?` <span style="font-weight:600;">(${d.note})</span>`:''}</span></div>
-      <div style="display:flex;align-items:center;gap:7px;">
-        ${_anAv(d.s.p,30)}
-        <div style="min-width:0;">
-          <div style="font-size:.84rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(d.s.p.name)}</div>
-          <div style="font-size:.66rem;color:var(--text-muted);">${d.v(d.s)}</div>
-        </div>
-      </div>
+  // 2026-11-15 시안 B '트로피 진열장': 무지개 파스텔 타일 → 한 카드 안 3×2, 파란 배지 아이콘 하나씩
+  const shown=defs.filter(d=>d.s);
+  const cards=shown.map((d,i)=>`
+    <div class="aw-shelf-cell" style="text-align:center;padding:12px 4px 10px;min-width:0;">
+      <div style="width:40px;height:40px;border-radius:50%;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;background:var(--bg2);">${_anIcon(d.ic,20,'var(--primary)')}</div>
+      <div style="font-size:.68rem;font-weight:800;color:var(--text-muted);">${d.t}</div>
+      <div style="font-size:.88rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:1px 0;">${escHtml(d.s.p.name)}</div>
+      <div style="font-size:.64rem;color:var(--text-muted);">${d.v(d.s)}${d.note?`<br>${d.note}`:''}</div>
     </div>`).join('');
-  return `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">${cards}</div>`;
+  return `<div class="aw-shelf">${cards}</div>`;
 }
 
 /* ⚡ 라이벌 매치 — 팽팽한 맞대결 TOP3 */
@@ -768,7 +765,7 @@ function _anRivalsHTML(players,h2h){
   if(!rivals.length) return _anEmptyRow('3회 이상 맞붙은 라이벌이 아직 없어요');
   return rivals.map((r,i)=>{
     const P1=players.get(r.ids[0]), P2=players.get(r.ids[1]);
-    const heat=r.w1===r.w2?'🔥 완전 팽팽':'⚡ 초접전';
+    const heat=r.w1===r.w2?'완전 팽팽':'초접전';
     return `
     <div style="display:flex;align-items:center;gap:8px;padding:12px 10px;border:1.5px solid ${i===0?'#FFB300':'var(--border)'};border-radius:14px;margin-bottom:8px;background:linear-gradient(90deg,rgba(255,82,82,.07),var(--bg2) 35%,var(--bg2) 65%,rgba(77,159,255,.07));">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;">
@@ -777,7 +774,8 @@ function _anRivalsHTML(players,h2h){
       </div>
       <div style="flex-shrink:0;text-align:center;">
         <div style="font-size:1.15rem;font-weight:900;letter-spacing:2px;">${r.w1} <span style="font-size:.7rem;color:var(--danger);font-weight:900;">VS</span> ${r.w2}</div>
-        <div style="font-size:.62rem;color:var(--text-muted);margin-top:2px;">${r.g}번 맞대결 · ${heat}</div>
+        <div style="margin-top:4px;"><span style="display:inline-block;font-size:.62rem;font-weight:800;padding:1px 8px;border-radius:999px;background:rgba(229,72,77,.12);color:var(--danger);">${heat}</span></div>
+        <div style="font-size:.62rem;color:var(--text-muted);margin-top:2px;">${r.g}번 맞대결</div>
       </div>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;">
         ${_anAv(P2,38)}
@@ -849,7 +847,7 @@ function _anAllHTML(opt){
     + _anSecCard('💚 환상의 파트너 TOP 5',
         best.length?best.map((x,i)=>_anPairCard(d.players,x,i,true)).join(''):_anEmptyRow('3경기 이상 함께 뛴 조합이 아직 없어요'),
         '같은 팀으로 3경기 이상')
-    + _anSecCard('💧 아쉬운 케미 TOP 3',
+    + _anSecCard('🙈 아쉬운 케미 TOP 3',
         worst.length?worst.map((x,i)=>_anPairCard(d.players,x,i,false)).join(''):_anEmptyRow('데이터 부족'),
         '같은 팀으로 3경기 이상 · 승률 낮은 순');
 }

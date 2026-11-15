@@ -686,3 +686,7 @@ body.light-mode .hdr-logo{filter:none}
 #weather-line .ic{margin:0}
 .an-pair:last-child{border-bottom:none!important}
 .an-rel .stat-card>div:nth-child(2){font-size:.98rem!important}
+/* 시즌 어워드 '트로피 진열장' (시안 B) */
+.aw-shelf{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.aw-shelf-cell:nth-child(n+4){border-top:1px solid var(--border)}
+.aw-shelf-cell:not(:nth-child(3n+1)){border-left:1px solid var(--border)}
