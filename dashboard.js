@@ -187,8 +187,8 @@ async function renderDashboard(){
     if(!_partnerMap[pkey]) _partnerMap[pkey]={id:pkey,name:pname,games:0,wins:0};
     _partnerMap[pkey].games++;if(won)_partnerMap[pkey].wins++;
   });
-  const _partnerList=Object.values(_partnerMap).filter(p=>p.games>0).sort((a,b)=>(b.games>0?b.wins/b.games:0)-(a.games>0?a.wins/a.games:0)||b.wins-a.wins||b.games-a.games);
-  const bestPartner=_partnerList[0]||null;
+  const _partnerList=_partnerSort(Object.values(_partnerMap).filter(p=>p.games>0));
+  const bestPartner=_partnerList[0]||null;   // 3판 이상이 있으면 그중 승률 1위, 모두 3판 미만이면 승률 1위(2026-11-16)
 
   // CI 등급/게이지
   const ciVal=Math.round(ci);
@@ -1081,6 +1081,46 @@ function updatePartnerTabLabel(){
   const el=document.getElementById('partner-tab-same');
   if(el) el.textContent=sameLabel;
 }
+/* 베스트 파트너(2026-11-16, 후생동TV와 같은 구조): 프로필 둘레 승률 고리 — 70%↑ 초록 / 50~69% 노랑 / 50% 미만 빨강.
+   3판 이상 같이 친 파트너가 먼저(승률 → 승수 → 판수), 3판 미만은 흐리게 '탐색 중'으로 맨 뒤.
+   단, 모든 파트너가 3판 미만이면(시즌 초 등) 흐림·탐색 중 없이 그냥 승률 순(사용자 지시). */
+const PARTNER_MIN_G=3;
+function _partnerHasEligible(list){ return (list||[]).some(p=>p.games>=PARTNER_MIN_G); }
+function _partnerSort(list){
+  const wr=p=>p.games?p.wins/p.games:0, split=_partnerHasEligible(list);
+  return [...list].sort((a,b)=>{
+    if(split){
+      const ea=a.games>=PARTNER_MIN_G, eb=b.games>=PARTNER_MIN_G;
+      if(ea!==eb) return eb-ea;
+      if(!ea) return b.games-a.games||wr(b)-wr(a);
+    }
+    return wr(b)-wr(a)||b.wins-a.wins||b.games-a.games;
+  });
+}
+function _partnerRingHtml(p, split){
+  const wr=p.games?p.wins/p.games:0, few=split&&p.games<PARTNER_MIN_G;
+  const color=wr>=0.7?'#1DB57A':wr>=0.5?'#E0A800':'#E0524A';   // 새벽민턴 primary는 파랑이라 초록은 직접 지정
+  const S=60, sw=5, r=(S-sw)/2-1, c=2*Math.PI*r, cx=S/2;
+  const isMember=p.id&&!String(p.id).startsWith('name:');
+  const u=isMember?(window._profilesCache||[]).find(x=>x.id===p.id):null;
+  const nm=escHtml(p.name||'');
+  const face=u&&u.avatar_url
+    ?`<img src="${escHtml(u.avatar_url)}" alt="" loading="lazy" decoding="async" style="position:absolute;inset:8px;width:44px;height:44px;border-radius:50%;object-fit:cover;">`
+    :`<span style="position:absolute;inset:8px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.8rem;">${escHtml(String(p.name||'?').slice(1)||p.name||'?')}</span>`;
+  const js=String(p.name||'').replace(/['\\]/g,'');   // 이름엔 따옴표·역슬래시가 DB 제약으로 못 들어오지만 한 번 더 막음
+  const click=isMember?`showPlayerCard('${p.id}','${js}')`:`goToFeedByName('${js}')`;
+  return `<div onclick="${escHtml(click)}" style="display:flex;flex-direction:column;align-items:center;cursor:pointer;min-width:0;">
+    <div style="position:relative;width:${S}px;height:${S}px;${few?'opacity:.5;':''}">
+      <svg width="${S}" height="${S}" viewBox="0 0 ${S} ${S}" style="position:absolute;inset:0;" aria-hidden="true">
+        <circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="var(--bg3)" stroke-width="${sw}"/>
+        ${p.wins>0?`<circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${(c*wr).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${cx} ${cx})"/>`:''}
+      </svg>${face}
+    </div>
+    ${few?'<span style="font-size:.58rem;font-weight:800;color:#fff;background:var(--text-muted);border-radius:99px;padding:1px 6px;margin-top:-8px;position:relative;border:2px solid var(--surface);">탐색 중</span>':''}
+    <div style="font-size:.76rem;font-weight:700;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${nm}</div>
+    <div style="font-size:.66rem;color:var(--text-muted);white-space:nowrap;">${p.wins}승 ${p.games-p.wins}패 · ${Math.round(wr*100)}%</div>
+  </div>`;
+}
 function renderPartner(allMatches){
   updatePartnerTabLabel();
   const el=document.getElementById('partner-list');
@@ -1112,38 +1152,25 @@ function renderPartner(allMatches){
   });
   const list=Object.values(partners).filter(p=>p.games>0);
   if(!list.length){el.innerHTML=`<div class="empty-state" style="padding:20px 0;"><div class="empty-icon" style="font-size:2rem;"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg></div><div>파트너 기록 없음</div></div>`;return;}
-  list.sort((a,b)=>(b.games>0?b.wins/b.games:0)-(a.games>0?a.wins/a.games:0)||b.wins-a.wins||b.games-a.games);
-  window._partnerFullList=list;
-  window._partnerShowCount=5;
+  window._partnerFullList=_partnerSort(list);
+  window._partnerShowCount=8;   // 한 줄 4명 × 2줄
   _renderPartnerRows();
 }
 function _renderPartnerRows(){
   const el=document.getElementById('partner-list');
   if(!el) return;
   const list=window._partnerFullList||[];
-  const count=window._partnerShowCount||5;
-  const visible=list.slice(0,count);
-  const rows=visible.map((p,i)=>{
-    const wr=p.games>0?Math.round(p.wins/p.games*100):0;
-    const isBest=i===0;
-    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
-      <div style="width:28px;text-align:center;font-size:${isBest?'1.3rem':'.9rem'};font-weight:700;color:${isBest?'var(--accent)':'var(--text-muted)'};">${isBest?'🥇':i+1}</div>
-      <div style="flex:1;">
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="font-weight:700;font-size:.95rem;">${p.name}</span>
-          ${isBest?'<span style="font-size:.72rem;background:rgba(var(--accent-rgb,255,214,0),.15);color:var(--accent);border:1px solid rgba(var(--accent-rgb,255,214,0),.3);border-radius:8px;padding:1px 7px;font-weight:700;">베스트 파트너 🏆</span>':''}
-        </div>
-        <div style="font-size:.78rem;color:var(--text-muted);margin-top:2px;">${p.games}경기 · ${p.wins}승 · 승률 ${wr}%</div>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-family:Black Han Sans,sans-serif;font-size:1.1rem;color:${wr>=50?'var(--primary)':'var(--text-muted)'};">${wr}%</div>
-        <div style="font-size:.72rem;color:var(--text-dim);">승률</div>
-      </div>
-    </div>`;
-  }).join('');
+  const count=window._partnerShowCount||8;
+  const visible=list.slice(0,count), split=_partnerHasEligible(list);
+  const rows=`<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 6px;padding:6px 0 10px;">${visible.map(p=>_partnerRingHtml(p,split)).join('')}</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;font-size:.66rem;color:var(--text-muted);padding-bottom:4px;">
+      <span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#1DB57A;margin-right:3px;"></i>승률 70%↑</span>
+      <span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#E0A800;margin-right:3px;"></i>50~69%</span>
+      <span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#E0524A;margin-right:3px;"></i>50% 미만</span>
+      ${split?'<span>· 3판 미만은 흐리게</span>':''}</div>`;
   const remaining=list.length-count;
   const moreBtn=remaining>0
-    ?`<button onclick="window._partnerShowCount+=5;_renderPartnerRows();" style="width:100%;margin-top:10px;padding:9px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:.84rem;font-family:inherit;cursor:pointer;">더보기 (${Math.min(5,remaining)}명 더) ▾</button>`
+    ?`<button onclick="window._partnerShowCount+=8;_renderPartnerRows();" style="width:100%;margin-top:10px;padding:9px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:.84rem;font-family:inherit;cursor:pointer;">더보기 (${Math.min(8,remaining)}명 더) ▾</button>`
     :'';
   el.innerHTML=rows+moreBtn;
 }
