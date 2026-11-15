@@ -89,6 +89,10 @@ async function renderCommunityPage(){
     el.innerHTML=riseBlockHTML()+`<div class="empty-state"><div class="empty-icon">💬</div><div>아직 게시글이 없어요<br><span style="font-size:.82rem;">첫 글을 남겨보세요!</span></div></div>`;
     return;
   }
+  if(!window._awardAvatars&&posts.some(p=>p.category==='award')){
+    const{data:av}=await sb.from('profiles').select('name,avatar_url').eq('status','approved');
+    window._awardAvatars={};(av||[]).forEach(u=>{if(u.avatar_url) window._awardAvatars[u.name]=u.avatar_url;});
+  }
   el.innerHTML=riseBlockHTML()+posts.map(p=>commPostHTML(p)).join('');
 }
 
@@ -380,18 +384,27 @@ function _awardSeed(str){let h=0;for(const c of str||'') h=(h*31+c.charCodeAt(0)
 function _awardCock(a){return +a.cock?`<span class="aw-cock">콕 ${+a.cock}</span>`:'';}
 function _awardRankNo(a,i){const m=String(a.prize||'').match(/\d+/);return m?m[0]:String(i+1);}
 
+/* 프로필 사진(이름으로 찾음) — renderCommunityPage가 시상 글이 있을 때 한 번 채운다 */
+function _awardAvatar(name,big){
+  const u=(window._awardAvatars||{})[name];
+  const cls='aw-av'+(big?' big':'');
+  return u?`<img class="${cls}" src="${escHtml(u)}" alt="">`:`<div class="${cls}">${escHtml((name||'?')[0])}</div>`;
+}
 function _awardPodiumHTML(items){
   const top=items.slice(0,3), rest=items.slice(3);
   const pod=(a,i,cls)=>a?`<div class="aw-pod ${cls}">
-      ${cls==='p1'?'<div class="aw-crown">👑</div>':''}
+      <div class="aw-avwrap">${cls==='p1'?'<span class="aw-crown">👑</span>':''}${_awardAvatar(a.name,cls==='p1')}</div>
       <div class="aw-pnm">${escHtml(a.name)}</div>${_awardCock(a)}
-      <div class="aw-blk">${escHtml(_awardRankNo(a,i))}</div>
-    </div>`:'<div></div>';
+      <div class="aw-blk"><b>${escHtml(_awardRankNo(a,i))}</b><small>등</small></div>
+    </div>`:'<div class="aw-pod"></div>';
   return `<div class="aw-podium">${pod(top[1],1,'p2')}${pod(top[0],0,'p1')}${pod(top[2],2,'p3')}</div>
-    ${rest.length?`<div class="aw-minis">${rest.map((a,i)=>`<span class="aw-mini"><b>${escHtml(_awardRankNo(a,i+3))}</b>${escHtml(a.name)}${+a.cock?` · 콕 ${+a.cock}`:''}</span>`).join('')}</div>`:''}`;
+    ${rest.length?`<div class="aw-minis">${rest.map((a,i)=>`<span class="aw-mini"><b>${escHtml(_awardRankNo(a,i+3))}등</b>${escHtml(a.name)}${+a.cock?` · 콕 ${+a.cock}`:''}</span>`).join('')}</div>`:''}`;
 }
 function _awardTalkHTML(kind,items,seed){
-  const names=items.map(a=>escHtml(a.name)+(+a.cock?`(콕 ${+a.cock})`:'')).join(' · ');
+  const names=items.map((a,i)=>{
+    const m=String(a.prize||'').match(/\d+/);
+    return `${m?`<i class="aw-rk">${m[0]}등</i>`:''}${escHtml(a.name)}${+a.cock?`(콕 ${+a.cock})`:''}`;
+  }).join(' · ');
   const list=AWARD_QUIPS[kind];
   const face=kind==='peace'?'🕊️':'😤';
   return `<div class="aw-talk"><div class="aw-face">${face}</div><div class="aw-bubble">${list[seed%list.length](names)}</div></div>`;
