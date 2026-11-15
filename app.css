@@ -629,3 +629,6 @@ body.light-mode .bottom-nav-item.active{background:linear-gradient(180deg,rgba(2
 .aw-body{display:none}
 .aw-card.aw-open .aw-body{display:block}
 .aw-all{display:block;width:100%;margin-top:12px;padding:9px 0;border:none;border-top:1px solid var(--border);background:none;color:var(--primary);font-family:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
+/* 헤더 로고: AM 마크 (다크모드는 반전) */
+.hdr-logo{height:26px;width:auto;display:block;filter:invert(1) brightness(1.05)}
+body.light-mode .hdr-logo{filter:none}

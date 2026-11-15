@@ -1,4 +1,4 @@
-const CACHE = 'ambm-v95';
+const CACHE = 'ambm-v96';
 const STATIC = [
   '/',
   '/index.html',
@@ -20,7 +20,8 @@ const STATIC = [
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
-  '/apple-touch-icon.png'
+  '/apple-touch-icon.png',
+  '/header-logo.png'
 ];
 
 /* stale-while-revalidate: 캐시 있으면 즉시 반환(빠른 실행) + 백그라운드에서 최신본 갱신.
