@@ -188,7 +188,7 @@ async function renderDashboard(){
     _partnerMap[pkey].games++;if(won)_partnerMap[pkey].wins++;
   });
   const _partnerList=_partnerSort(Object.values(_partnerMap).filter(p=>p.games>0));
-  const bestPartner=_partnerList[0]||null;   // 3판 이상이 있으면 그중 승률 1위, 모두 3판 미만이면 승률 1위(2026-11-16)
+  const bestPartner=_partnerBest(_partnerList);   // 3경기 이상 + 승−패 +1 이상 중 1위(2026-11-16)
 
   // CI 등급/게이지
   const ciVal=Math.round(ci);
@@ -265,7 +265,7 @@ async function renderDashboard(){
             bestPartner.wins+'승 '+(bestPartner.games-bestPartner.wins)+'패<br>'+
             Math.round(bestPartner.wins/bestPartner.games*100)+'%'+
           '</div>'
-        :'<div style="font-size:.78rem;color:var(--text-muted);padding:4px 0;">기록 없음</div>')+
+        :'<div style="font-size:.78rem;color:var(--text-muted);padding:4px 0;">'+(_partnerList.length?'아직 없음':'기록 없음')+'</div>')+
       '</div>'+
       // 3열: 득실차(위) + 최근전적(아래)
       '<div class="ov-col3" style="display:flex;flex-direction:column;">'+
@@ -1081,46 +1081,58 @@ function updatePartnerTabLabel(){
   const el=document.getElementById('partner-tab-same');
   if(el) el.textContent=sameLabel;
 }
-/* 베스트 파트너(2026-11-16, 후생동TV와 같은 구조): 프로필 둘레 승률 고리 — 70%↑ 초록 / 50~69% 노랑 / 50% 미만 빨강.
-   3판 이상 같이 친 파트너가 먼저(승률 → 승수 → 판수), 3판 미만은 흐리게 '탐색 중'으로 맨 뒤.
-   단, 모든 파트너가 3판 미만이면(시즌 초 등) 흐림·탐색 중 없이 그냥 승률 순(사용자 지시). */
+/* 베스트 파트너(2026-11-16 사용자 결정, 후생동TV·새벽민턴 공통)
+   점수 = 같이 이긴 수 − 같이 진 수. 점수 높은 순 → 같으면 승률 → 같이 친 경기 수.
+   홈 '베스트 파트너' 칸 = 3경기 이상 + 점수 +1 이상 중 1위(없으면 '아직 없음'). 3판 미만 흐림·'탐색 중'은 없앰.
+   고리 = 승률(70%↑ 초록 / 50~69% 노랑 / 50% 미만 빨강). 궁합 점수(보정 승률)는 쓰지 않음 */
 const PARTNER_MIN_G=3;
-function _partnerHasEligible(list){ return (list||[]).some(p=>p.games>=PARTNER_MIN_G); }
+function _partnerScore(p){ return p.wins-(p.games-p.wins); }
 function _partnerSort(list){
-  const wr=p=>p.games?p.wins/p.games:0, split=_partnerHasEligible(list);
-  return [...list].sort((a,b)=>{
-    if(split){
-      const ea=a.games>=PARTNER_MIN_G, eb=b.games>=PARTNER_MIN_G;
-      if(ea!==eb) return eb-ea;
-      if(!ea) return b.games-a.games||wr(b)-wr(a);
-    }
-    return wr(b)-wr(a)||b.wins-a.wins||b.games-a.games;
-  });
+  const wr=p=>p.games?p.wins/p.games:0;
+  return [...list].sort((a,b)=>_partnerScore(b)-_partnerScore(a)||wr(b)-wr(a)||b.games-a.games);
 }
-function _partnerRingHtml(p, split){
-  const wr=p.games?p.wins/p.games:0, few=split&&p.games<PARTNER_MIN_G;
-  const color=wr>=0.7?'#1DB57A':wr>=0.5?'#E0A800':'#E0524A';   // 새벽민턴 primary는 파랑이라 초록은 직접 지정
+function _partnerBest(sorted){ return (sorted||[]).find(p=>p.games>=PARTNER_MIN_G&&_partnerScore(p)>=1)||null; }
+const _psTxt=p=>{ const v=_partnerScore(p); return (v>0?'+':'')+v; };
+function _partnerRingHtml(p){
+  const wr=p.games?p.wins/p.games:0;
+  const color=wr>=0.7?'#1DB57A':wr>=0.5?'#E0A800':'#E0524A';
   const S=60, sw=5, r=(S-sw)/2-1, c=2*Math.PI*r, cx=S/2;
   const isMember=p.id&&!String(p.id).startsWith('name:');
   const u=isMember?(window._profilesCache||[]).find(x=>x.id===p.id):null;
-  const nm=escHtml(p.name||'');
+  const js=String(p.name||'').replace(/['\\]/g,'');
+  const click=isMember?`showPlayerCard('${p.id}','${js}')`:`goToFeedByName('${js}')`;
   const face=u&&u.avatar_url
     ?`<img src="${escHtml(u.avatar_url)}" alt="" loading="lazy" decoding="async" style="position:absolute;inset:8px;width:44px;height:44px;border-radius:50%;object-fit:cover;">`
     :`<span style="position:absolute;inset:8px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.8rem;">${escHtml(String(p.name||'?').slice(1)||p.name||'?')}</span>`;
-  const js=String(p.name||'').replace(/['\\]/g,'');   // 이름엔 따옴표·역슬래시가 DB 제약으로 못 들어오지만 한 번 더 막음
-  const click=isMember?`showPlayerCard('${p.id}','${js}')`:`goToFeedByName('${js}')`;
   return `<div onclick="${escHtml(click)}" style="display:flex;flex-direction:column;align-items:center;cursor:pointer;min-width:0;">
-    <div style="position:relative;width:${S}px;height:${S}px;${few?'opacity:.5;':''}">
+    <div style="position:relative;width:${S}px;height:${S}px;">
       <svg width="${S}" height="${S}" viewBox="0 0 ${S} ${S}" style="position:absolute;inset:0;" aria-hidden="true">
         <circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="var(--bg3)" stroke-width="${sw}"/>
         ${p.wins>0?`<circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${(c*wr).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${cx} ${cx})"/>`:''}
       </svg>${face}
     </div>
-    ${few?'<span style="font-size:.58rem;font-weight:800;color:#fff;background:var(--text-muted);border-radius:99px;padding:1px 6px;margin-top:-8px;position:relative;border:2px solid var(--surface);">탐색 중</span>':''}
-    <div style="font-size:.76rem;font-weight:700;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${nm}</div>
-    <div style="font-size:.66rem;color:var(--text-muted);white-space:nowrap;">${p.wins}승 ${p.games-p.wins}패 · ${Math.round(wr*100)}%</div>
+    <div style="font-size:.76rem;font-weight:700;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${escHtml(p.name||'')}</div>
+    <div style="font-size:.66rem;color:var(--text-muted);white-space:nowrap;">${p.wins}승 ${p.games-p.wins}패 · <b style="color:var(--text);">${_psTxt(p)}</b></div>
   </div>`;
 }
+/* 베스트 파트너 카드 오른쪽 위 ? — 산정 방법 안내 */
+function partnerHelp(){
+  const body=`<div style="font-size:.86rem;line-height:1.7;color:var(--text);">
+    <div style="font-weight:800;margin-bottom:4px;">점수 = 같이 이긴 수 − 같이 진 수</div>
+    <div style="color:var(--text-muted);margin-bottom:10px;">예) 7승 2패 → <b style="color:var(--text);">+5</b> · 4승 0패 → <b style="color:var(--text);">+4</b> · 0승 3패 → <b style="color:var(--text);">−3</b></div>
+    <ul style="margin:0;padding-left:18px;">
+      <li>점수가 높은 순서로 줄을 세워요. 점수가 같으면 승률이 높은 사람, 그다음 같이 많이 친 사람이 앞이에요.</li>
+      <li>홈 '베스트 파트너'는 <b>3경기 이상</b> 같이 치고 점수가 <b>+1 이상</b>인 사람 중 1위예요. 없으면 '아직 없음'으로 나와요.</li>
+      <li>사진 둘레 고리는 승률이에요. 70% 이상 초록, 50~69% 노랑, 50% 미만 빨강.</li>
+      <li>이번 시즌 경기만 세요.</li>
+    </ul></div>`;
+  const ov=document.createElement('div');
+  ov.className='modal-overlay open';
+  ov.innerHTML=`<div class="modal"><div style="font-size:1rem;font-weight:800;margin-bottom:12px;">베스트 파트너는 이렇게 정해요</div>${body}<button class="btn btn-primary" style="width:100%;margin-top:16px;">닫기</button></div>`;
+  ov.addEventListener('click',e=>{ if(e.target===ov||e.target.tagName==='BUTTON') ov.remove(); });
+  document.body.appendChild(ov);
+}
+window.partnerHelp=partnerHelp;
 function renderPartner(allMatches){
   updatePartnerTabLabel();
   const el=document.getElementById('partner-list');
@@ -1161,13 +1173,13 @@ function _renderPartnerRows(){
   if(!el) return;
   const list=window._partnerFullList||[];
   const count=window._partnerShowCount||8;
-  const visible=list.slice(0,count), split=_partnerHasEligible(list);
-  const rows=`<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 6px;padding:6px 0 10px;">${visible.map(p=>_partnerRingHtml(p,split)).join('')}</div>
+  const visible=list.slice(0,count);
+  const rows=`<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 6px;padding:6px 0 10px;">${visible.map(p=>_partnerRingHtml(p)).join('')}</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;font-size:.66rem;color:var(--text-muted);padding-bottom:4px;">
       <span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#1DB57A;margin-right:3px;"></i>승률 70%↑</span>
       <span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#E0A800;margin-right:3px;"></i>50~69%</span>
       <span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#E0524A;margin-right:3px;"></i>50% 미만</span>
-      ${split?'<span>· 3판 미만은 흐리게</span>':''}</div>`;
+      <span>· 순서 = 승−패 점수</span></div>`;
   const remaining=list.length-count;
   const moreBtn=remaining>0
     ?`<button onclick="window._partnerShowCount+=8;_renderPartnerRows();" style="width:100%;margin-top:10px;padding:9px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:.84rem;font-family:inherit;cursor:pointer;">더보기 (${Math.min(8,remaining)}명 더) ▾</button>`
