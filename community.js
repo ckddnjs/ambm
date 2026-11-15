@@ -92,7 +92,7 @@ async function renderCommunityPage(){
 }
 
 const _catLabel={'general':'일반','info':'정보','rules':'규칙','award':'시상'};
-const _catColor={'general':'var(--primary)','info':'var(--info)','rules':'var(--accent)','award':'#E0A800'};
+const _catColor={'general':'var(--primary)','info':'var(--info)','rules':'var(--accent)','award':'var(--text-muted)'};
 
 function commPostHTML(p){
   if(p.category==='award') return awardPostHTML(p);
@@ -323,12 +323,19 @@ async function balEditFromHistory(btId){
 }
 
 /* ══════════════════════════════════════════════════
-   🏆 일요일 시상 — 소식탭 'award' 게시글 (2026-11-15)
-   body = JSON {v:1,date:'YYYY-MM-DD',awards:[{prize,name,cock}]}
+   일요일 시상 — 소식탭 'award' 게시글 (2026-11-15)
+   body = JSON {v:2,date:'YYYY-MM-DD',awards:[{group,prize,name,cock}]}
+     group = 경기력상/평화상/힘내요상 등 묶음, prize = 순위 표기(1등·21등…)
+     v1(group 없음)도 그대로 읽힌다.
    콕은 기록만(실물은 현장 지급) — 인벤토리는 건드리지 않는다.
    등록·수정은 관리자만(버튼 노출 기준). DB 쓰기 권한은 기존 community_posts RLS.
+   디자인: 일별 요약 화면과 같은 차분한 톤(강조색은 --primary 하나만).
 ══════════════════════════════════════════════════ */
-const AWARD_DEFAULT_PRIZES=['1등','2등','3등','4등','5등','평화상','힘내요상'];
+const AWARD_DEFAULT=[
+  {group:'경기력상',rows:['1등','2등','3등','4등','5등']},
+  {group:'평화상',rows:['']},
+  {group:'힘내요상',rows:['']},
+];
 
 function _awardParse(p){
   try{const o=JSON.parse(p.body||'{}');return {date:o.date||'',awards:Array.isArray(o.awards)?o.awards:[]};}
@@ -339,43 +346,66 @@ function _awardDateLabel(d){
   const dt=new Date(d+'T00:00:00');
   return `${dt.getMonth()+1}월 ${dt.getDate()}일(${'일월화수목금토'[dt.getDay()]})`;
 }
+/* 등장 순서를 지키며 group별로 묶는다 */
+function _awardGroups(awards){
+  const out=[];const idx={};
+  awards.forEach(a=>{
+    const g=a.group||'';
+    if(!(g in idx)){idx[g]=out.length;out.push({group:g,items:[]});}
+    out[idx[g]].items.push(a);
+  });
+  return out;
+}
 
 function awardPostHTML(p){
   const {awards}=_awardParse(p);
   const isAdmin=ME.role==='admin';
   const total=awards.reduce((s,a)=>s+(+a.cock||0),0);
-  const rows=awards.map(a=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:.5px solid var(--border);">
-      <span style="min-width:64px;font-size:.78rem;font-weight:700;color:#E0A800;">${escHtml(a.prize)}</span>
-      <span style="flex:1;font-size:.88rem;font-weight:600;">${escHtml(a.name)}</span>
-      <span style="font-size:.8rem;color:var(--text-muted);font-variant-numeric:tabular-nums;">${+a.cock?`콕 ${+a.cock}개`:''}</span>
-    </div>`).join('');
+  const groupsHTML=_awardGroups(awards).map(g=>`
+    ${g.group?`<div style="font-size:.72rem;font-weight:700;color:var(--text-muted);margin:12px 0 2px;">${escHtml(g.group)}</div>`:''}
+    ${g.items.map(a=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:.5px solid var(--border);">
+      <span style="min-width:40px;font-size:.8rem;font-weight:700;color:var(--primary);font-variant-numeric:tabular-nums;">${escHtml(a.prize||'')}</span>
+      <span style="flex:1;font-size:.87rem;color:var(--text);">${escHtml(a.name)}</span>
+      ${+a.cock?`<span style="font-size:.78rem;color:var(--text-muted);font-variant-numeric:tabular-nums;">콕 ${+a.cock}</span>`:''}
+    </div>`).join('')}`).join('');
   return `<div class="comm-post" id="post-${p.id}" style="cursor:default;">
     <div class="comm-post-header">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
-        <span style="font-size:.68rem;font-weight:700;padding:1px 7px;border-radius:10px;border:1px solid #E0A800;color:#E0A800;background:#E0A80018;flex-shrink:0;">시상</span>
-        <span class="comm-post-title">🏆 ${escHtml(p.title)}</span>
+      <div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1;">
+        <span style="font-size:.68rem;font-weight:700;padding:1px 7px;border-radius:10px;border:1px solid var(--border);color:var(--text-muted);flex-shrink:0;">시상</span>
+        <span class="comm-post-title">${escHtml(p.title)}</span>
       </div>
-      <div class="comm-post-meta">
-        ${isAdmin?`<button onclick="event.stopPropagation();editPost('${p.id}')" style="background:none;border:none;color:var(--text-muted);font-size:.78rem;cursor:pointer;padding:0 4px;">✏️</button>
-        <button onclick="event.stopPropagation();deletePost('${p.id}')" style="background:none;border:none;color:var(--danger);font-size:.78rem;cursor:pointer;padding:0 4px;">🗑</button>`:''}
-      </div>
+      ${isAdmin?`<div class="comm-post-meta">
+        <button onclick="event.stopPropagation();editPost('${p.id}')" style="background:none;border:none;color:var(--text-muted);font-size:.78rem;cursor:pointer;padding:0 4px;">✏️</button>
+        <button onclick="event.stopPropagation();deletePost('${p.id}')" style="background:none;border:none;color:var(--danger);font-size:.78rem;cursor:pointer;padding:0 4px;">🗑</button>
+      </div>`:''}
     </div>
-    <div style="padding:2px 0 4px;">${rows||'<div style="font-size:.8rem;color:var(--text-muted);padding:8px 0;">수상자 없음</div>'}
-      ${total?`<div style="text-align:right;font-size:.72rem;color:var(--text-dim);margin-top:6px;">총 콕 ${total}개 · 현장 지급</div>`:''}
+    <div>${groupsHTML||'<div style="font-size:.8rem;color:var(--text-muted);padding:8px 0;">수상자 없음</div>'}
+      ${total?`<div style="text-align:right;font-size:.7rem;color:var(--text-dim);margin-top:8px;">콕 총 ${total}개 · 현장 지급</div>`:''}
     </div>
   </div>`;
 }
 
+/* ── 입력 모달: 묶음(그룹)마다 [순위][이름][콕][✕] 줄 ── */
 function _awardRowHTML(a={}){
   const cock=(a.cock!=null&&a.cock!=='')?(+a.cock):'';
-  return `<div class="award-row" style="display:grid;grid-template-columns:1fr 1.3fr 60px 26px;gap:6px;margin-bottom:6px;align-items:center;">
-    <input class="form-input aw-prize" type="text" placeholder="상 이름" value="${escHtml(a.prize||'')}" style="padding:8px;">
+  return `<div class="award-row" style="display:grid;grid-template-columns:62px 1fr 54px 24px;gap:6px;margin-bottom:6px;align-items:center;">
+    <input class="form-input aw-prize" type="text" placeholder="순위" value="${escHtml(a.prize||'')}" style="padding:8px;text-align:center;">
     <input class="form-input aw-name" type="text" list="award-names" placeholder="이름" value="${escHtml(a.name||'')}" style="padding:8px;">
     <input class="form-input aw-cock" type="number" min="0" inputmode="numeric" placeholder="콕" value="${cock}" style="padding:8px;text-align:center;">
-    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--danger);font-size:1rem;cursor:pointer;" aria-label="줄 삭제">✕</button>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--text-muted);font-size:.95rem;cursor:pointer;" aria-label="줄 삭제">✕</button>
   </div>`;
 }
-function awardAddRow(){document.getElementById('award-rows').insertAdjacentHTML('beforeend',_awardRowHTML());}
+function _awardGroupHTML(group,items){
+  return `<div class="award-group" style="margin-bottom:12px;">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+      <input class="form-input aw-group" type="text" placeholder="상 이름" value="${escHtml(group||'')}" style="padding:6px 8px;font-weight:700;font-size:.85rem;flex:1;">
+      <button class="btn btn-ghost btn-sm" onclick="this.closest('.award-group').querySelector('.award-group-rows').insertAdjacentHTML('beforeend',_awardRowHTML())">+ 줄</button>
+      <button onclick="this.closest('.award-group').remove()" style="background:none;border:none;color:var(--text-muted);font-size:.95rem;cursor:pointer;" aria-label="상 삭제">✕</button>
+    </div>
+    <div class="award-group-rows">${items.map(_awardRowHTML).join('')}</div>
+  </div>`;
+}
+function awardAddRow(){document.getElementById('award-rows').insertAdjacentHTML('beforeend',_awardGroupHTML('',[{}]));}
 
 /* 가장 최근 일요일(오늘이 일요일이면 오늘) */
 function _awardLastSunday(){
@@ -384,11 +414,17 @@ function _awardLastSunday(){
 }
 
 function openAwardForm(post=null){
-  const data=post?_awardParse(post):{date:_awardLastSunday(),awards:AWARD_DEFAULT_PRIZES.map(prize=>({prize}))};
+  let date=_awardLastSunday(), groups;
+  if(post){
+    const d=_awardParse(post); date=d.date||date;
+    groups=_awardGroups(d.awards).map(g=>({group:g.group,items:g.items}));
+  } else {
+    groups=AWARD_DEFAULT.map(g=>({group:g.group,items:g.rows.map(prize=>({prize}))}));
+  }
   document.getElementById('award-edit-id').value=post?.id||'';
-  document.getElementById('award-form-title').textContent=post?'🏆 시상 수정':'🏆 시상 등록';
-  document.getElementById('award-date').value=data.date||_awardLastSunday();
-  document.getElementById('award-rows').innerHTML=data.awards.map(_awardRowHTML).join('');
+  document.getElementById('award-form-title').textContent=post?'시상 수정':'시상 등록';
+  document.getElementById('award-date').value=date;
+  document.getElementById('award-rows').innerHTML=groups.map(g=>_awardGroupHTML(g.group,g.items)).join('');
   openModal('modal-award-form');
   awardLoadDay();
 }
@@ -432,21 +468,26 @@ async function submitAward(){
   const editId=document.getElementById('award-edit-id').value;
   const date=document.getElementById('award-date').value;
   if(!date){toast('날짜를 선택하세요','error');return;}
-  const awards=[...document.querySelectorAll('#award-rows .award-row')].map(r=>({
-    prize:r.querySelector('.aw-prize').value.trim(),
-    name:r.querySelector('.aw-name').value.trim(),
-    cock:Math.max(0,parseInt(r.querySelector('.aw-cock').value,10)||0),
-  })).filter(a=>a.name);   // 이름 없는 줄은 버린다
+  const awards=[];
+  document.querySelectorAll('#award-rows .award-group').forEach(g=>{
+    const group=g.querySelector('.aw-group').value.trim();
+    g.querySelectorAll('.award-row').forEach(r=>{
+      const name=r.querySelector('.aw-name').value.trim();
+      if(!name) return;   // 이름 없는 줄은 버린다
+      awards.push({group,prize:r.querySelector('.aw-prize').value.trim(),name,
+        cock:Math.max(0,parseInt(r.querySelector('.aw-cock').value,10)||0)});
+    });
+  });
   if(!awards.length){toast('수상자를 한 명 이상 입력하세요','error');return;}
-  if(awards.some(a=>!a.prize)){toast('상 이름이 빈 줄이 있어요','error');return;}
+  if(awards.some(a=>!a.group)){toast('상 이름이 빈 묶음이 있어요','error');return;}
   const title=`${_awardDateLabel(date)} 시상`;
-  const body=JSON.stringify({v:1,date,awards});
+  const body=JSON.stringify({v:2,date,awards});
   const q=editId
     ?sb.from('community_posts').update({title,body,category:'award',updated_at:nowISO()}).eq('id',editId)
     :sb.from('community_posts').insert({category:'award',title,body,author_id:ME.id,author_name:ME.name});
   const{error}=await q;
   if(error){toast((editId?'수정':'등록')+' 실패: '+error.message,'error');return;}
-  toast(editId?'✅ 시상 수정 완료':'✅ 시상 등록 완료','success');
+  toast(editId?'시상 수정 완료':'시상 등록 완료','success');
   closeModal('modal-award-form');
   renderCommunityPage();
 }

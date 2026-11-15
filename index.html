@@ -423,7 +423,7 @@
           <div class="page-sub" style="margin-bottom:0;">공지사항</div>
         </div>
         <div style="display:flex;gap:6px;">
-          <button id="btn-comm-award" class="btn btn-ghost btn-sm" onclick="openAwardForm()" style="display:none;">🏆 시상</button>
+          <button id="btn-comm-award" class="btn btn-ghost btn-sm" onclick="openAwardForm()" style="display:none;">시상 등록</button>
           <button id="btn-comm-write" class="btn btn-primary btn-sm" onclick="openPostForm()" style="display:none;"><svg class="ic" aria-hidden="true"><use href="#i-pencil"/></svg>글쓰기</button>
         </div>
       </div>
@@ -781,7 +781,7 @@
 <div class="modal-overlay" id="modal-award-form">
   <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-title" id="award-form-title">🏆 시상 등록</div>
+    <div class="modal-title" id="award-form-title">시상 등록</div>
     <input type="hidden" id="award-edit-id">
     <div class="form-group">
       <label class="form-label">날짜 <span class="req">*</span></label>
@@ -789,10 +789,10 @@
       <div id="award-day-info" style="font-size:.72rem;color:var(--text-muted);margin-top:4px;"></div>
     </div>
     <div class="form-group">
-      <label class="form-label">수상자 <span style="font-weight:400;color:var(--text-muted);">· 상 이름 / 이름 / 콕 개수</span></label>
+      <label class="form-label">수상자 <span style="font-weight:400;color:var(--text-muted);">· 상마다 순위 / 이름 / 콕 개수</span></label>
       <div id="award-rows"></div>
       <datalist id="award-names"></datalist>
-      <button class="btn btn-ghost btn-sm" onclick="awardAddRow()" style="margin-top:6px;">+ 줄 추가</button>
+      <button class="btn btn-ghost btn-sm" onclick="awardAddRow()" style="margin-top:2px;">+ 상 추가</button>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-award-form')">취소</button>
@@ -823,7 +823,7 @@
 <script src="register.js?v=2026100505" defer></script>
   <script src="analysis.js?v=2026100506" defer></script>
 <script src="admin.js?v=2026101001" defer></script>
-<script src="community.js?v=2026111501" defer></script>
+<script src="community.js?v=2026111502" defer></script>
 <script src="tournament.js?v=2026100702" defer></script>
 <script src="balance.js?v=2026100505" defer></script>
 <script src="settings.js?v=2026100509" defer></script>
