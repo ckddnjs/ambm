@@ -505,8 +505,6 @@ function renderWrTrend(myMatches){
   const fillColor=tab==='winrate'?'rgba(0,200,150,0.10)':tab==='diff'?'rgba(66,133,244,0.10)':'rgba(249,168,37,0.10)';
   const dotWin=isLight?'#009970':'#00C896';
   const dotLoss=isLight?'#B01060':'#FF5252';
-  let dotFill=getComputedStyle(document.getElementById('trend-card')||document.body).backgroundColor;
-  if(!dotFill||/rgba\(0, 0, 0, 0\)|transparent/.test(dotFill)) dotFill=isLight?'#FFFFFF':'#131519';
 
   // Y 그리드 5단계
   const gridCount=4;
@@ -562,14 +560,12 @@ function renderWrTrend(myMatches){
   const showAllDots=points.length<=30;
   points.forEach((p,i)=>{
     if(!showAllDots&&i!==points.length-1) return;
-    // 속이 빈 링: 안쪽은 카드 바탕색, 테두리만 승(초록)/패(빨강) — 2026-11-15
-    const v=vals[i], last=i===points.length-1;
+    // 원래 모양(꽉 찬 점)으로 되돌림, 색은 선 색 하나로 통일 (2026-11-15 사용자 요청)
+    const v=vals[i];
     ctx.beginPath();
-    ctx.arc(xOf(i),yOf(v),last?4.5:(showAllDots?3.4:4.5),0,Math.PI*2);
-    ctx.fillStyle=dotFill; ctx.fill();
-    ctx.lineWidth=last?2.4:1.8;
-    ctx.strokeStyle=(p.dayWins/p.dayTotal>=0.5)?dotWin:dotLoss;
-    ctx.stroke();
+    ctx.arc(xOf(i),yOf(v),showAllDots?3:5,0,Math.PI*2);
+    ctx.fillStyle=lineColor;
+    ctx.fill();
   });
 }
 
