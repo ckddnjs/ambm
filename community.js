@@ -94,6 +94,9 @@ async function renderCommunityPage(){
     const{data:av}=await sb.from('profiles').select('name,avatar_url').eq('status','approved');
     window._awardAvatars={};(av||[]).forEach(u=>{if(u.avatar_url) window._awardAvatars[u.name]=u.avatar_url;});
   }
+  // 시상 글은 가장 최근 날짜 1개만 펼치고 나머지는 접는다
+  const _aw=posts.filter(p=>p.category==='award');
+  window._awardLatestId=_aw.length?_aw.reduce((m,p)=>((_awardParse(p).date||p.created_at)>(_awardParse(m).date||m.created_at)?p:m)).id:null;
   el.innerHTML=riseBlockHTML()+posts.map(p=>commPostHTML(p)).join('');
 }
 
@@ -426,19 +429,26 @@ function awardPostHTML(p){
     const icon=kind==='rank'?'🏆 ':'';
     return `<div class="aw-sec"><div class="aw-sec-h">${icon}${escHtml(g.group||'시상')}</div>${inner}</div>`;
   }).join('');
-  return `<div class="comm-post aw-card" id="post-${p.id}">
-    <div class="comm-post-header">
+  const open=p.id===window._awardLatestId;
+  const first=awards[0];
+  const peek=first?`${first.prize?escHtml(first.prize)+' ':''}${escHtml(first.name)}${awards.length>1?` 외 ${awards.length-1}명`:''}`:'';
+  return `<div class="comm-post aw-card${open?' aw-open':''}" id="post-${p.id}">
+    <div class="comm-post-header aw-toggle" onclick="this.parentElement.classList.toggle('aw-open')">
       <div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1;">
         <span class="aw-chip">시상</span>
         <span class="comm-post-title">${escHtml(p.title)}</span>
+        <span class="aw-peek">${peek}</span>
       </div>
       ${isAdmin?`<div class="comm-post-meta">
         <button onclick="event.stopPropagation();editPost('${p.id}')" style="background:none;border:none;color:var(--text-muted);font-size:.78rem;cursor:pointer;padding:0 4px;">✏️</button>
         <button onclick="event.stopPropagation();deletePost('${p.id}')" style="background:none;border:none;color:var(--danger);font-size:.78rem;cursor:pointer;padding:0 4px;">🗑</button>
       </div>`:''}
+      <span class="aw-chev" aria-hidden="true">›</span>
     </div>
+    <div class="aw-body">
     ${secs||'<div style="font-size:.8rem;color:var(--text-muted);padding:8px 0;">수상자 없음</div>'}
     ${total?`<div class="aw-total">콕 총 ${total}개 · 현장 지급</div>`:''}
+    </div>
   </div>`;
 }
 

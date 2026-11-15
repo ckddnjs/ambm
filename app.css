@@ -619,4 +619,12 @@ body.light-mode .bottom-nav-item.active{background:linear-gradient(180deg,rgba(2
 .aw-pod.p3 .aw-blk{height:28px;border-radius:0 8px 0 0}
 .aw-rk{font-style:normal;font-weight:700;color:var(--primary);font-size:.72rem;margin-right:3px}
 /* 하단 메뉴 안 읽은 숫자 배지 */
-.nav-badge{position:absolute;top:4px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 5px;border-radius:9px;background:var(--danger);color:#fff;font-size:.62rem;font-weight:800;line-height:17px;text-align:center;font-variant-numeric:tabular-nums;box-shadow:0 0 0 2px var(--bg);pointer-events:none}
+.nav-badge{position:absolute;top:2px;left:calc(50% + 6px);min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--danger);color:#fff;font-size:.56rem;font-weight:700;line-height:15px;text-align:center;font-variant-numeric:tabular-nums;box-shadow:0 0 0 1.5px var(--surface);pointer-events:none;z-index:1}
+/* 시상 카드 접기: 최신만 펼침 */
+.aw-toggle{cursor:pointer}
+.aw-peek{font-size:.72rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.aw-card.aw-open .aw-peek{display:none}
+.aw-chev{color:var(--text-dim);font-size:1.1rem;line-height:1;transition:transform .2s;flex-shrink:0}
+.aw-card.aw-open .aw-chev{transform:rotate(90deg)}
+.aw-body{display:none}
+.aw-card.aw-open .aw-body{display:block}
