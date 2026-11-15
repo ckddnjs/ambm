@@ -649,9 +649,9 @@ body.light-mode .hdr-logo{filter:none}
 .train-go .tr-eng{animation:trainEng .8s cubic-bezier(.22,.9,.3,1) both}
 @keyframes trainIn{from{transform:translateX(-100%);opacity:0}60%{opacity:1}to{transform:none;opacity:1}}
 @keyframes trainEng{from{transform:translateX(-48px);opacity:0}to{transform:none;opacity:1}}
-/* 스크롤 내리면 '새벽민턴' 글자는 접히고 AM 로고만 남음 (core.js .app-body 스크롤 감지) */
-.hdr-title{display:inline-block;max-width:8em;overflow:hidden;white-space:nowrap;transition:max-width .3s ease,opacity .2s ease}
-.app-header.hdr-compact .hdr-title{max-width:0;opacity:0}
-.app-header.hdr-compact .app-header-logo{gap:0}
-.app-header.hdr-compact .hdr-logo{height:22px}
+/* 스크롤 내리면 '새벽민턴' 글자와 로고가 살짝 작아짐 (core.js .app-body 스크롤 감지) */
+.hdr-title{display:inline-block;white-space:nowrap;transition:font-size .25s ease}
+.app-header.hdr-compact .hdr-title{font-size:.9rem}
+.app-header.hdr-compact .hdr-logo{height:16px}
+.app-header.hdr-compact .app-header-logo{gap:6px}
 @media (prefers-reduced-motion: reduce){.hdr-title,.hdr-logo{transition:none}}

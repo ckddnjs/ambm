@@ -819,7 +819,7 @@ function ciToLabel(ci){
 
 
 
-/* ── 헤더: 스크롤을 내리면 '새벽민턴' 글자를 접고 로고만 남긴다 (2026-11-15) ── */
+/* ── 헤더: 스크롤을 내리면 '새벽민턴' 글자·로고를 살짝 줄인다 (2026-11-15) ── */
 (function(){
   const body=document.querySelector('.app-body'), hdr=document.querySelector('.app-header');
   if(!body||!hdr) return;
