@@ -198,7 +198,7 @@ async function renderDashboard(){
       '</div>'+
     '</div>'+
     // 3칸 레이아웃: 승률 | 베스트파트너 | [득실차 / 최근전적]
-    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">'+
+    '<div class="ov-tiles" style="display:grid;grid-template-columns:1fr 1fr 1fr;margin-bottom:12px;">'+
       // 1열: 승률
       '<div class="stat-card" style="padding:12px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;">'+
         '<div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:4px;">승률</div>'+
@@ -229,7 +229,7 @@ async function renderDashboard(){
         :'<div style="font-size:.78rem;color:var(--text-muted);padding:4px 0;">기록 없음</div>')+
       '</div>'+
       // 3열: 득실차(위) + 최근전적(아래)
-      '<div style="display:flex;flex-direction:column;gap:8px;">'+
+      '<div class="ov-col3" style="display:flex;flex-direction:column;">'+
         '<div class="stat-card" style="padding:10px 6px;text-align:center;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;">'+
           '<div style="font-size:.78rem;font-weight:600;color:var(--text);margin-bottom:6px;">득실차</div>'+
           '<div style="display:flex;flex-direction:column;gap:0;width:100%;">'+
@@ -1051,7 +1051,7 @@ function renderPartner(allMatches){
     partners[partnerId].games++;if(won) partners[partnerId].wins++;
   });
   const list=Object.values(partners).filter(p=>p.games>0);
-  if(!list.length){el.innerHTML=`<div class="empty-state" style="padding:20px 0;"><div class="empty-icon" style="font-size:2rem;">🤝</div><div>파트너 기록 없음</div></div>`;return;}
+  if(!list.length){el.innerHTML=`<div class="empty-state" style="padding:20px 0;"><div class="empty-icon" style="font-size:2rem;"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg></div><div>파트너 기록 없음</div></div>`;return;}
   list.sort((a,b)=>(b.games>0?b.wins/b.games:0)-(a.games>0?a.wins/a.games:0)||b.wins-a.wins||b.games-a.games);
   window._partnerFullList=list;
   window._partnerShowCount=5;
@@ -1452,7 +1452,7 @@ async function renderSeasonOnboard(myGames){
       '<div style="font-size:2.6rem;margin-bottom:6px;">🏸</div>'+
       '<div style="font-family:\'Black Han Sans\',sans-serif;font-size:1.3rem;color:var(--primary);margin-bottom:8px;">'+title+'</div>'+
       '<div style="font-size:.85rem;color:var(--text-muted);line-height:1.6;margin-bottom:18px;">'+desc+'</div>'+
-      '<button onclick="navigateTo(\'register\')" style="padding:13px 28px;border-radius:12px;border:none;background:var(--primary);color:#fff;font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer;">🏸 경기 등록하기</button>'+
+      '<button onclick="navigateTo(\'register\')" style="padding:13px 28px;border-radius:12px;border:none;background:var(--primary);color:#fff;font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer;"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>경기 등록하기</button>'+
       '<div id="onboard-recap"></div>'+
     '</div>';
 

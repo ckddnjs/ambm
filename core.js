@@ -64,7 +64,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
     if(!ME) showLogin();
     else if(ME.status==='approved'){
       showApp();
-      if(isNewLogin) toast(`어서오세요, ${ME.name}님! 🏸`,'success');
+      if(isNewLogin) toast(`어서오세요, ${ME.name}님!`,'success');
     }
     else if(ME.status==='pending') showPendingScreen(ME.name);
     else{await sb.auth.signOut();showLogin();}
@@ -318,7 +318,7 @@ async function doEmailLogin(){
     if(ME.status==='pending'){showPendingScreen(ME.name);return;}
     if(ME.status==='rejected'){toast('이용 불가 계정','error');await sb.auth.signOut();ME=null;AUTH_USER_ID=null;return;}
     addLog(`로그인: ${ME.name}`,ME.id);
-    showApp();toast(`어서오세요, ${ME.name}님! 🏸`,'success');
+    showApp();toast(`어서오세요, ${ME.name}님!`,'success');
   } finally {
     if(btn){btn.disabled=false;btn.textContent='로그인';}
   }
@@ -339,7 +339,7 @@ async function doEmailSignup(){
     });
     const json=await res.json();
     if(!res.ok){toast('가입 실패: '+(json.error||res.status),'error');return;}
-    toast('가입 신청 완료! 관리자 승인 후 로그인 가능합니다 ✅','success');
+    toast('가입 신청 완료! 관리자 승인 후 로그인 가능합니다','success');
     ['signup-name','signup-email','signup-pw'].forEach(id=>document.getElementById(id).value='');
   } catch(e){toast('가입 실패: '+e.message,'error');}
 }
@@ -399,8 +399,9 @@ function _updateDmUI(isLight){
   const icon=document.getElementById('dm-icon'); const btn=document.getElementById('btn-darkmode');
   if(icon) icon.textContent=isLight?'☀️':'🌙';
   if(btn){btn.style.background=isLight?'rgba(255,255,255,.6)':'rgba(0,0,0,.25)';btn.style.color=isLight?'#1a202c':'#fff';btn.style.borderColor=isLight?'rgba(0,0,0,.15)':'rgba(255,255,255,.15)';}
+  // 헤더 테마 버튼: 누르면 바뀔 모드를 선 아이콘으로 (라이트에선 달, 다크에선 해)
   const icon2=document.getElementById('dm-icon-app');
-  if(icon2) icon2.textContent=isLight?'☀️':'🌙';
+  if(icon2) icon2.innerHTML=`<svg class="ic" aria-hidden="true"><use href="#i-${isLight?'moon':'sun'}"/></svg>`;
 }
 function initTheme(){
   const saved=localStorage.getItem('theme');
@@ -431,7 +432,7 @@ function showPendingScreen(name){
       clearInterval(window._pendingChecker);window._pendingChecker=null;
       ME={...ME,...prof};
       document.getElementById('pending-screen')?.remove();
-      showApp();toast(`어서오세요, ${ME.name}님! 🏸`,'success');
+      showApp();toast(`어서오세요, ${ME.name}님!`,'success');
     }
   },10000);
   document.getElementById('login-page').style.display='none';document.getElementById('app').style.display='none';
@@ -506,13 +507,21 @@ function _wxEmojiFromWmo(code,isDay){
   if(c>=95) return '⛈️';
   return d?'☀️':'🌙';
 }
+/* 2026-11-15 헤더 정리: 날씨는 이모지 대신 짧은 글자(맑음·구름·흐림·비·눈·안개·뇌우) */
+function _wxLabelFromWmo(code){
+  const c=Number(code)||0;
+  if(c===0) return '맑음'; if(c<=2) return '구름'; if(c===3) return '흐림';
+  if(c===45||c===48) return '안개'; if(c>=95) return '뇌우';
+  if((c>=71&&c<=77)||(c>=85&&c<=86)) return '눈';
+  if(c>=51) return '비'; return '';
+}
 async function _updateHeaderWeather(){
   const el=document.getElementById('hdr-weather');
   if(!el) return;
   try{
     const cached=JSON.parse(localStorage.getItem('wx_ambm_v1')||'null');
-    if(cached&&Date.now()-cached.ts<60000){
-      el.innerHTML=`<span>${cached.emoji}</span><span style="font-weight:600;">${cached.temp}°</span>`;
+    if(cached&&Date.now()-cached.ts<60000&&cached.label!==undefined){
+      el.innerHTML=`<span>${cached.label}</span><span style="font-weight:600;">${cached.temp}°</span>`;
       return;
     }
     const u=`https://api.open-meteo.com/v1/forecast?latitude=${_WX_LAT}&longitude=${_WX_LON}&current=temperature_2m,weathercode,is_day&timezone=Asia%2FSeoul`;
@@ -520,10 +529,10 @@ async function _updateHeaderWeather(){
     const j=await res.json();
     const cur=j?.current;
     if(!cur) throw new Error('no data');
-    const emoji=_wxEmojiFromWmo(cur.weathercode,cur.is_day);
+    const label=_wxLabelFromWmo(cur.weathercode);
     const temp=Math.round(cur.temperature_2m);
-    localStorage.setItem('wx_ambm_v1',JSON.stringify({emoji,temp,ts:Date.now()}));
-    el.innerHTML=`<span>${emoji}</span><span style="font-weight:600;">${temp}°</span>`;
+    localStorage.setItem('wx_ambm_v1',JSON.stringify({label,temp,ts:Date.now()}));
+    el.innerHTML=`<span>${label}</span><span style="font-weight:600;">${temp}°</span>`;
   }catch(e){ el.textContent=''; }
 }
 let _wxInterval=null;

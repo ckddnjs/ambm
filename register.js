@@ -363,7 +363,7 @@ async function _doSubmitMatch(){
 
   addLog(`경기 등록 요청: ${_chipSelected.a1?.name} vs ${_chipSelected.b1?.name}`, ME.id);
   if(navigator.vibrate) navigator.vibrate([50, 30, 50]);
-  toast('✅ 등록 요청 완료! 관리자 승인 대기 중', 'success');
+  toast('등록 요청 완료! 관리자 승인 대기 중', 'success');
 
   // 등록 완료 시에만 비회원 풀 초기화
   _chipSelected = {a1:null, a2:null, b1:null, b2:null};

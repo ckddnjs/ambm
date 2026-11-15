@@ -76,7 +76,7 @@ async function _balRenderHistory(){
         <div style="font-size:.72rem;color:var(--text-muted);margin-top:2px;">${tl} &nbsp;·&nbsp; ${dateStr}</div>
       </div>
       <div style="font-size:.75rem;color:var(--primary);font-weight:600;flex-shrink:0;cursor:pointer;" onclick="openBracketDetail('${bt.id}')">보기 ›</div>
-      <button onclick="balDeleteHistory('${bt.id}')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.82rem;padding:4px 6px;flex-shrink:0;" title="삭제">🗑</button>
+      <button onclick="balDeleteHistory('${bt.id}')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.82rem;padding:4px 6px;flex-shrink:0;" title="삭제" aria-label="삭제"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg></button>
     </div>`;
   });
   html+='</div>';
@@ -562,7 +562,7 @@ function _balRenderEdit(){
         html+=`<div style="display:flex;align-items:center;gap:4px;background:var(--surface);border-radius:7px;padding:4px 8px;">
           <span style="font-size:.9rem;font-weight:700;">${p.name}</span>
           <span style="font-size:.72rem;color:var(--text-muted);">${rpDisp(p.score)}</span>
-          <button onclick="balShowGroupMove(${gi},${pi},this)" style="font-size:.65rem;padding:1px 6px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--bg3);color:var(--text-muted);">🔀</button>
+          <button onclick="balShowGroupMove(${gi},${pi},this)" style="font-size:.65rem;padding:1px 6px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--bg3);color:var(--text-muted);" aria-label="이동">⇄</button>
         </div>`;
       });
       html+=`</div></div>`;
@@ -593,7 +593,7 @@ function _balRenderEdit(){
             <div style="font-size:.88rem;font-weight:700;">${pair.p2?.name||'미정'}</div>
             <div style="font-size:.7rem;color:var(--text-muted);">${rpDisp(pair.p2?.score)}</div>
           </div>
-          <button onclick="balShowDuoMove(${ti},${pi},this)" style="font-size:.65rem;padding:2px 6px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--bg3);color:var(--text-muted);">🔀</button>
+          <button onclick="balShowDuoMove(${ti},${pi},this)" style="font-size:.65rem;padding:2px 6px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--bg3);color:var(--text-muted);" aria-label="이동">⇄</button>
         </div>`;
       });
       html+=`</div></div>`;
@@ -753,7 +753,7 @@ async function _balDoSave(){
     groups:JSON.stringify(groupsData),created_by:ME.id
   });
   if(error){toast('저장 실패: '+error.message,'error');return;}
-  toast('✅ 저장 완료','success');
+  toast('저장 완료','success');
   balGoStep(1);
   balSwitchTab('history');
 }
@@ -1007,13 +1007,13 @@ async function bfConfirmArrangement(){
   if(window._bfEditId){
     const{error}=await sb.from('bracket_tournaments').update(insertData).eq('id',window._bfEditId);
     if(error){toast('수정 실패: '+error.message,'error');return;}
-    toast('✅ 대회 구성이 수정되었습니다!','success');
+    toast('대회 구성이 수정되었습니다!','success');
     resultId=window._bfEditId;
     window._bfEditId=null;
   } else {
     const{data,error}=await sb.from('bracket_tournaments').insert(insertData).select().single();
     if(error){toast('생성 실패: '+error.message,'error');return;}
-    toast('✅ 대회 구성 확정!','success');
+    toast('대회 구성 확정!','success');
     resultId=data.id;
   }
   toggleBracketForm();
@@ -1356,7 +1356,7 @@ function _bfRenderArrangeUI(wrap){
       const menuItems=otherGroups.map(({og,ogi})=>`<div onclick="bfMovePlayerToGroup(${gi},${pi},${ogi});this.closest('.bf-move-popup').style.display='none'" style="padding:8px 14px;font-size:.8rem;cursor:pointer;color:var(--text);white-space:nowrap;" onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background=''">${og.name}으로 이동</div>`).join('');
       html+=`<div style="position:relative;display:inline-flex;align-items:center;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 8px;font-size:.82rem;">
         <span style="cursor:default;">${p.name}</span>
-        <button onclick="bfToggleMovePopup(this)" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.9rem;padding:0 1px;line-height:1;flex-shrink:0;">🔀</button>
+        <button onclick="bfToggleMovePopup(this)" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.9rem;padding:0 1px;line-height:1;flex-shrink:0;" aria-label="이동">⇄</button>
         <div class="bf-move-popup" style="display:none;position:absolute;z-index:300;left:0;top:110%;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:hidden;min-width:130px;">
           <div style="padding:6px 14px;font-size:.75rem;color:var(--text-muted);border-bottom:1px solid var(--border);">${p.name} 이동</div>
           ${menuItems}

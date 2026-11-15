@@ -78,7 +78,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Black+Han+Sans&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
-  <link rel="stylesheet" href="app.css?v=2026111511">
+  <link rel="stylesheet" href="app.css?v=2026111520">
   <script src="logo.js" defer></script>
   <script>document.addEventListener("DOMContentLoaded",function(){if(window.AM_LOGO_B64){["login-logo","loading-logo"].forEach(function(id){var el=document.getElementById(id);if(el)el.src=window.AM_LOGO_B64;});}})</script>
 </head>
@@ -170,14 +170,12 @@
   <header class="app-header">
     <div class="app-header-logo" onclick="location.reload()" style="cursor:pointer;" title="새로고침"><img class="hdr-logo" src="header-logo.png" alt="AM BADMINTON"><span class="hdr-title">새벽민턴</span></div>
     <div class="header-right">
-      <span id="hdr-weather" style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;padding:2px 4px;color:var(--text);font-size:.78rem;"></span>
-      <button onclick="toggleDarkMode()" id="btn-hdr-darkmode"
-        style="background:var(--bg3);border:1px solid var(--border);color:var(--text-muted);border-radius:16px;padding:4px 10px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;font-family:inherit;line-height:1;">
-        <span id="dm-icon-app">🌙</span>
+      <span id="hdr-weather"></span>
+      <button onclick="toggleDarkMode()" id="btn-hdr-darkmode" class="hdr-icbtn" aria-label="다크·라이트 모드 전환">
+        <span id="dm-icon-app"><svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg></span>
       </button>
-      <button onclick="navigateTo('settings')" id="btn-header-settings"
-        style="background:var(--bg3);border:1px solid var(--border);color:var(--text-muted);border-radius:16px;padding:4px 10px;font-size:.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;font-family:inherit;">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96a7.02 7.02 0 00-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.37 1.04.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+      <button onclick="navigateTo('settings')" id="btn-header-settings" class="hdr-icbtn" aria-label="설정">
+        <svg class="ic" aria-hidden="true"><use href="#i-settings"/></svg>
       </button>
     </div>
   </header>
@@ -251,7 +249,7 @@
       <div id="feed-filters-wrap">
       <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center;">
         <div style="position:relative;flex:1;">
-          <input class="form-input" type="search" id="feed-name-search" placeholder="🔍 선수 이름 검색 (초성 가능)..." oninput="renderFeed()" style="padding-right:36px;">
+          <input class="form-input" type="search" id="feed-name-search" placeholder="선수 이름 검색 (초성 가능)" oninput="renderFeed()" style="padding-right:36px;">
           <button id="feed-search-clear" onclick="clearFeedSearch()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);font-size:1.1rem;cursor:pointer;line-height:1;">✕</button>
         </div>
         <button onclick="feedMyMatches()" style="white-space:nowrap;background:var(--bg3);border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:0 12px;height:44px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0;">내 경기</button>
@@ -646,14 +644,14 @@
       <input class="form-input" type="date" id="reg-date">
     </div>
     <hr class="section-divider">
-    <div style="font-size:.82rem;font-weight:700;color:#c0392b;margin-bottom:8px;">🔴 A팀</div>
+    <div style="font-size:.82rem;font-weight:700;color:#c0392b;margin-bottom:8px;"><i class="team-dot" style="background:#c0392b"></i>A팀</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 72px;gap:6px;align-items:end;margin-bottom:12px;">
       <div class="form-group" style="margin:0;"><label class="form-label" id="lbl-a1" style="font-size:.72rem;">선수1 <span class="req">*</span></label><select class="form-select" id="reg-a1" onchange="onSelectChange()"></select><input class="form-input" id="reg-a1-guest" placeholder="비회원 이름 입력" style="display:none;margin-top:4px;font-size:.82rem;" oninput="onGuestInput('reg-a1-guest')"></div>
       <div class="form-group" style="margin:0;"><label class="form-label" id="lbl-a2" style="font-size:.72rem;">선수2</label><select class="form-select" id="reg-a2" onchange="onSelectChange()"></select><input class="form-input" id="reg-a2-guest" placeholder="비회원 이름 입력" style="display:none;margin-top:4px;font-size:.82rem;" oninput="onGuestInput('reg-a2-guest')"></div>
       <div class="form-group" style="margin:0;"><label class="form-label" style="font-size:.72rem;color:#c0392b;">점수 <span class="req">*</span></label><input class="form-input" type="number" id="reg-sa" placeholder="0" min="0" max="30" inputmode="numeric" style="text-align:center;font-weight:700;"></div>
     </div>
     <hr class="section-divider">
-    <div style="font-size:.82rem;font-weight:700;color:#27ae60;margin-bottom:8px;">🟢 B팀</div>
+    <div style="font-size:.82rem;font-weight:700;color:#27ae60;margin-bottom:8px;"><i class="team-dot" style="background:#27ae60"></i>B팀</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 72px;gap:6px;align-items:end;margin-bottom:12px;">
       <div class="form-group" style="margin:0;"><label class="form-label" id="lbl-b1" style="font-size:.72rem;">선수1 <span class="req">*</span></label><select class="form-select" id="reg-b1" onchange="onSelectChange()"></select><input class="form-input" id="reg-b1-guest" placeholder="비회원 이름 입력" style="display:none;margin-top:4px;font-size:.82rem;" oninput="onGuestInput('reg-b1-guest')"></div>
       <div class="form-group" style="margin:0;"><label class="form-label" id="lbl-b2" style="font-size:.72rem;">선수2</label><select class="form-select" id="reg-b2" onchange="onSelectChange()"></select><input class="form-input" id="reg-b2-guest" placeholder="비회원 이름 입력" style="display:none;margin-top:4px;font-size:.82rem;" oninput="onGuestInput('reg-b2-guest')"></div>
@@ -833,7 +831,7 @@
 <!-- 확인 다이얼로그 -->
 <div class="modal-overlay center" id="modal-confirm">
   <div class="modal confirm-modal">
-    <div class="confirm-icon" id="confirm-icon">⚠️</div>
+    <div class="confirm-icon" id="confirm-icon"><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg></div>
     <div class="confirm-title" id="confirm-title">확인</div>
     <div class="confirm-msg" id="confirm-msg"></div>
     <div class="confirm-actions">
@@ -845,24 +843,24 @@
 
 <div id="toast-container"></div>
 
-<script src="utils.js?v=2026100702" defer></script>
-<script src="core.js?v=2026111504" defer></script>
-<script src="dashboard.js?v=2026111503" defer></script>
-<script src="feed.js?v=2026111503" defer></script>
-<script src="register.js?v=2026100505" defer></script>
-  <script src="analysis.js?v=2026100506" defer></script>
-<script src="admin.js?v=2026111501" defer></script>
-<script src="community.js?v=2026111513" defer></script>
-<script src="tournament.js?v=2026100702" defer></script>
-<script src="balance.js?v=2026100505" defer></script>
-<script src="settings.js?v=2026111501" defer></script>
-<script src="stockmarket.js?v=2026100505" defer></script>
-<script src="craft.js?v=2026100505" defer></script>
+<script src="utils.js?v=2026111520" defer></script>
+<script src="core.js?v=2026111520" defer></script>
+<script src="dashboard.js?v=2026111520" defer></script>
+<script src="feed.js?v=2026111520" defer></script>
+<script src="register.js?v=2026111520" defer></script>
+  <script src="analysis.js?v=2026111520" defer></script>
+<script src="admin.js?v=2026111520" defer></script>
+<script src="community.js?v=2026111520" defer></script>
+<script src="tournament.js?v=2026111520" defer></script>
+<script src="balance.js?v=2026111520" defer></script>
+<script src="settings.js?v=2026111520" defer></script>
+<script src="stockmarket.js?v=2026111520" defer></script>
+<script src="craft.js?v=2026111520" defer></script>
 
 <!-- 점수판 모달 -->
 <div id="modal-scoreboard" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;z-index:9000;flex-direction:column;font-family:inherit;user-select:none;">
   <div style="display:flex;justify-content:space-between;align-items:center;padding:0 4vw;background:#111;height:12vmin;min-height:44px;max-height:60px;flex-shrink:0;">
-    <div style="color:#888;font-size:max(11px,1.8vw);font-weight:600;letter-spacing:.3px;">🏸 점수판</div>
+    <div style="color:#888;font-size:max(11px,1.8vw);font-weight:600;letter-spacing:.3px;">점수판</div>
     <div style="display:flex;gap:10px;">
       <button onclick="sbReset()" style="background:#333;color:#ccc;border:1px solid #555;padding:6px 3vw;font-size:max(12px,1.8vw);font-weight:700;border-radius:8px;cursor:pointer;">RESET</button>
       <button onclick="sbCourtChange()" style="background:#e67e22;color:#fff;border:none;padding:6px 3vw;font-size:max(12px,1.8vw);font-weight:700;border-radius:8px;cursor:pointer;">⇄ 체인지</button>
@@ -899,16 +897,16 @@
 <!-- 경기결과 등록 패널 -->
 <div id="sb-finish-panel" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#111;z-index:9500;overflow-y:scroll;font-family:inherit;">
   <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #2a2a2a;position:sticky;top:0;background:#111;z-index:10;">
-    <span style="font-weight:700;color:#00c896;font-size:1rem;">🏸 경기 결과 등록</span>
+    <span style="font-weight:700;color:#00c896;font-size:1rem;">경기 결과 등록</span>
     <button ontouchend="event.preventDefault();sbBackToBoard();" onclick="sbBackToBoard();" style="background:#2a2a2a;border:1px solid #444;color:#aaa;padding:5px 12px;border-radius:8px;font-size:.82rem;cursor:pointer;">← 점수판으로</button>
   </div>
   <div style="padding:16px;">
     <div style="margin-bottom:20px;">
       <div style="font-size:.72rem;color:#888;margin-bottom:6px;font-weight:600;">최종 점수 (수정 가능)</div>
       <div style="display:grid;grid-template-columns:1fr 32px 1fr;gap:6px;align-items:center;">
-        <div><div style="font-size:.68rem;color:#c0392b;margin-bottom:3px;font-weight:700;">🔴 A팀</div><input id="sb-input-a" type="number" min="0" max="99" inputmode="numeric" style="width:100%;box-sizing:border-box;background:#2a2a2a;color:#fff;border:1px solid #555;border-radius:8px;padding:10px 6px;font-size:1.6rem;font-weight:700;text-align:center;"></div>
+        <div><div style="font-size:.68rem;color:#c0392b;margin-bottom:3px;font-weight:700;"><i class="team-dot" style="background:#c0392b"></i>A팀</div><input id="sb-input-a" type="number" min="0" max="99" inputmode="numeric" style="width:100%;box-sizing:border-box;background:#2a2a2a;color:#fff;border:1px solid #555;border-radius:8px;padding:10px 6px;font-size:1.6rem;font-weight:700;text-align:center;"></div>
         <div style="text-align:center;color:#555;font-size:1.4rem;font-weight:700;padding-top:18px;">:</div>
-        <div><div style="font-size:.68rem;color:#27ae60;margin-bottom:3px;font-weight:700;">🟢 B팀</div><input id="sb-input-b" type="number" min="0" max="99" inputmode="numeric" style="width:100%;box-sizing:border-box;background:#2a2a2a;color:#fff;border:1px solid #555;border-radius:8px;padding:10px 6px;font-size:1.6rem;font-weight:700;text-align:center;"></div>
+        <div><div style="font-size:.68rem;color:#27ae60;margin-bottom:3px;font-weight:700;"><i class="team-dot" style="background:#27ae60"></i>B팀</div><input id="sb-input-b" type="number" min="0" max="99" inputmode="numeric" style="width:100%;box-sizing:border-box;background:#2a2a2a;color:#fff;border:1px solid #555;border-radius:8px;padding:10px 6px;font-size:1.6rem;font-weight:700;text-align:center;"></div>
       </div>
     </div>
     <div style="display:flex;gap:8px;padding-bottom:30px;">

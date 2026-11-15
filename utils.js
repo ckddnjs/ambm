@@ -1,7 +1,12 @@
 function escHtml(str){return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 /* ── HELPERS ── */
 function showConfirm({icon='⚠️',title,msg,okLabel='확인',okClass='btn-danger',onOk,extraClass=''}){
-  document.getElementById('confirm-icon').textContent=icon;
+  // 2026-11-15: 이모지 대신 앱의 선 아이콘으로 (호출부는 기존 이모지를 그대로 넘겨도 됨)
+  const _ICON={'✅':'check','✍️':'pencil','❌':'x','🏁':'flag','📈':'trend','📉':'trend-down','📊':'chart','🗑':'trash','🗑️':'trash','🚫':'ban','⚠️':'alert'};
+  const _n=_ICON[icon]||'alert';
+  const _ci=document.getElementById('confirm-icon');
+  _ci.className='confirm-icon ci-'+_n;
+  _ci.innerHTML=`<svg class="ic" aria-hidden="true"><use href="#i-${_n}"/></svg>`;
   document.getElementById('confirm-title').textContent=title;
   document.getElementById('confirm-msg').textContent=msg;
   const inner=document.querySelector('#modal-confirm .modal');

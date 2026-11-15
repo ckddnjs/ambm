@@ -827,7 +827,7 @@ function _anAllHTML(opt){
       <div style="margin-top:8px;font-weight:700;">${isCurrent?'이번 시즌':'이 시즌'} 승인된 경기가 없어요</div>
     </div></div>`;
   }
-  const tiles=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px;">
+  const tiles=`<div class="card an-tiles" style="display:grid;grid-template-columns:repeat(3,1fr);padding:4px 0;margin-bottom:12px;">
     <div class="stat-card" style="text-align:center;padding:14px 4px;">
       <div class="stat-label" style="margin-bottom:4px;">모인 날</div>
       <div style="font-family:'Black Han Sans',sans-serif;font-size:1.4rem;line-height:1;color:var(--accent);">${d.days}</div>

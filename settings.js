@@ -44,7 +44,7 @@ async function saveSettingsName(){
   if(nameEl) nameEl.textContent=newName;
   // 헤더 이름 갱신
   if(typeof refreshHeader==='function') refreshHeader();
-  toast('✅ 이름이 변경됐어요!','success');
+  toast('이름이 변경됐어요!','success');
 }
 
 /* ── 아바타 업로드 ── */
@@ -115,7 +115,7 @@ async function uploadAvatar(input){
     if(avatarEl) avatarEl.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
     const hdrAvatar=document.getElementById('hdr-avatar');
     if(hdrAvatar) hdrAvatar.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-    toast('✅ 프로필 사진이 업데이트됐어요!','success');
+    toast('프로필 사진이 업데이트됐어요!','success');
   }catch(e){
     console.error(e);
     const msg=e.message?.includes('row-level security')||e.message?.includes('policy')

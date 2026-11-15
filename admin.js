@@ -27,7 +27,7 @@ async function renderAdminPending(){
   const{data:matches,error:e2}=await sb.from('matches').select('*').eq('status','pending').order('created_at',{ascending:false});
 
   if(e1||e2){
-    el.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div>불러오기 실패<br><span style="font-size:.72rem;color:var(--danger);">${(e1||e2)?.message||'오류'}</span></div></div>`;
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon"><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg></div><div>불러오기 실패<br><span style="font-size:.72rem;color:var(--danger);">${(e1||e2)?.message||'오류'}</span></div></div>`;
     return;
   }
 
@@ -73,7 +73,7 @@ async function renderAdminPending(){
     html+=`</div>`;
   }
 
-  if(!html) html=`<div class="empty-state"><div class="empty-icon">✅</div><div>모든 승인 완료</div></div>`;
+  if(!html) html=`<div class="empty-state"><div class="empty-icon"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg></div><div>모든 승인 완료</div></div>`;
   el.innerHTML=html;
 }
 function toggleAllPending(checked){
@@ -92,7 +92,7 @@ async function bulkApprovePending(){
   const now=nowISO();
   await Promise.all(ids.map(id=>sb.from('matches').update({status:'approved',approved_at:now,approved_by:ME.id}).eq('id',id)));
   ids.forEach(id=>addLog(`경기 일괄승인: ${id}`,ME.id));
-  toast(`✅ ${ids.length}건 승인 완료`,'success');
+  toast(`${ids.length}건 승인 완료`,'success');
   renderAdminPending();
   if(currentPage==='feed') renderFeed();
 }
@@ -111,7 +111,7 @@ function filterAdminAll(){
   if(tf) list=list.filter(m=>m.match_type===tf);
   if(sf) list=list.filter(m=>m.status===sf);
   const wrap=document.getElementById('adm-all-list');
-  if(wrap) wrap.innerHTML=list.map(m=>matchCardHTML(m,true)).join('')||`<div class="empty-state"><div class="empty-icon">🔍</div><div>결과 없음</div></div>`;
+  if(wrap) wrap.innerHTML=list.map(m=>matchCardHTML(m,true)).join('')||`<div class="empty-state"><div class="empty-icon"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg></div><div>결과 없음</div></div>`;
 }
 async function renderAdminMembers(){
   const{data:users}=await sb.from('profiles').select(PROFILE_COLS).neq('status','linked').order('created_at',{ascending:false});
@@ -227,7 +227,7 @@ async function toggleGuestMode(name, enabled){
   const names=await _loadGuestModeNames();
   if(enabled) names.add(name); else names.delete(name);
   await _saveGuestModeNames(names);
-  toast(enabled?`👻 "${name}" 게스트 모드 설정 (랭킹 제외)`:`"${name}" 랭킹 반영으로 변경`,'success');
+  toast(enabled?`"${name}" 게스트 모드 설정 (랭킹 제외)`:`"${name}" 랭킹 반영으로 변경`,'success');
   // 레이블 즉시 업데이트
   const safeId='gm-'+name.replace(/[^a-zA-Z0-9가-힣]/g,'_');
   const lbl=document.getElementById(safeId)?.closest('div')?.querySelector('span:last-child');
@@ -276,7 +276,7 @@ async function confirmLinkGuest(){
     }
     const gm=await _loadGuestModeNames(); gm.delete(guestName); await _saveGuestModeNames(gm);
     addLog(`비회원 연계: "${guestName}" → "${memberName}" (${total}건)`,ME.id);
-    toast(`✅ "${memberName}"에 ${total}건 연계 완료`,'success');
+    toast(`"${memberName}"에 ${total}건 연계 완료`,'success');
     renderAdminMembers();
   }catch(e){toast('연계 실패: '+e.message,'error');}
 }
@@ -611,13 +611,13 @@ async function batchSubmit(){
   const{data:inserted,error}=await sb.from('matches').insert(inserts).select('id');
   if(error){
     toast('등록 실패: '+error.message,'error');
-    if(btn){btn.disabled=false;btn.textContent=`📨 ${records.length}건 일괄 등록`;}
+    if(btn){btn.disabled=false;btn.textContent=`${records.length}건 일괄 등록`;}
     return;
   }
   // null ID가 남아있을 경우 이름으로 후처리
   if(inserted?.length) await _fixMatchIds(inserted.map(r=>r.id));
   addLog(`일괄 등록 ${records.length}건`,ME.id);
-  toast(`✅ ${records.length}건 등록 완료`,'success');
+  toast(`${records.length}건 등록 완료`,'success');
   window._batchParsed=[];
   document.getElementById('batch-input').value='';
   document.getElementById('batch-preview').innerHTML='';
@@ -771,7 +771,7 @@ function _tiRenderPreview(result){
 
   const total=result.league.length+result.knockout.length+result.team.length;
   if(total>0){
-    html+=`<button onclick="tiSubmit()" class="btn btn-primary" style="width:100%;margin-bottom:8px;">📥 ${total}경기 대회 생성 + 경기내역 등록</button>`;
+    html+=`<button onclick="tiSubmit()" class="btn btn-primary" style="width:100%;margin-bottom:8px;">${total}경기 대회 생성 + 경기내역 등록</button>`;
   }
   wrap.innerHTML=html;
 }
@@ -828,7 +828,7 @@ async function tiSubmit(){
     }
 
     addLog(`대회 일괄 입력: ${name} (${matchRecords.length}경기)`,ME.id);
-    toast(`✅ 대회 생성 완료! (경기 ${matchRecords.length}건 등록)`,'success');
+    toast(`대회 생성 완료! (경기 ${matchRecords.length}건 등록)`,'success');
     window._tiParsed=null;
     document.getElementById('ti-raw').value='';
     document.getElementById('ti-preview').innerHTML='';
@@ -998,7 +998,7 @@ async function _renderDelList(){
   const {data:matches} = await q;
   let list = matches||[];
   if(nameF) list = list.filter(m=>[m.a1_name,m.a2_name,m.b1_name,m.b2_name].some(n=>(n||'').toLowerCase().includes(nameF)));
-  if(!list.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><div>경기 없음</div></div>`;return;}
+  if(!list.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg></div><div>경기 없음</div></div>`;return;}
 
   let html='<div style="display:flex;flex-direction:column;gap:4px;">';
   list.forEach(m=>{
@@ -1064,7 +1064,7 @@ async function delExecute(){
       const{error}=await sb.from('matches').delete().in('id',ids);
       if(error){toast('삭제 실패: '+error.message,'error');return;}
       addLog(`경기 ${ids.length}건 삭제`,ME.id);
-      toast(`✅ ${ids.length}건 삭제 완료`,'success');
+      toast(`${ids.length}건 삭제 완료`,'success');
       _delSelectedIds.clear();
       renderAdminMatchDelete();
     }
@@ -1080,7 +1080,7 @@ async function renderAdminLogs(){
 
 async function approveMatch(id){
   await sb.from('matches').update({status:'approved',approved_at:nowISO(),approved_by:ME.id}).eq('id',id);
-  addLog(`경기 승인: ${id}`,ME.id);toast('✅ 승인 완료','success');
+  addLog(`경기 승인: ${id}`,ME.id);toast('승인 완료','success');
   closeModal('modal-match');
   if(adminTab==='pending') renderAdminPending();
   if(currentPage==='feed') renderFeed();
@@ -1191,7 +1191,7 @@ async function saveEditMatch(andApprove){
   if(andApprove){upd.status='approved';upd.approved_at=nowISO();upd.approved_by=ME.id;}
   await sb.from('matches').update(upd).eq('id',editMatchId);
   addLog(`경기 수정${andApprove?'+승인':''}:${editMatchId}`,ME.id);
-  toast(andApprove?'✅ 수정+승인 완료':'✏️ 수정 완료','success');
+  toast(andApprove?'수정+승인 완료':'수정 완료','success');
   closeModal('modal-edit-match');
   if(adminTab==='pending') renderAdminPending();
 }
@@ -1265,7 +1265,7 @@ async function saveEditUser(){
   }
 
   addLog(`회원 정보 수정: ${name}`,ME.id);
-  toast('✅ 저장 완료','success');
+  toast('저장 완료','success');
   closeModal('modal-edit-user');
   renderAdminMembers();
 }
@@ -1339,7 +1339,7 @@ async function createGuestProfile(name){
   });
   if(error){toast('생성 실패: '+error.message,'error');return;}
   await _linkGuestMatchesToUser(fakeId, name);
-  toast(`✅ '${name}' 프로필 생성 및 경기 기록 연결 완료`,'success');
+  toast(`'${name}' 프로필 생성 및 경기 기록 연결 완료`,'success');
   addLog(`비회원 프로필 생성: ${name}`, ME.id);
   renderAdminMembers();
 }
@@ -1372,7 +1372,7 @@ async function createUser(){
       return;
     }
     addLog(`계정 생성: ${email}`,ME.id);
-    toast(`✅ ${name} 계정 생성 완료`,'success');
+    toast(`${name} 계정 생성 완료`,'success');
     closeModal('modal-create-user');
     renderAdminMembers();
   } catch(e){
@@ -1499,7 +1499,7 @@ async function adminCraftApprove(reqId){
       const {error}=await sb.rpc('exchange_approve',{p_id:reqId});
       if(error){toast('승인 실패: '+error.message,'error');return;}
       addLog('교환 승인: '+reqId,ME.id);
-      toast('✅ 교환 승인 완료','success');
+      toast('교환 승인 완료','success');
       renderAdminCraft();
     }
   });
@@ -1533,7 +1533,7 @@ async function adminCraftSaveConfig(){
   const saveErr=results.find(r=>r.error)?.error;
   if(saveErr){ toast('저장 실패: '+saveErr.message,'error'); return; }
   addLog('craft_config_updated',ME.id,JSON.stringify({prices,flightRate}));
-  toast('✅ 설정이 저장됐습니다','success');
+  toast('설정이 저장됐습니다','success');
   // 캐시 초기화 (다음 진입 시 새 설정 반영)
   window._cachedMarketItems=null;
   window._marketFlightRate=flightRate;
@@ -1626,7 +1626,7 @@ async function adminAddTradingHalt(){
   await sb.from('app_settings').upsert({key:'trading_halt',value:JSON.stringify(halts)},{onConflict:'key'});
   window._adminHalts=halts;
   addLog('trading_halt_updated',ME.id);
-  toast('✅ 거래 정지 구간이 추가됐습니다','success');
+  toast('거래 정지 구간이 추가됐습니다','success');
   _renderTradingHaltUI(halts);
 }
 
@@ -1767,7 +1767,7 @@ async function adminSeasonExecute(){
       // 캐시 무효화 — 다음 렌더에서 새 시즌 기준 재계산
       window._smStocksCache=null;window._smAllPortfolioCache=null;window._smAllPortfolioCacheTime=0;
       addLog('season_close',ME.id);
-      toast(`✅ 시즌 ${r.currentSeason} 마감 완료 · ${r.holderCount}명 총 ${(r.totalRefund||0).toLocaleString()}p 환급`,'success');
+      toast(`시즌 ${r.currentSeason} 마감 완료 · ${r.holderCount}명 총 ${(r.totalRefund||0).toLocaleString()}p 환급`,'success');
       renderAdminSeasonClose();
     }
   });
@@ -1856,7 +1856,7 @@ async function adminSavePopupNotice(){
   const cfg={enabled,title,body,startDate,endDate};
   await sb.from('app_settings').upsert({key:'popup_notice',value:JSON.stringify(cfg)},{onConflict:'key'});
   addLog('popup_notice_updated',ME.id);
-  toast('✅ 팝업 공지가 저장됐습니다','success');
+  toast('팝업 공지가 저장됐습니다','success');
 }
 
 function adminPreviewPopup(){

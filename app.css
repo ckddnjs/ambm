@@ -663,3 +663,24 @@ body.light-mode .hdr-logo{filter:none}
 @keyframes navPill{from{transform:scale(.82);opacity:.6}to{transform:none;opacity:1}}
 @keyframes navPop{0%{transform:scale(.6) translateY(3px)}55%{transform:scale(1.18) translateY(-2px)}100%{transform:none}}
 @media (prefers-reduced-motion: reduce){.bottom-nav-item.active,.bottom-nav-item.active .nav-icon,.bottom-nav-item.active .nav-fab-circle{animation:none}}
+/* 2026-11-15 카드 안 상자 정리: 통계 칸은 상자 대신 얇은 선으로 나눔 (홈 내 정보·분석 시즌 요약) */
+.ov-tiles{border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.ov-tiles .stat-card,.an-tiles .stat-card{background:none!important;border:none!important;border-radius:0;box-shadow:none}
+.ov-tiles>*+*,.an-tiles>*+*{border-left:1px solid var(--border)}
+.ov-tiles .ov-col3 .stat-card+.stat-card{border-top:1px solid var(--border)}
+.an-tiles .stat-card>div:last-child{font-size:1.55rem!important}
+/* 이모지 → 선 아이콘 (빈 화면·확인창·팀 점·검색창·헤더) */
+.empty-icon{color:var(--text-dim)}
+.empty-icon .ic{width:2.6rem;height:2.6rem;margin:0;stroke-width:1.5}
+.confirm-icon{display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;background:var(--bg2);color:var(--text-muted);font-size:1rem}
+.confirm-icon .ic{width:24px;height:24px;margin:0}
+.confirm-icon.ci-trash,.confirm-icon.ci-x,.confirm-icon.ci-ban,.confirm-icon.ci-alert{color:var(--danger)}
+.confirm-icon.ci-check{color:var(--primary)}
+.team-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
+#feed-name-search{padding-left:34px!important;background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E") no-repeat 11px 50%/16px 16px!important}
+#hdr-weather{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;color:var(--text-muted);font-size:.78rem}
+.hdr-icbtn{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;background:none;border:none;border-radius:50%;color:var(--text-muted);cursor:pointer;padding:0}
+.hdr-icbtn .ic{width:20px;height:20px;margin:0}
+.hdr-icbtn:active{background:var(--bg2)}
+.header-right{gap:2px}
+#weather-line .ic{margin:0}

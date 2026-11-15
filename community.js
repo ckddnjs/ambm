@@ -89,7 +89,7 @@ function _awardRecFill(dates,ms){
 }
 function _commPaint(el,posts){
   if(!posts||!posts.length){
-    el.innerHTML=riseBlockHTML()+`<div class="empty-state"><div class="empty-icon">💬</div><div>아직 게시글이 없어요<br><span style="font-size:.82rem;">첫 글을 남겨보세요!</span></div></div>`;
+    el.innerHTML=riseBlockHTML()+`<div class="empty-state"><div class="empty-icon"><svg class="ic" aria-hidden="true"><use href="#i-message"/></svg></div><div>아직 게시글이 없어요<br><span style="font-size:.82rem;">첫 글을 남겨보세요!</span></div></div>`;
     return;
   }
   // 시상 글은 가장 최근 날짜 1개만 펼치고 나머지는 접는다
@@ -119,7 +119,7 @@ async function renderCommunityPage(){
   if(commTab!==tab) return;   // 그 사이 다른 탭으로 바뀜
   const{data:posts,error}=postRes;
   if(error){
-    if(!cached) el.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div>불러오기 실패<br><span style="font-size:.78rem;color:var(--text-muted);">잠시 후 다시 시도해 주세요</span></div></div>`;
+    if(!cached) el.innerHTML=`<div class="empty-state"><div class="empty-icon"><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg></div><div>불러오기 실패<br><span style="font-size:.78rem;color:var(--text-muted);">잠시 후 다시 시도해 주세요</span></div></div>`;
     return;
   }
   // 시상 날짜별 그날 전적: 홈이 받아 둔 전체 경기 캐시가 있으면 쿼리 없이 계산
@@ -161,8 +161,8 @@ function commPostHTML(p){
       </div>
       <div class="comm-post-meta">
         <span style="font-size:.7rem;color:var(--text-dim);">📅 ${dateStr}</span>
-        ${canEdit?`<button onclick="event.stopPropagation();editPost('${p.id}')" style="background:none;border:none;color:var(--text-muted);font-size:.78rem;cursor:pointer;padding:0 4px;">✏️</button>
-        <button onclick="event.stopPropagation();deletePost('${p.id}')" style="background:none;border:none;color:var(--danger);font-size:.78rem;cursor:pointer;padding:0 4px;">🗑</button>`:''}
+        ${canEdit?`<button onclick="event.stopPropagation();editPost('${p.id}')" style="background:none;border:none;color:var(--text-muted);font-size:.78rem;cursor:pointer;padding:0 4px;" aria-label="수정"><svg class="ic" aria-hidden="true"><use href="#i-pencil"/></svg></button>
+        <button onclick="event.stopPropagation();deletePost('${p.id}')" style="background:none;border:none;color:var(--danger);font-size:.78rem;cursor:pointer;padding:0 4px;" aria-label="삭제"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg></button>`:''}
       </div>
     </div>
     <div class="comm-post-body"><div style="font-size:.75rem;color:var(--text-muted);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);">✍ ${escHtml(p.author_name||'익명')}</div>${escHtml(p.body)}
@@ -219,11 +219,11 @@ async function submitPost(){
   if(editId){
     const{error}=await sb.from('community_posts').update({title,body,category:_postCat,updated_at:nowISO()}).eq('id',editId);
     if(error){toast('수정 실패: '+error.message,'error');return;}
-    toast('✅ 수정 완료','success');
+    toast('수정 완료','success');
   } else {
     const{error}=await sb.from('community_posts').insert({category:_postCat,title,body,author_id:ME.id,author_name:ME.name});
     if(error){toast('등록 실패: '+error.message,'error');return;}
-    toast('✅ 게시글 등록 완료','success');
+    toast('게시글 등록 완료','success');
   }
   closeModal('modal-post-form');
   renderCommunityPage();
@@ -543,8 +543,8 @@ function awardPostHTML(p){
         <span class="aw-peek">${peek}</span>
       </div>
       ${isAdmin?`<div class="comm-post-meta">
-        <button onclick="event.stopPropagation();editPost('${p.id}')" style="background:none;border:none;color:var(--text-muted);font-size:.78rem;cursor:pointer;padding:0 4px;">✏️</button>
-        <button onclick="event.stopPropagation();deletePost('${p.id}')" style="background:none;border:none;color:var(--danger);font-size:.78rem;cursor:pointer;padding:0 4px;">🗑</button>
+        <button onclick="event.stopPropagation();editPost('${p.id}')" style="background:none;border:none;color:var(--text-muted);font-size:.78rem;cursor:pointer;padding:0 4px;" aria-label="수정"><svg class="ic" aria-hidden="true"><use href="#i-pencil"/></svg></button>
+        <button onclick="event.stopPropagation();deletePost('${p.id}')" style="background:none;border:none;color:var(--danger);font-size:.78rem;cursor:pointer;padding:0 4px;" aria-label="삭제"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg></button>
       </div>`:''}
       <span class="aw-chev" aria-hidden="true">›</span>
     </div>

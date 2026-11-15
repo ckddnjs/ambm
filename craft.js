@@ -281,7 +281,7 @@ async function smShopBuy(itemId){
           toast(em.includes('insufficient')?'증권 현금이 부족합니다':'구매 실패: '+em,'error');
           return;
         }
-        toast('✅ '+item.name+' '+qty+'개 구매 완료!','success');
+        toast(''+item.name+' '+qty+'개 구매 완료!','success');
         window._smTab='craft'; window._smCraftTab='market';
         renderStockMarketPage();
       }finally{window._smTxBusy=false;}
@@ -465,7 +465,7 @@ async function doFlightTest(isArtisanForce=false){
     toast(em.includes('defective')?'불량 셔틀콕이 없습니다':em.includes('recycle')?'재활용의 손길이 없습니다':'복구 실패: '+em,'error');
     return;
   }
-  toast('♻️ 재활용의 손길로 복구! 셔틀콕이 완성됐습니다 🏸','success');
+  toast('재활용의 손길로 복구! 셔틀콕이 완성됐습니다','success');
   window._smTab='craft';window._smCraftTab='inventory';
   renderStockMarketPage();
 }
@@ -487,7 +487,7 @@ async function openExchangeRequest(maxQty){
           toast(em.includes('not enough')?'보유 셔틀콕이 부족합니다':'요청 실패: '+em,'error');
           return;
         }
-        toast('✅ 교환 요청이 전송됐습니다. 관리자 승인 후 실물로 교환됩니다.','success');
+        toast('교환 요청이 전송됐습니다. 관리자 승인 후 실물로 교환됩니다.','success');
         window._smTab='craft';window._smCraftTab='inventory';
         renderStockMarketPage();
       }
@@ -530,7 +530,7 @@ async function openGripExchange(maxQty){
           toast(em.includes('not enough')?'보유 그립이 부족합니다':'요청 실패: '+em,'error');
           return;
         }
-        toast('✅ 그립 교환 요청이 전송됐습니다. 관리자 승인 후 실물로 받아요.','success');
+        toast('그립 교환 요청이 전송됐습니다. 관리자 승인 후 실물로 받아요.','success');
         window._smTab='craft';window._smCraftTab='inventory';
         renderStockMarketPage();
       }

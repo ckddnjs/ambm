@@ -552,7 +552,7 @@ async function smBuy(stockUserId,stockName,price){
   if(window._smTxBusy){toast('처리 중입니다. 잠시 후 다시 시도하세요','warning');return;}
   if(typeof checkTradingHalt==='function'){
     const halted=await checkTradingHalt();
-    if(halted){toast('⏸ 현재 거래 정지 시간입니다. 매수가 불가합니다.','error');return;}
+    if(halted){toast('현재 거래 정지 시간입니다. 매수가 불가합니다.','error');return;}
   }
   showConfirm({icon:'📈',title:stockName+' 매수',msg:'',okLabel:'매수',okClass:'btn-primary',
     onOk:async function(){
@@ -565,7 +565,7 @@ async function smBuy(stockUserId,stockName,price){
         const {data:r,error}=await sb.rpc('stock_buy',{p_stock:stockUserId,p_qty:qty});
         if(error){
           const em=String(error.message||'');
-          toast(em.includes('insufficient')?'현금이 부족합니다':em.includes('halted')?'⏸ 현재 거래 정지 시간입니다':em.includes('listed')?'상장 종목이 아닙니다 (5경기 미만)':'매수 실패: '+em,'error');
+          toast(em.includes('insufficient')?'현금이 부족합니다':em.includes('halted')?'현재 거래 정지 시간입니다':em.includes('listed')?'상장 종목이 아닙니다 (5경기 미만)':'매수 실패: '+em,'error');
           return;
         }
         if(typeof _walletCache!=='undefined') _walletCache=null;
@@ -602,7 +602,7 @@ async function smSell(stockUserId,stockName,price,held){
   if(window._smTxBusy){toast('처리 중입니다. 잠시 후 다시 시도하세요','warning');return;}
   if(typeof checkTradingHalt==='function'){
     const halted=await checkTradingHalt();
-    if(halted){toast('⏸ 현재 거래 정지 시간입니다. 매도가 불가합니다.','error');return;}
+    if(halted){toast('현재 거래 정지 시간입니다. 매도가 불가합니다.','error');return;}
   }
   showConfirm({icon:'📉',title:stockName+' 매도',msg:'',okLabel:'매도',okClass:'btn-danger',
     onOk:async function(){
@@ -615,7 +615,7 @@ async function smSell(stockUserId,stockName,price,held){
         const {data:r,error}=await sb.rpc('stock_sell',{p_stock:stockUserId,p_qty:qty});
         if(error){
           const em=String(error.message||'');
-          toast(em.includes('not enough')?'보유 수량이 부족합니다':em.includes('halted')?'⏸ 현재 거래 정지 시간입니다':em.includes('listed')?'상장 종목이 아닙니다':'매도 실패: '+em,'error');
+          toast(em.includes('not enough')?'보유 수량이 부족합니다':em.includes('halted')?'현재 거래 정지 시간입니다':em.includes('listed')?'상장 종목이 아닙니다':'매도 실패: '+em,'error');
           return;
         }
         if(typeof _walletCache!=='undefined') _walletCache=null;

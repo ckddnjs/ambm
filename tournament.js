@@ -110,7 +110,7 @@ async function openBracketDetail(id){
     if(bt.status==='balance'){
       html+=_renderBalanceSavedView(bt, data);
     } else {
-      html+=`<div class="empty-state"><div class="empty-icon">📋</div><div>아직 대회 데이터가 없습니다</div></div>`;
+      html+=`<div class="empty-state"><div class="empty-icon"><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg></div><div>아직 대회 데이터가 없습니다</div></div>`;
     }
   }
   contentEl.innerHTML=html;
@@ -270,7 +270,7 @@ async function bdSetTeamCaptain(btId, teamIdx, captainName){
   data.teams=teams;
   const{error}=await sb.from('bracket_tournaments').update({groups:JSON.stringify(data)}).eq('id',btId);
   if(error){toast('저장 실패','error');return;}
-  toast(`✅ ${teams[teamIdx].name} 팀장: ${captainName}`,'success');
+  toast(`${teams[teamIdx].name} 팀장: ${captainName}`,'success');
   openBracketDetail(btId);
 }
 
@@ -460,7 +460,7 @@ async function bdSaveMatchScore(btId,gi,mi){
   if(!data.groups?.[gi]?.matches?.[mi]){toast('경기 정보 없음','error');return;}
   data.groups[gi].matches[mi].s1=s1;data.groups[gi].matches[mi].s2=s2;data.groups[gi].matches[mi].done=true;
   await sb.from('bracket_tournaments').update({groups:JSON.stringify(data)}).eq('id',btId);
-  toast('✅ 저장 완료','success');openBracketDetail(btId);
+  toast('저장 완료','success');openBracketDetail(btId);
 }
 
 // ── 목록 렌더 ──
@@ -474,7 +474,7 @@ async function renderBracketPage(){
   el.innerHTML=`<div class="skeleton sk-card"></div>`.repeat(3);
   const{data:list}=await sb.from('bracket_tournaments').select('*').neq('status','balance').order('created_at',{ascending:false});
   if(!list||!list.length){
-    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🎯</div><div>등록된 대회가 없어요</div></div>`;
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon"><svg class="ic" aria-hidden="true"><use href="#i-target"/></svg></div><div>등록된 대회가 없어요</div></div>`;
     return;
   }
   const typeLabel={individual:'👤 개인전',duo:'👥 듀오전',team:'🚩 팀장전'};

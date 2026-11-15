@@ -231,7 +231,7 @@ async function _renderFeedInner(forceNameQ, token){
   if(token!==_feedRenderToken) return;
 
   if(!matches.length){
-    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><div>${pf?'이 조합의 경기가 없어요':(_feedNameQ?`'${rawName}' 검색 결과 없음`:'경기 내역 없음')}</div></div>`;
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg></div><div>${pf?'이 조합의 경기가 없어요':(_feedNameQ?`'${rawName}' 검색 결과 없음`:'경기 내역 없음')}</div></div>`;
     return;
   }
   if(isDefault && !feedErr){
@@ -557,7 +557,7 @@ async function openMatchDetail(id,isAdmin=false){
   const bPlayers=[m.b1_name,m.b2_name].filter(Boolean).join(' ');
   const createdAt=m.created_at?fmtDate(m.created_at,true):'-';
   const approvedAt=m.approved_at?fmtDate(m.approved_at,true):'-';
-  document.getElementById('modal-match-title').textContent=`🏸 경기 상세 — ${fmtMatchDate(m.match_date)}`;
+  document.getElementById('modal-match-title').textContent=`경기 상세 — ${fmtMatchDate(m.match_date)}`;
   document.getElementById('modal-match-body').innerHTML=`
     <div class="detail-row"><span class="detail-key">종목</span><span class="detail-val">🏸 복식</span></div>
     <div class="detail-row"><span class="detail-key">상태</span><span class="detail-val">${statusBadge(m.status)}</span></div>
