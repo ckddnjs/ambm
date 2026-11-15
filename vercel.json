@@ -5,6 +5,20 @@
       "schedule": "0 9 */6 * *"
     }
   ],
+  "rewrites": [
+    {
+      "source": "/.well-known/oauth-protected-resource",
+      "destination": "/api/oauth-protected-resource"
+    },
+    {
+      "source": "/.well-known/oauth-protected-resource/api/mcp",
+      "destination": "/api/oauth-protected-resource"
+    },
+    {
+      "source": "/oauth/consent",
+      "destination": "/oauth-consent.html"
+    }
+  ],
   "headers": [
     {
       "source": "/index.html",

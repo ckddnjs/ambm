@@ -215,6 +215,7 @@ body.light-mode .match-card{border-left:3px solid var(--primary)}
 .mcp-connect-modal{max-width:420px}.mcp-connect-member{padding:9px 11px;margin-bottom:10px;border-radius:9px;background:rgba(41,121,255,.10);color:var(--primary);font-size:.79rem;font-weight:700}
 .mcp-connect-help{margin:0 0 12px;color:var(--text-muted);font-size:.76rem;line-height:1.55}.mcp-connect-loading{padding:14px 4px;color:var(--text-muted);font-size:.78rem;text-align:center}
 .mcp-connect-url{height:96px;resize:none;overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.7rem;line-height:1.45}.mcp-connect-permissions{margin-top:8px;color:var(--text-muted);font-size:.7rem;line-height:1.45}
+.mcp-connect-steps{display:grid;gap:5px;margin-top:10px;padding:11px 12px;border-radius:10px;background:var(--bg3);color:var(--text-muted);font-size:.72rem}.mcp-connect-steps b{color:var(--text);margin-bottom:2px}
 /* modal */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
 .modal-overlay.open{display:flex}.modal-overlay.center{align-items:center}

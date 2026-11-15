@@ -78,7 +78,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Black+Han+Sans&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
-  <link rel="stylesheet" href="app.css?v=2026111523">
+  <link rel="stylesheet" href="app.css?v=2026111524">
   <script src="logo.js" defer></script>
   <script>document.addEventListener("DOMContentLoaded",function(){if(window.AM_LOGO_B64){["login-logo","loading-logo"].forEach(function(id){var el=document.getElementById(id);if(el)el.src=window.AM_LOGO_B64;});}})</script>
 </head>
@@ -188,7 +188,7 @@
       </div>
       <button type="button" id="mcp-connect-banner" class="mcp-connect-banner" onclick="openMcpConnect()" style="display:none;">
         <span class="mcp-connect-icon"><svg class="ic" aria-hidden="true"><use href="#i-link"/></svg></span>
-        <span class="mcp-connect-copy"><strong>AI 경기기록 연결</strong><small>ChatGPT에서 새벽민턴 기록을 조회·등록해보세요</small></span>
+        <span class="mcp-connect-copy"><strong>OAuth 시험 연결</strong><small>개인 키 없이 ChatGPT와 새벽민턴을 연결해보세요</small></span>
         <span class="mcp-connect-arrow">›</span>
       </button>
       <div id="season-onboard" style="display:none;"></div>
@@ -846,18 +846,18 @@
   </div>
 </div>
 
-<!-- 강창원 전용 MCP 연결 -->
+<!-- 강창원 전용 OAuth MCP 연결 -->
 <div class="modal-overlay center" id="modal-mcp-connect">
   <div class="modal center-modal mcp-connect-modal">
-    <div class="modal-title"><svg class="ic" aria-hidden="true"><use href="#i-link"/></svg>새벽민턴 MCP 연결</div>
-    <div class="mcp-connect-member">강창원님 전용 연결 정보</div>
-    <p class="mcp-connect-help">ChatGPT의 사용자 MCP 등록 화면에서 아래 주소를 붙여넣으세요. 이 주소는 계정 비밀번호처럼 다른 사람에게 공유하지 마세요.</p>
-    <div id="mcp-connect-loading" class="mcp-connect-loading">연결 정보를 안전하게 만들고 있습니다…</div>
-    <textarea id="mcp-connect-url" class="form-input mcp-connect-url" readonly aria-label="개인 MCP 연결 주소" style="display:none;"></textarea>
-    <div id="mcp-connect-permissions" class="mcp-connect-permissions" style="display:none;"></div>
+    <div class="modal-title"><svg class="ic" aria-hidden="true"><use href="#i-link"/></svg>새벽민턴 OAuth 시험</div>
+    <div class="mcp-connect-member">강창원님에게만 허용된 시험 연결</div>
+    <p class="mcp-connect-help">ChatGPT의 사용자 MCP 추가 화면에 아래 공통 주소를 붙여넣으세요. 연결 과정에서 새벽민턴 로그인과 권한 승인 화면이 자동으로 열립니다.</p>
+    <textarea id="mcp-connect-url" class="form-input mcp-connect-url" readonly aria-label="MCP 연결 주소">https://ambm.vercel.app/api/mcp</textarea>
+    <div class="mcp-connect-steps"><b>연결 순서</b><span>① 주소 복사</span><span>② ChatGPT에서 사용자 MCP 추가</span><span>③ 새벽민턴 로그인 후 ‘연결 허용’</span></div>
+    <div class="mcp-connect-permissions">허용 기능: 경기 조회 · 점수지 내검 · 승인 등록</div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-mcp-connect')">닫기</button>
-      <button class="btn btn-primary" id="mcp-copy-btn" onclick="copyMcpConnectionLink()" disabled><svg class="ic" aria-hidden="true"><use href="#i-link"/></svg>연결 주소 복사</button>
+      <button class="btn btn-primary" id="mcp-copy-btn" onclick="copyMcpConnectionLink()"><svg class="ic" aria-hidden="true"><use href="#i-link"/></svg>등록 주소 복사</button>
     </div>
   </div>
 </div>
@@ -866,11 +866,11 @@
 
 <script src="utils.js?v=2026111520" defer></script>
 <script src="core.js?v=2026111520" defer></script>
-<script src="dashboard.js?v=2026111523" defer></script>
+<script src="dashboard.js?v=2026111524" defer></script>
 <script src="feed.js?v=2026111520" defer></script>
 <script src="register.js?v=2026111520" defer></script>
   <script src="analysis.js?v=2026111522" defer></script>
-<script src="admin.js?v=2026111520" defer></script>
+<script src="admin.js?v=2026111524" defer></script>
 <script src="community.js?v=2026111520" defer></script>
 <script src="tournament.js?v=2026111520" defer></script>
 <script src="balance.js?v=2026111520" defer></script>

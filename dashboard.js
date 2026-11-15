@@ -292,26 +292,7 @@ async function openMcpConnect(){
   if(ME.id!=='0b8e3098-b0be-43ee-9729-07702141b005'||ME.name!=='강창원'){
     toast('사용할 수 없는 연결입니다','error');return;
   }
-  const loading=document.getElementById('mcp-connect-loading');
-  const field=document.getElementById('mcp-connect-url');
-  const perms=document.getElementById('mcp-connect-permissions');
-  const copyBtn=document.getElementById('mcp-copy-btn');
-  loading.textContent='연결 정보를 안전하게 만들고 있습니다…';loading.style.display='block';
-  field.value='';field.style.display='none';perms.style.display='none';copyBtn.disabled=true;
   openModal('modal-mcp-connect');
-  try{
-    const{data:{session}}=await sb.auth.getSession();
-    if(!session?.access_token) throw new Error('다시 로그인해 주세요.');
-    const response=await fetch('/api/mcp-link',{method:'POST',headers:{Authorization:'Bearer '+session.access_token}});
-    const result=await response.json().catch(()=>({}));
-    if(!response.ok) throw new Error(result.error||'연결 정보를 만들지 못했습니다.');
-    field.value=result.mcp_url;field.style.display='block';
-    perms.textContent='허용 기능: '+(result.permissions||[]).join(' · ');perms.style.display='block';
-    loading.style.display='none';copyBtn.disabled=false;
-  }catch(error){
-    loading.textContent=error.message||'연결 정보를 만들지 못했습니다.';
-    toast(loading.textContent,'error');
-  }
 }
 
 async function copyMcpConnectionLink(){
@@ -322,7 +303,7 @@ async function copyMcpConnectionLink(){
   }catch{
     field.focus();field.select();document.execCommand('copy');
   }
-  toast('개인 연결 주소를 복사했습니다','success');
+  toast('OAuth MCP 등록 주소를 복사했습니다','success');
 }
 
 function computeStats(matches,userId){

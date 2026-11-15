@@ -1,4 +1,4 @@
-const CACHE = 'ambm-v111';
+const CACHE = 'ambm-v112';
 const STATIC = [
   '/',
   '/index.html',
@@ -62,6 +62,12 @@ self.addEventListener('fetch', e => {
   const isLocal = url.hostname === location.hostname;
   const isSupabase = url.hostname.includes('supabase.co');
   const isNavigation = e.request.mode === 'navigate';
+
+  // OAuth 승인 화면은 인증 요청 상태를 포함하므로 앱 셸 캐시를 사용하지 않는다.
+  if (isLocal && url.pathname.startsWith('/oauth/')) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
 
   // ⚠️ Supabase auth 요청은 절대 캐시하지 않음 (로그아웃 방지)
   if (isSupabase && (url.pathname.includes('/auth/') || url.pathname.includes('/token'))) {

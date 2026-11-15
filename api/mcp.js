@@ -3,33 +3,43 @@ import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto
 
 /* 새벽민턴 원격 MCP. 조회는 승인 경기만 공개하고, 쓰기는 프로필 권한을 서버에서 다시 확인한다. */
 const SUPABASE_URL = 'https://wkclmrbdsinvliaaqjol.supabase.co';
+const SUPABASE_ISSUER = `${SUPABASE_URL}/auth/v1`;
+const MCP_RESOURCE = 'https://ambm.vercel.app/api/mcp';
+const RESOURCE_METADATA = 'https://ambm.vercel.app/.well-known/oauth-protected-resource';
+const KCW_PROFILE_ID = '0b8e3098-b0be-43ee-9729-07702141b005';
+const OAUTH_SCOPES = ['openid', 'profile', 'email', 'offline_access'];
+const AUTH_CHALLENGE = `Bearer resource_metadata="${RESOURCE_METADATA}", scope="${OAUTH_SCOPES.join(' ')}", error="invalid_token", error_description="새벽민턴 로그인이 필요합니다"`;
 const MCP_KEYS = {
   'bf416066227b0e4d40cb8dbb6a5dd3eaf659962ae0be43a760ac7ab39408c33f': '이영배',
   '64c4f9d58d487bf3d70cfd4e70a2bd7eb1f4109f273b7e5dc0800027e3fbd9d4': '강창원',
 };
 const MAX_ROWS = 3000, MAX_GAMES = 200, TOKEN_TTL = 30 * 60 * 1000;
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
+const NAME_MAX = 20, NAME_BAD = /[<>"'`&\\]/, NOTE_BAD = /[<>]/; // DB 제약 matches_names_safe·note_safe와 동일
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const GAME_SCHEMA = { type: 'object', required: ['sequence', 'round', 'court', 'a1', 'a2', 'score_a', 'score_b', 'b1', 'b2'], properties: {
   sequence: { type: 'integer', minimum: 1 }, round: { type: 'integer', minimum: 1 }, court: { type: 'integer', minimum: 1 },
-  a1: { type: 'string', minLength: 1, maxLength: 30 }, a2: { type: 'string', minLength: 1, maxLength: 30 },
+  a1: { type: 'string', minLength: 1, maxLength: NAME_MAX }, a2: { type: 'string', minLength: 1, maxLength: NAME_MAX },
   score_a: { type: 'integer', minimum: 0, maximum: 30 }, score_b: { type: 'integer', minimum: 0, maximum: 30 },
-  b1: { type: 'string', minLength: 1, maxLength: 30 }, b2: { type: 'string', minLength: 1, maxLength: 30 },
+  b1: { type: 'string', minLength: 1, maxLength: NAME_MAX }, b2: { type: 'string', minLength: 1, maxLength: NAME_MAX },
   note: { type: 'string', maxLength: 200 },
 }, additionalProperties: false };
 
 const TOOLS = [
   { name: 'list_matches', description: '새벽민턴 승인 경기 내역을 날짜순으로 조회한다. structured=true면 점수지 묶음·순서·라운드·코트도 포함한다.',
+    _meta: { securitySchemes: [{ type: 'oauth2', scopes: OAUTH_SCOPES }] },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, inputSchema: { type: 'object', properties: {
       from: { type: 'string' }, to: { type: 'string' }, season: { type: 'boolean' }, player: { type: 'string' },
       batch_id: { type: 'string' }, structured: { type: 'boolean' },
     }, additionalProperties: false } },
   { name: 'get_player_candidates', description: '선수 이름을 프로필과 대조해 미등록 선수와 동명이인을 확인한다.',
+    _meta: { securitySchemes: [{ type: 'oauth2', scopes: OAUTH_SCOPES }] },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, inputSchema: { type: 'object', required: ['names'], properties: {
       names: { type: 'array', minItems: 1, maxItems: 100, items: { type: 'string', minLength: 1, maxLength: 30 } },
     }, additionalProperties: false } },
   { name: 'validate_scorecard', description: '사진에서 구조화한 경기표를 등록 전에 내검한다. 선수·점수·순서·라운드·코트·출전 횟수·중복을 검사하고 오류가 없을 때 30분짜리 preview_token을 발급한다.',
+    _meta: { securitySchemes: [{ type: 'oauth2', scopes: OAUTH_SCOPES }] },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, inputSchema: { type: 'object', required: ['match_date', 'games'], properties: {
       match_date: { type: 'string' }, games: { type: 'array', minItems: 1, maxItems: MAX_GAMES, items: GAME_SCHEMA },
       expected_match_count: { type: 'integer', minimum: 1, maximum: MAX_GAMES }, expected_player_count: { type: 'integer', minimum: 4, maximum: 400 },
@@ -37,23 +47,26 @@ const TOOLS = [
       player_overrides: { type: 'object', additionalProperties: { type: 'string' } },
     }, additionalProperties: false } },
   { name: 'commit_scorecard', description: 'validate_scorecard의 preview_token에 서명된 경기만 일괄 등록하고 재검증한다. 일반 회원은 pending, admin은 approved 등록이 가능하다.',
+    _meta: { securitySchemes: [{ type: 'oauth2', scopes: OAUTH_SCOPES }] },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }, inputSchema: { type: 'object', required: ['preview_token', 'status'], properties: {
       preview_token: { type: 'string', minLength: 20 }, status: { type: 'string', enum: ['pending', 'approved'] },
     }, additionalProperties: false } },
 ];
 
 const clean = (v, max = 30) => String(v ?? '').replace(/[\t\r\n]+/g, ' ').trim().slice(0, max);
-function readMcpAccessToken(token) {
-  const [prefix, encoded, supplied, extra] = String(token || '').split('.');
-  if (prefix !== 'ambm1' || !encoded || !supplied || extra) return null;
-  try {
-    const expected = createHmac('sha256', secret()).update(encoded).digest();
-    const actual = Buffer.from(supplied, 'base64url');
-    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
-    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
-    if (payload?.v !== 1 || payload?.typ !== 'ambm_mcp_access' || !UUID.test(payload?.sub || '') || !clean(payload?.name)) return null;
-    return payload;
-  } catch { return null; }
+function jwtClaims(token) {
+  try { return JSON.parse(Buffer.from(String(token).split('.')[1], 'base64url').toString('utf8')); } catch { return null; }
+}
+async function getOAuthActor(sb, token) {
+  if (!token || String(token).split('.').length !== 3) return null;
+  const { data: { user }, error } = await sb.auth.getUser(token);
+  if (error || !user || user.id !== KCW_PROFILE_ID) return null;
+  const claims = jwtClaims(token), audience = Array.isArray(claims?.aud) ? claims.aud : [claims?.aud];
+  if (!claims || claims.iss !== SUPABASE_ISSUER || !claims.client_id || !Number.isFinite(claims.exp) || claims.exp * 1000 <= Date.now()) return null;
+  // Supabase OAuth 기본 aud는 authenticated이며, 향후 전용 aud hook을 적용해도 같은 서버가 받는다.
+  if (!audience.includes('authenticated') && !audience.includes(MCP_RESOURCE)) return null;
+  const { data: profile } = await sb.from('profiles').select('id,name,role,status').eq('id', user.id).maybeSingle();
+  return profile?.name === '강창원' && profile.status === 'approved' ? profile : null;
 }
 const validDate = v => {
   if (!YMD.test(v)) return false;
@@ -63,8 +76,8 @@ const validDate = v => {
 const teamKey = (p1, p2, score) => `${[p1, p2].sort((a, b) => a.localeCompare(b, 'ko')).join('+')}=${score}`;
 const matchKey = m => [teamKey(m.a1_name ?? m.a1, m.a2_name ?? m.a2, Number(m.score_a)), teamKey(m.b1_name ?? m.b1, m.b2_name ?? m.b2, Number(m.score_b))].sort().join('|');
 const normalizeGames = games => games.map(g => ({
-  sequence: Number(g.sequence), round: Number(g.round), court: Number(g.court), a1: clean(g.a1), a2: clean(g.a2),
-  score_a: Number(g.score_a), score_b: Number(g.score_b), b1: clean(g.b1), b2: clean(g.b2), note: clean(g.note, 200) || null,
+  sequence: Number(g.sequence), round: Number(g.round), court: Number(g.court), a1: clean(g.a1, 60), a2: clean(g.a2, 60),
+  score_a: Number(g.score_a), score_b: Number(g.score_b), b1: clean(g.b1, 60), b2: clean(g.b2, 60), note: clean(g.note, 200) || null,
 })).sort((a, b) => a.sequence - b.sequence);
 
 async function getActor(sb, name) {
@@ -80,10 +93,19 @@ async function playerCandidates(sb, names) {
   if (!unique.length) return [];
   const { data: profiles, error } = await sb.from('profiles').select('id,name,role,status,created_at').in('name', unique);
   if (error) throw error;
-  const { data: matches, error: matchError } = profiles?.length
-    ? await sb.from('matches').select('a1_id,a2_id,b1_id,b2_id') : { data: [], error: null };
-  if (matchError) throw matchError;
-  const count = id => (matches || []).reduce((n, m) => n + [m.a1_id, m.a2_id, m.b1_id, m.b2_id].filter(x => x === id).length, 0);
+  // 출전 수: 후보 프로필이 낀 경기만, 1000행 단위로 끝까지 읽는다(한 번에 1000행 제한).
+  const ids = (profiles || []).map(p => p.id), appear = new Map();
+  if (ids.length) {
+    const inList = `(${ids.join(',')})`;
+    for (let off = 0; ; off += 1000) {
+      const { data, error: matchError } = await sb.from('matches').select('id,a1_id,a2_id,b1_id,b2_id')
+        .or(['a1_id', 'a2_id', 'b1_id', 'b2_id'].map(c => `${c}.in.${inList}`).join(',')).order('id').range(off, off + 999);
+      if (matchError) throw matchError;
+      for (const m of data) for (const x of [m.a1_id, m.a2_id, m.b1_id, m.b2_id]) if (x) appear.set(x, (appear.get(x) || 0) + 1);
+      if (data.length < 1000) break;
+    }
+  }
+  const count = id => appear.get(id) || 0;
   return unique.map(name => ({ name, candidates: (profiles || []).filter(p => p.name === name).map(p => ({
     id: p.id, status: p.status, role: p.role, appearances: count(p.id), created_at: p.created_at,
   })).sort((a, b) => b.appearances - a.appearances) }));
@@ -102,6 +124,11 @@ async function validatePayload(sb, args) {
     if (roundCourts.has(rc)) errors.push(`${label}가 중복됐습니다.`); else roundCourts.add(rc);
     const players = [g.a1, g.a2, g.b1, g.b2]; allNames.push(...players);
     if (players.some(n => !n)) errors.push(`${label}: 선수 이름이 비어 있습니다.`);
+    for (const name of players) {
+      if (name.length > NAME_MAX) errors.push(`${label}: '${name}' 이름이 ${NAME_MAX}자를 넘습니다.`);
+      if (NAME_BAD.test(name)) errors.push(`${label}: '${name}' 이름에 쓸 수 없는 기호(< > " ' \` & \\)가 있습니다.`);
+    }
+    if (g.note && NOTE_BAD.test(g.note)) errors.push(`${label}: 비고에 < > 기호는 쓸 수 없습니다.`);
     if (new Set(players).size !== 4) errors.push(`${label}: 동일 선수가 두 번 들어갔습니다.`);
     if (![g.score_a, g.score_b].every(n => Number.isInteger(n) && n >= 0 && n <= 30)) errors.push(`${label}: 점수는 0~30 정수여야 합니다.`);
     if (g.score_a === g.score_b) errors.push(`${label}: 무승부는 등록할 수 없습니다.`);
@@ -223,28 +250,26 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return res.status(405).json({ error: 'POST only' }); }
   const sb = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
-  const key = String(req.query?.key || (req.headers.authorization || '').replace(/^Bearer\s+/i, '')), keyHash = key ? createHash('sha256').update(key).digest('hex') : '';
+  const queryKey = String(req.query?.key || ''), bearer = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  const legacyKey = queryKey || bearer, keyHash = legacyKey ? createHash('sha256').update(legacyKey).digest('hex') : '';
   let actorName = keyHash && MCP_KEYS[keyHash];
-  if (!actorName) {
-    const access = readMcpAccessToken(key);
-    if (access) {
-      const { data: actor } = await sb.from('profiles').select('id,name,status').eq('id', access.sub).maybeSingle();
-      if (actor?.status === 'approved' && actor.name === access.name) actorName = actor.name;
-    }
-  }
-  if (!actorName) return res.status(401).json({ error: 'unauthorized' });
+  let oauthActor = null;
+  if (!actorName && bearer) { oauthActor = await getOAuthActor(sb, bearer); actorName = oauthActor?.name || ''; }
+  const authBinding = oauthActor ? `oauth:${oauthActor.id}` : keyHash;
   let body = req.body; if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = null; } }
   const one = async msg => {
     if (!msg || typeof msg !== 'object') return { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'parse error' } };
     const { id, method, params = {} } = msg; if (id === undefined || id === null) return null; const ok = result => ({ jsonrpc: '2.0', id, result });
-    if (method === 'initialize') return ok({ protocolVersion: params.protocolVersion || '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'ambm-matches', version: '1.1.0' }, instructions: '새벽민턴 경기 조회와 점수지 내검·등록. 일반 회원은 승인 대기, 관리자는 승인 완료 등록까지 가능하다.' });
+    if (method === 'initialize') return ok({ protocolVersion: params.protocolVersion || '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'ambm-matches', version: '1.2.0' }, instructions: '새벽민턴 경기 조회와 점수지 내검·등록. OAuth 시험 연결은 강창원 회원만 가능하며, 일반 회원은 승인 대기, 관리자는 승인 완료 등록까지 가능하다.' });
     if (method === 'ping') return ok({}); if (method === 'tools/list') return ok({ tools: TOOLS });
-    if (method === 'tools/call') { const args = params.arguments || {}; try {
+    if (method === 'tools/call') {
+      if (!actorName) return ok({ content: [{ type: 'text', text: '새벽민턴 계정 연결이 필요합니다.' }], isError: true, _meta: { 'mcp/www_authenticate': [AUTH_CHALLENGE] } });
+      const args = params.arguments || {}; try {
       console.log(`[mcp] ${actorName} ${params.name} ${JSON.stringify(args).slice(0, 2000)}`); let text;
       if (params.name === 'list_matches') text = await listMatches(sb, args);
       else if (params.name === 'get_player_candidates') { const rows = await playerCandidates(sb, Array.isArray(args.names) ? args.names : []); text = rows.map(r => `${r.name}\t${r.candidates.length ? r.candidates.map(c => `${c.id} (${c.status}/${c.role}, 기존 ${c.appearances}경기)`).join(' | ') : '프로필 없음'}`).join('\n'); }
-      else if (params.name === 'validate_scorecard') { await getActor(sb, actorName); const result = await validatePayload(sb, args); const token = result.errors.length ? '' : signPreview({ v: 1, exp: Date.now() + TOKEN_TTL, key_hash: keyHash, input: { match_date: result.matchDate, games: result.games, expected_match_count: args.expected_match_count || null, expected_player_count: args.expected_player_count || null, expected_games_per_player: args.expected_games_per_player || null, allow_unlinked_players: args.allow_unlinked_players === true, player_overrides: args.player_overrides || {} } }); text = validationText(result, token); }
-      else if (params.name === 'commit_scorecard') text = await commitScorecard(sb, actorName, keyHash, args);
+      else if (params.name === 'validate_scorecard') { await getActor(sb, actorName); const result = await validatePayload(sb, args); const token = result.errors.length ? '' : signPreview({ v: 1, exp: Date.now() + TOKEN_TTL, key_hash: authBinding, input: { match_date: result.matchDate, games: result.games, expected_match_count: args.expected_match_count || null, expected_player_count: args.expected_player_count || null, expected_games_per_player: args.expected_games_per_player || null, allow_unlinked_players: args.allow_unlinked_players === true, player_overrides: args.player_overrides || {} } }); text = validationText(result, token); }
+      else if (params.name === 'commit_scorecard') text = await commitScorecard(sb, actorName, authBinding, args);
       else return ok({ content: [{ type: 'text', text: '알 수 없는 도구: ' + params.name }], isError: true });
       return ok({ content: [{ type: 'text', text }] });
     } catch (e) { return ok({ content: [{ type: 'text', text: `처리 실패: ${e.message || e}` }], isError: true }); } }
