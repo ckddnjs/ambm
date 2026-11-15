@@ -1597,7 +1597,7 @@ function renderStreakTrain(){
       </div>`;}).join('');
     return `<div class="train-row">
       <div style="display:flex;align-items:center;gap:9px;cursor:pointer;" onclick="const d=document.getElementById('train-d-${i}');d.style.display=d.style.display==='none'?'':'none';">
-        <span style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;min-width:38px;">
+        <span class="tr-eng" style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;min-width:38px;animation-delay:${(i*.18).toFixed(2)}s;">
           ${_tEngine(g.col,g.tier)}
           <span style="font-size:.54rem;font-weight:800;color:${g.col};margin-top:1px;white-space:nowrap;">${g.nm}</span>
         </span>
@@ -1610,13 +1610,24 @@ function renderStreakTrain(){
           <div style="font-size:.95rem;font-weight:900;color:var(--primary);">${t.streak}연승</div>
         </div>
       </div>
-      <div class="train-chug" style="display:flex;align-items:center;margin:4px 0 0 38px;overflow:hidden;">${wagons}</div>
+      <div class="tr-in" style="animation-delay:${(i*.18).toFixed(2)}s;"><div class="train-chug" style="display:flex;align-items:center;margin:4px 0 0 38px;overflow:hidden;">${wagons}</div></div>
       <div id="train-d-${i}" style="display:none;margin:8px 0 0 0;background:var(--bg2);border-radius:12px;padding:2px 12px 10px;">
         <div style="font-size:.72rem;font-weight:800;padding:9px 0 3px;">${runIc} ${runMsg}</div>
         ${detail}
       </div>
     </div>`;
   }).join('');
+  // 첫 진입 때 열차가 왼쪽에서 오른쪽으로 들어오는 애니메이션 (한 번만) — app.css .train-pre/.train-go
+  const tw=document.getElementById('train-wrap');
+  if(!window._trainAnimated&&'IntersectionObserver' in window&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
+    tw.classList.add('train-pre');
+    const io=new IntersectionObserver(es=>{
+      if(!es.some(e=>e.isIntersecting)) return;
+      io.disconnect(); window._trainAnimated=true;
+      tw.classList.remove('train-pre'); tw.classList.add('train-go');
+    },{threshold:.25});
+    io.observe(tw);
+  }
 }
 
 /* ── 📈 순위 이동 범프차트: 이번 시즌 주간 누적 CI 순위 톱10 (hsdTV 이식, RP→CI) ── */
@@ -1689,6 +1700,9 @@ function renderBump(){
   const xOf=i=>pad.l+(WEEKS===1?cw/2:cw*i/(WEEKS-1));
   const yOf=r=>pad.t+rowH*(Math.min(r,OUT)-1)+rowH/2;
   const hl=wrap.dataset.hl||'';
+  // 첫 진입 때만 왼쪽→오른쪽으로 선이 그려지는 애니메이션(강조 탭으로 다시 그릴 때는 생략) — hsdTV 이식, app.css .bump-pre/.bump-go
+  const anim=!window._bumpAnimated&&'IntersectionObserver' in window&&!matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const dl=(id,i)=>anim?` style="animation-delay:${(i*.28+top.indexOf(id)*.05).toFixed(2)}s"`:'';
 
   let svg='';
   for(let r=1;r<=OUT;r++){
@@ -1705,15 +1719,19 @@ function renderBump(){
     const c=PAL[top.indexOf(id)%PAL.length];
     const dim=hl&&id!==hl;
     const pts=weekRank.map((wr2,i)=>({x:xOf(i),y:yOf(wr2[id]||OUT),out:!wr2[id]||wr2[id]>TOPN}));
-    const path=pts.map((p,i)=>(i?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1)).join(' ');
     svg+=`<g opacity="${dim?.18:1}" style="cursor:pointer" onclick="_bumpHl('${String(id).replace(/'/g,'')}')">`;
-    svg+=`<path d="${path}" fill="none" stroke="${c}" stroke-width="${hl&&id===hl?3.4:2.4}" stroke-linejoin="round" stroke-linecap="round"/>`;
-    pts.forEach(p=>{svg+=p.out
-      ?`<circle cx="${p.x}" cy="${p.y}" r="3" fill="var(--bg2)" stroke="${c}" stroke-width="1.4" stroke-dasharray="2 2"/>`
-      :`<circle cx="${p.x}" cy="${p.y}" r="3.6" fill="var(--bg2)" stroke="${c}" stroke-width="2"/>`;});
+    // 주차 구간별로 나눠 그려야 차례로 그려지는 애니메이션이 된다
+    for(let i=1;i<pts.length;i++){
+      const a=pts[i-1], p=pts[i];
+      svg+=`<path class="bmp-seg" pathLength="1" d="M${a.x.toFixed(1)} ${a.y.toFixed(1)} L${p.x.toFixed(1)} ${p.y.toFixed(1)}" fill="none" stroke="${c}" stroke-width="${hl&&id===hl?3.4:2.4}" stroke-linecap="round"${dl(id,i-1)}/>`;
+    }
+    pts.forEach((p,i)=>{svg+=p.out
+      ?`<circle class="bmp-fade" cx="${p.x}" cy="${p.y}" r="3" fill="var(--bg2)" stroke="${c}" stroke-width="1.4" stroke-dasharray="2 2"${dl(id,i)}/>`
+      :`<circle class="bmp-fade" cx="${p.x}" cy="${p.y}" r="3.6" fill="var(--bg2)" stroke="${c}" stroke-width="2"${dl(id,i)}/>`;});
     const lp=pts[pts.length-1];
     const ax=W-pad.r+18, av=avatarOf[id];
     const ci_='bmpc_'+top.indexOf(id);
+    svg+=`<g class="bmp-lbl"${dl(id,pts.length-1)}>`;
     if(av){
       svg+=`<clipPath id="${ci_}"><circle cx="${ax}" cy="${lp.y}" r="8"/></clipPath>`;
       svg+=`<circle cx="${ax}" cy="${lp.y}" r="9" fill="none" stroke="${c}" stroke-width="1.6"/>`;
@@ -1723,9 +1741,17 @@ function renderBump(){
       svg+=`<text x="${ax}" y="${lp.y+3.2}" text-anchor="middle" font-size="8.5" font-weight="800" fill="#0C0D10">${escHtml((nameOf[id]||'?').slice(0,1))}</text>`;
     }
     svg+=`<text x="${ax+13}" y="${lp.y+3.5}" font-size="10.5" font-weight="700" fill="${c}">${escHtml((nameOf[id]||'').slice(0,4))}</text>`;
-    svg+=`</g>`;
+    svg+=`</g></g>`;
   });
-  wrap.innerHTML=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block;">${svg}</svg>`;
+  wrap.innerHTML=`<svg class="${anim?'bump-pre':''}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block;">${svg}</svg>`;
+  if(anim){
+    const el=wrap.firstElementChild;
+    const io=new IntersectionObserver(es=>{
+      if(!es.some(e=>e.isIntersecting)) return;
+      io.disconnect(); window._bumpAnimated=true; el.classList.add('bump-go');
+    },{threshold:.35});
+    io.observe(el);
+  }
 }
 function _bumpHl(id){
   const wrap=document.getElementById('bump-wrap');
