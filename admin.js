@@ -54,9 +54,18 @@ async function renderAdminPending(){
     html+=`</div>`;
   }
 
-  // 경기 승인 대기 섹션
-  if(matches&&matches.length){
-    html+=`<div style="font-size:.82rem;font-weight:700;color:var(--text-muted);margin-bottom:8px;">🏸 경기 승인 대기 (${matches.length}건)</div>`;
+  // 점수지 묶음(MCP 등록) — 묶음 단위로 확인·승인
+  const batches=new Map(), singles=[];
+  (matches||[]).forEach(m=>{ if(m.import_batch_id){ if(!batches.has(m.import_batch_id)) batches.set(m.import_batch_id,[]); batches.get(m.import_batch_id).push(m); } else singles.push(m); });
+  if(batches.size){
+    html+=`<div style="font-size:.82rem;font-weight:700;color:var(--text-muted);margin-bottom:8px;">점수지 묶음 승인 대기 (${batches.size}묶음)</div>`;
+    batches.forEach((rows,bid)=>{ html+=_pendingBatchHTML(bid,rows); });
+  }
+
+  // 경기 승인 대기 섹션 (낱개)
+  if(singles.length){
+    const matches=singles;
+    html+=`<div style="font-size:.82rem;font-weight:700;color:var(--text-muted);margin:${batches.size?'14px':'0'} 0 8px;">🏸 경기 승인 대기 (${matches.length}건)</div>`;
     html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;">
       <div style="display:flex;align-items:center;gap:8px;">
         <input type="checkbox" id="chk-all-pending" onchange="toggleAllPending(this.checked)" style="width:16px;height:16px;cursor:pointer;">
@@ -75,6 +84,48 @@ async function renderAdminPending(){
 
   if(!html) html=`<div class="empty-state"><div class="empty-icon"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg></div><div>모든 승인 완료</div></div>`;
   el.innerHTML=html;
+}
+function _pendingBatchHTML(bid,rows){
+  rows=[...rows].sort((x,y)=>(x.sequence_no||0)-(y.sequence_no||0));
+  const f=rows[0], players=new Set();
+  rows.forEach(m=>[m.a1_name,m.a2_name,m.b1_name,m.b2_name].forEach(n=>n&&players.add(n)));
+  const rounds=new Set(rows.map(m=>m.round_no).filter(Boolean)).size;
+  const tr=rows.map(m=>{const aw=m.score_a>m.score_b;return `<tr>
+      <td style="color:var(--text-muted);white-space:nowrap;">${m.round_no||'-'}R ${m.court_no||'-'}코트</td>
+      <td style="text-align:right;${aw?'font-weight:700;':''}">${escHtml(m.a1_name)}·${escHtml(m.a2_name)}</td>
+      <td style="text-align:center;white-space:nowrap;font-weight:700;">${m.score_a}:${m.score_b}</td>
+      <td style="${aw?'':'font-weight:700;'}">${escHtml(m.b1_name)}·${escHtml(m.b2_name)}</td></tr>`;}).join('');
+  return `<div class="card" style="margin-bottom:8px;padding:12px;border-left:3px solid var(--primary);">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+      <div style="min-width:0;">
+        <div style="font-weight:700;font-size:.9rem;">${escHtml(f.match_date||'')} 점수지</div>
+        <div style="font-size:.74rem;color:var(--text-muted);margin-top:2px;">등록 ${escHtml(f.submitter_name||'-')} · ${rows.length}경기 · ${players.size}명${rounds?` · ${rounds}라운드`:''}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="btn btn-success btn-sm" onclick="approvePendingBatch('${bid}',${rows.length})"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>묶음 승인</button>
+        <button class="btn btn-danger btn-sm" onclick="rejectPendingBatch('${bid}',${rows.length})"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>반려</button>
+      </div>
+    </div>
+    <details style="margin-top:8px;"><summary style="font-size:.76rem;color:var(--primary);cursor:pointer;">경기 ${rows.length}개 펼쳐보기</summary>
+      <div style="overflow-x:auto;margin-top:6px;"><table style="width:100%;border-collapse:collapse;font-size:.76rem;line-height:1.9;">${tr}</table></div>
+    </details>
+  </div>`;
+}
+async function _setBatchStatus(bid,upd,label){
+  const{data,error}=await sb.from('matches').update(upd).eq('import_batch_id',bid).eq('status','pending').select('id');
+  if(error){toast(label+' 실패: '+error.message,'error');return;}
+  addLog(`점수지 묶음 ${label}: ${bid} (${data?.length||0}건)`,ME.id);
+  toast(`${data?.length||0}경기 ${label} 완료`,label==='승인'?'success':'warning');
+  renderAdminPending();
+  if(currentPage==='feed') renderFeed();
+}
+function approvePendingBatch(bid,n){
+  showConfirm({icon:'✅',title:`점수지 ${n}경기를 승인할까요?`,msg:'묶음의 대기 경기가 한꺼번에 승인되어 기록·랭킹에 반영됩니다.',okLabel:'묶음 승인',okClass:'btn-success',
+    onOk:()=>{const now=nowISO();_setBatchStatus(bid,{status:'approved',approved_at:now,approved_by:ME.id,updated_at:now},'승인');}});
+}
+function rejectPendingBatch(bid,n){
+  showConfirm({icon:'❌',title:`점수지 ${n}경기를 반려할까요?`,msg:'묶음 전체가 반려됩니다. 이 작업은 취소할 수 없습니다.',okLabel:'반려',okClass:'btn-danger',
+    onOk:()=>_setBatchStatus(bid,{status:'rejected',updated_at:nowISO()},'반려')});
 }
 function toggleAllPending(checked){
   document.querySelectorAll('.pending-chk').forEach(c=>c.checked=checked);

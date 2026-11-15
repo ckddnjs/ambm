@@ -8,7 +8,6 @@ const MCP_RESOURCE = 'https://ambm.vercel.app/api/mcp';
 const RESOURCE_METADATA = 'https://ambm.vercel.app/.well-known/oauth-protected-resource';
 const KCW_PROFILE_ID = '0b8e3098-b0be-43ee-9729-07702141b005';
 const OAUTH_SCOPES = ['openid', 'profile', 'email', 'offline_access'];
-const AUTH_CHALLENGE = `Bearer resource_metadata="${RESOURCE_METADATA}", scope="${OAUTH_SCOPES.join(' ')}", error="invalid_token", error_description="새벽민턴 로그인이 필요합니다"`;
 const MCP_KEYS = {
   'bf416066227b0e4d40cb8dbb6a5dd3eaf659962ae0be43a760ac7ab39408c33f': '이영배',
   '64c4f9d58d487bf3d70cfd4e70a2bd7eb1f4109f273b7e5dc0800027e3fbd9d4': '강창원',
@@ -256,6 +255,12 @@ export default async function handler(req, res) {
   let oauthActor = null;
   if (!actorName && bearer) { oauthActor = await getOAuthActor(sb, bearer); actorName = oauthActor?.name || ''; }
   const authBinding = oauthActor ? `oauth:${oauthActor.id}` : keyHash;
+  // 인증 실패는 HTTP 401 + WWW-Authenticate로 돌려줘야 ChatGPT·Claude가 OAuth 로그인 절차를 시작한다(MCP 인증 규격).
+  if (!actorName) {
+    const challenge = `Bearer resource_metadata="${RESOURCE_METADATA}", scope="${OAUTH_SCOPES.join(' ')}"` + (legacyKey ? ', error="invalid_token"' : '');
+    res.setHeader('WWW-Authenticate', challenge);
+    return res.status(401).json({ error: legacyKey ? 'invalid_token' : 'unauthorized', error_description: '새벽민턴 로그인이 필요합니다.' });
+  }
   let body = req.body; if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = null; } }
   const one = async msg => {
     if (!msg || typeof msg !== 'object') return { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'parse error' } };
@@ -263,7 +268,6 @@ export default async function handler(req, res) {
     if (method === 'initialize') return ok({ protocolVersion: params.protocolVersion || '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'ambm-matches', version: '1.2.0' }, instructions: '새벽민턴 경기 조회와 점수지 내검·등록. OAuth 시험 연결은 강창원 회원만 가능하며, 일반 회원은 승인 대기, 관리자는 승인 완료 등록까지 가능하다.' });
     if (method === 'ping') return ok({}); if (method === 'tools/list') return ok({ tools: TOOLS });
     if (method === 'tools/call') {
-      if (!actorName) return ok({ content: [{ type: 'text', text: '새벽민턴 계정 연결이 필요합니다.' }], isError: true, _meta: { 'mcp/www_authenticate': [AUTH_CHALLENGE] } });
       const args = params.arguments || {}; try {
       console.log(`[mcp] ${actorName} ${params.name} ${JSON.stringify(args).slice(0, 2000)}`); let text;
       if (params.name === 'list_matches') text = await listMatches(sb, args);
