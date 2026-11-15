@@ -31,14 +31,39 @@
 <style id="critical-boot">
   html{background:#0C0D10}
   html.pre-light{background:#F8FAFC}
-  #loading-screen{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#0C0D10;visibility:visible}
-  html.pre-light #loading-screen{background:#F8FAFC}
-  #loading-screen .ld-shuttle{font-size:4rem;animation:bootShuttle 1.2s ease-in-out infinite alternate}
-  #loading-screen .ld-title{font-family:'Black Han Sans',sans-serif;font-size:1.8rem;color:#4D9FFF;letter-spacing:1px}
-  #loading-screen .ld-sub{color:#94A3B8;font-size:.88rem;letter-spacing:.5px}
-  #loading-screen .spinner{width:32px;height:32px;border:3px solid rgba(255,255,255,.1);border-top-color:#4D9FFF;border-radius:50%;animation:bootSpin .8s linear infinite;margin-top:24px}
-  @keyframes bootShuttle{from{transform:translateX(-20px) rotate(-20deg)}to{transform:translateX(20px) rotate(20deg)}}
-  @keyframes bootSpin{to{transform:rotate(360deg)}}
+  /* 로딩 = 새벽하늘(2026-11-15 시안 2안): 별이 지고 남색→보라·살구→(라이트 모드) 하늘색으로 밝아짐. 소리 없음 */
+  #loading-screen{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:linear-gradient(180deg,#070B1A,#1B2347);visibility:visible;overflow:hidden}
+  #loading-screen .ld-l{position:absolute;inset:0;opacity:0;animation:1.8s ease-in-out forwards}
+  #loading-screen .ld-dawn{background:linear-gradient(180deg,#2A2F5C 0%,#7A5A8C 55%,#E39B7B 100%);animation-name:ldDawn}
+  #loading-screen .ld-day{background:linear-gradient(180deg,#EAF2FB 0%,#FDF1E6 100%);animation-name:ldDay;display:none}
+  html.pre-light #loading-screen .ld-day{display:block}
+  #loading-screen .ld-stars{opacity:1;animation-name:ldStars;background-image:radial-gradient(1.2px 1.2px at 20% 18%,#fff,transparent),radial-gradient(1px 1px at 70% 12%,#fff,transparent),radial-gradient(1.4px 1.4px at 45% 30%,#fff,transparent),radial-gradient(1px 1px at 82% 34%,#fff,transparent),radial-gradient(1.2px 1.2px at 12% 42%,#fff,transparent),radial-gradient(1px 1px at 60% 48%,#fff,transparent),radial-gradient(1px 1px at 30% 60%,#fff,transparent),radial-gradient(1.2px 1.2px at 88% 66%,#fff,transparent)}
+  #loading-screen .ld-c{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px}
+  #loading-screen .ld-logo{position:relative;height:38px}
+  #loading-screen .ld-logo img{position:absolute;left:50%;top:0;height:38px;width:auto;transform:translateX(-50%)}
+  #loading-screen .ld-lw{filter:invert(1)}
+  #loading-screen .ld-lk{opacity:0}
+  #loading-screen .ld-title{font-family:'Black Han Sans',sans-serif;font-size:1.9rem;color:#fff;letter-spacing:1px;line-height:1.1}
+  #loading-screen .ld-sub{color:rgba(255,255,255,.62);font-size:.66rem;font-weight:700;letter-spacing:.35em}
+  #loading-screen .ld-bar{width:110px;height:3px;border-radius:2px;background:rgba(255,255,255,.2);overflow:hidden;margin-top:14px}
+  #loading-screen .ld-bar i{display:block;height:100%;background:#fff;transform-origin:left;transform:scaleX(0);animation:ldBar 1.8s cubic-bezier(.3,.6,.4,1) forwards}
+  html.pre-light #loading-screen .ld-lw{animation:ldOut 1.8s ease-in-out forwards}
+  html.pre-light #loading-screen .ld-lk{animation:ldIn 1.8s ease-in-out forwards}
+  html.pre-light #loading-screen .ld-title{animation:ldTxt 1.8s ease-in-out forwards}
+  html.pre-light #loading-screen .ld-sub{animation:ldSub 1.8s ease-in-out forwards}
+  html.pre-light #loading-screen .ld-bar{animation:ldBb 1.8s ease-in-out forwards}
+  html.pre-light #loading-screen .ld-bar i{animation:ldBar 1.8s cubic-bezier(.3,.6,.4,1) forwards,ldBi 1.8s ease-in-out forwards}
+  @keyframes ldDawn{0%,10%{opacity:0}55%,100%{opacity:1}}
+  @keyframes ldDay{0%,50%{opacity:0}90%,100%{opacity:1}}
+  @keyframes ldStars{0%,25%{opacity:1}65%,100%{opacity:0}}
+  @keyframes ldBar{0%{transform:scaleX(0)}100%{transform:scaleX(.92)}}
+  @keyframes ldOut{0%,50%{opacity:1}90%,100%{opacity:0}}
+  @keyframes ldIn{0%,50%{opacity:0}90%,100%{opacity:1}}
+  @keyframes ldTxt{0%,50%{color:#fff}90%,100%{color:#1565C0}}
+  @keyframes ldSub{0%,50%{color:rgba(255,255,255,.62)}90%,100%{color:#64748B}}
+  @keyframes ldBb{0%,50%{background:rgba(255,255,255,.2)}90%,100%{background:rgba(15,23,42,.1)}}
+  @keyframes ldBi{0%,50%{background:#fff}90%,100%{background:#1565C0}}
+  @media (prefers-reduced-motion: reduce){#loading-screen *{animation-duration:.01s!important}}
 </style>
 
 <!-- OG 메타데이터 -->
@@ -53,7 +78,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Black+Han+Sans&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
-  <link rel="stylesheet" href="app.css?v=2026111510">
+  <link rel="stylesheet" href="app.css?v=2026111511">
   <script src="logo.js" defer></script>
   <script>document.addEventListener("DOMContentLoaded",function(){if(window.AM_LOGO_B64){["login-logo","loading-logo"].forEach(function(id){var el=document.getElementById(id);if(el)el.src=window.AM_LOGO_B64;});}})</script>
 </head>
@@ -62,11 +87,15 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></symbol><symbol id="i-pencil" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></symbol><symbol id="i-message" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol><symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol><symbol id="i-trophy" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></symbol><symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol><symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol><symbol id="i-scale" viewBox="0 0 24 24"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></symbol><symbol id="i-trend" viewBox="0 0 24 24"><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></symbol><symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21v-1a6 6 0 0 1 12 0v1M16 3.1a4 4 0 0 1 0 7.8M22 21v-1a6 6 0 0 0-4-5.6"/></symbol><symbol id="i-crown" viewBox="0 0 24 24"><path d="M3 18h18M4 8l4 4 4-7 4 7 4-4-2 10H6Z"/></symbol><symbol id="i-train" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="16" rx="2"/><path d="M4 11h16M12 3v8M8 19l-2 3M18 22l-2-3M8 15h0M16 15h0"/></symbol><symbol id="i-list" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/></symbol><symbol id="i-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol><symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol><symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></symbol><symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></symbol><symbol id="i-save" viewBox="0 0 24 24"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></symbol><symbol id="i-smartphone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></symbol><symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></symbol><symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol><symbol id="i-book" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol><symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol><symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol><symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol><symbol id="i-ghost" viewBox="0 0 24 24"><path d="M9 10h.01M15 10h.01M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"/></symbol><symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></symbol><symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol><symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></symbol><symbol id="i-bell-off" viewBox="0 0 24 24"><path d="M8.7 3A6 6 0 0 1 18 8a21.3 21.3 0 0 0 .6 5"/><path d="M17 17H3s3-2 3-9a4.67 4.67 0 0 1 .3-1.7"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path d="m2 2 20 20"/></symbol><symbol id="i-swords" viewBox="0 0 24 24"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4"/><path d="m7 17-3 3"/><path d="m3 19 2 2"/></symbol><symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></symbol><symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></symbol><symbol id="i-sparkles" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></symbol><symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol><symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol><symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol><symbol id="i-trend-down" viewBox="0 0 24 24"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></symbol><symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></symbol></defs></svg>
 
 <div id="loading-screen">
-  <div class="ld-shuttle">🏸</div>
-  <div class="ld-title">새벽민턴</div>
-  <div class="ld-sub">AM BADMINTON</div>
-  <div class="spinner" style="margin-top:24px;"></div>
+  <div class="ld-l ld-dawn"></div><div class="ld-l ld-day"></div><div class="ld-l ld-stars"></div>
+  <div class="ld-c">
+    <div class="ld-logo"><img class="ld-lw" src="header-logo.png" alt=""><img class="ld-lk" src="header-logo.png" alt="AM BADMINTON"></div>
+    <div class="ld-title">새벽민턴</div>
+    <div class="ld-sub">AM BADMINTON</div>
+    <div class="ld-bar"><i></i></div>
+  </div>
 </div>
+<script>/* 로딩 화면이 실제로 그려진 시각 — core.js fadeOutLoading이 새벽→아침 연출을 최소한은 보여 주는 기준 */requestAnimationFrame(function(){window.__ldShown=performance.now();});</script>
 
 <div id="login-page">
   <div style="position:fixed;top:12px;right:16px;z-index:999;">
@@ -817,7 +846,7 @@
 <div id="toast-container"></div>
 
 <script src="utils.js?v=2026100702" defer></script>
-<script src="core.js?v=2026111503" defer></script>
+<script src="core.js?v=2026111504" defer></script>
 <script src="dashboard.js?v=2026111503" defer></script>
 <script src="feed.js?v=2026111503" defer></script>
 <script src="register.js?v=2026100505" defer></script>

@@ -177,6 +177,9 @@ window.addEventListener('DOMContentLoaded',async()=>{
 });
 
 async function fadeOutLoading(){
+  // 새벽→아침 연출(1.8초)이 너무 일찍 끊기지 않게 최소 1.3초는 보여 준다 (그 전에 준비돼도 잠깐 기다림)
+  const MIN=1300, shown=window.__ldShown||0, wait=shown?Math.max(0,MIN-(performance.now()-shown)):0;
+  if(wait) await new Promise(r=>setTimeout(r,wait));
   return new Promise(r=>{const ls=document.getElementById('loading-screen');ls.classList.add('hidden');setTimeout(()=>{ls.style.display='none';r();},450);});
 }
 

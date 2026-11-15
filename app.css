@@ -25,7 +25,7 @@
 html{scroll-behavior:smooth}
 body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;line-height:1.55;visibility:hidden}
 body.ready{visibility:visible}
-#loading-screen{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;transition:opacity .4s}
+#loading-screen{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .4s} /* 배경·연출은 index.html critical-boot (새벽하늘) */
 #loading-screen.hidden{opacity:0;pointer-events:none}
 .ld-shuttle{font-size:4rem;animation:shuttle 1.2s ease-in-out infinite alternate}
 .ld-icon{font-size:4rem;animation:shuttle 1.2s ease-in-out infinite alternate}
