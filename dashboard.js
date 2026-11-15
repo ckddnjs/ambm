@@ -1,8 +1,45 @@
 /* ── DASHBOARD ── */
+/* 홈 즉시 표시 캐시 (2026-11-15): 마지막으로 받은 홈 데이터를 기기에 저장해 두고, 앱을 켜면 그걸로 홈을 바로 다 그린 뒤
+   뒤에서 최신 데이터로 다시 그린다 — 느린 LTE에서 로딩이 끝나도 빈 카드가 보이던 문제. 같은 회원·7일 이내만 사용 */
+const _HOME_CACHE='ambm_home_cache_v1';
+function _homeCacheLoad(){
+  try{const c=JSON.parse(localStorage.getItem(_HOME_CACHE)||'null');
+    if(c&&c.uid===ME?.id&&Date.now()-c.t<7*864e5&&Array.isArray(c.matches)&&Array.isArray(c.profiles)) return c;}catch(e){}
+  return null;
+}
+function _homeCacheSave(prof){
+  try{localStorage.setItem(_HOME_CACHE,JSON.stringify({t:Date.now(),uid:ME.id,me:prof||null,matches:_allMatchesCache,profiles:window._profilesCache||[],ss:window._seasonStart,cs:window._currentSeason}));}
+  catch(e){try{localStorage.removeItem(_HOME_CACHE);}catch(_){}}
+}
+async function _homeRefreshFromServer(){
+  try{
+    const{data}=await sb.from('app_settings').select('key,value').in('key',['season_start','current_season']);
+    const map={};(data||[]).forEach(r=>{map[r.key]=r.value;});
+    if(map.season_start!==undefined) window._seasonStart=map.season_start||'';
+    if(map.current_season!==undefined) window._currentSeason=parseInt(map.current_season||'1')||1;
+  }catch(e){}
+  window._matchCacheTime=0;window._profilesCache=null;
+  if(currentPage==='dashboard') await renderDashboard();
+}
 async function renderDashboard(){
+  let _fromCache=false;
+  if(!window._homeBooted){
+    window._homeBooted=true;
+    const c=_homeCacheLoad();
+    if(c){
+      _fromCache=true;
+      window._seasonStart=c.ss;window._currentSeason=c.cs;
+      _allMatchesCache=c.matches;window._allMatchesCache=c.matches;window._matchCacheTime=Date.now();
+      window._profilesCache=c.profiles;window._guestModeNamesCache=await _loadGuestModeNames();
+      if(c.me) ME={...ME,...c.me};
+    }
+  }
   await ensureSeasonStart(); // 시즌 컷오프 보장 (랭킹·개인성적 집계용)
-  const{data:prof}=await sb.from('profiles').select(PROFILE_COLS).eq('id',ME.id).single();
-  if(prof) ME={...ME,...prof}; // email은 profiles에서 못 읽으므로 기존 값(세션) 유지
+  let prof=null;
+  if(!_fromCache){
+    ({data:prof}=await sb.from('profiles').select(PROFILE_COLS).eq('id',ME.id).single());
+    if(prof) ME={...ME,...prof}; // email은 profiles에서 못 읽으므로 기존 값(세션) 유지
+  }
   const _mcpBanner=document.getElementById('mcp-connect-banner');
   if(_mcpBanner) _mcpBanner.style.display=(ME.id==='0b8e3098-b0be-43ee-9729-07702141b005'&&ME.name==='강창원')?'flex':'none';
   // 경기 캐시: 30초 이내면 재조회 생략
@@ -286,6 +323,9 @@ async function renderDashboard(){
   renderBump();
   renderStreakTrain();
   renderSeasonOnboard(stats.total.games||0);
+  // 캐시로 그렸으면 화면이 뜬 뒤 최신으로 다시 그리고, 서버 데이터로 그렸으면 다음 실행용으로 저장
+  if(_fromCache) setTimeout(()=>{_homeRefreshFromServer();},400);
+  else if(prof) _homeCacheSave(prof);
 }
 
 async function openMcpConnect(){
