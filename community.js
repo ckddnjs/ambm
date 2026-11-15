@@ -448,6 +448,7 @@ function awardPostHTML(p){
     <div class="aw-body">
     ${secs||'<div style="font-size:.8rem;color:var(--text-muted);padding:8px 0;">수상자 없음</div>'}
     ${total?`<div class="aw-total">콕 총 ${total}개 · 현장 지급</div>`:''}
+    ${date&&typeof openDateSummaryPage==='function'?`<button class="aw-all" onclick="event.stopPropagation();openDateSummaryPage('${escHtml(date)}')">전체 경기 보기 ›</button>`:''}
     </div>
   </div>`;
 }
