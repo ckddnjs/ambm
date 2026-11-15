@@ -655,3 +655,11 @@ body.light-mode .hdr-logo{filter:none}
 .app-header.hdr-compact .hdr-logo{height:16px}
 .app-header.hdr-compact .app-header-logo{gap:6px}
 @media (prefers-reduced-motion: reduce){.hdr-title,.hdr-logo{transition:none}}
+/* 하단 메뉴 탭 애니메이션 (2026-11-15): 누르는 순간 살짝 눌리고, 새로 선택된 탭은 알약이 튀어나오며 아이콘이 통통 */
+.bottom-nav-item{transition:transform .12s ease,color .2s}
+.bottom-nav-item:active{transform:scale(.9)}
+.bottom-nav-item.active{animation:navPill .38s cubic-bezier(.3,1.5,.5,1)}
+.bottom-nav-item.active .nav-icon,.bottom-nav-item.active .nav-fab-circle{animation:navPop .5s cubic-bezier(.3,1.7,.5,1)}
+@keyframes navPill{from{transform:scale(.82);opacity:.6}to{transform:none;opacity:1}}
+@keyframes navPop{0%{transform:scale(.6) translateY(3px)}55%{transform:scale(1.18) translateY(-2px)}100%{transform:none}}
+@media (prefers-reduced-motion: reduce){.bottom-nav-item.active,.bottom-nav-item.active .nav-icon,.bottom-nav-item.active .nav-fab-circle{animation:none}}
