@@ -28,6 +28,7 @@ const RISE_CHIP = [
 
 function riseBlockHTML(){
   // 일반 성격의 내용이라 '전체'와 '일반' 탭에서만 보인다
+  return ''; // 2026-11-15 내림: 시즌2 기준 오래된 글 (사용자 요청). 다시 쓰려면 이 줄 삭제
   if(commTab!=='all' && commTab!=='general') return '';
   return `<div class="rise-card">
     <div class="rise-head">
