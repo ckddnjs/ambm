@@ -818,3 +818,20 @@ function ciToLabel(ci){
 }
 
 
+
+/* ── 헤더: 스크롤을 내리면 '새벽민턴' 글자를 접고 로고만 남긴다 (2026-11-15) ── */
+(function(){
+  const body=document.querySelector('.app-body'), hdr=document.querySelector('.app-header');
+  if(!body||!hdr) return;
+  let on=false, tick=false;
+  const onScroll=()=>{
+    if(tick) return; tick=true;
+    requestAnimationFrame(()=>{
+      tick=false;
+      const want=Math.max(body.scrollTop,window.scrollY||0)>48;
+      if(want!==on){on=want;hdr.classList.toggle('hdr-compact',on);}
+    });
+  };
+  body.addEventListener('scroll',onScroll,{passive:true});
+  window.addEventListener('scroll',onScroll,{passive:true}); // 기기에 따라 창이 스크롤되는 경우 대비
+})();

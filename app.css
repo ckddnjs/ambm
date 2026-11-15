@@ -630,7 +630,7 @@ body.light-mode .bottom-nav-item.active{background:linear-gradient(180deg,rgba(2
 .aw-card.aw-open .aw-body{display:block}
 .aw-all{display:block;width:100%;margin-top:12px;padding:9px 0;border:none;border-top:1px solid var(--border);background:none;color:var(--primary);font-family:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
 /* 헤더 로고: AM 마크 (다크모드는 반전) */
-.hdr-logo{height:26px;width:auto;display:block;filter:invert(1) brightness(1.05)}
+.hdr-logo{height:20px;width:auto;display:block;transition:height .25s ease;filter:invert(1) brightness(1.05)}
 body.light-mode .hdr-logo{filter:none}
 /* 순위 이동 차트 첫 진입 애니메이션 — 선이 주차 순서대로 그려지고 점·이름이 뒤따라 나타남 (hsdTV 이식, dashboard.js renderBump) */
 .bump-pre .bmp-seg{stroke-dasharray:1;stroke-dashoffset:1}
@@ -649,3 +649,9 @@ body.light-mode .hdr-logo{filter:none}
 .train-go .tr-eng{animation:trainEng .8s cubic-bezier(.22,.9,.3,1) both}
 @keyframes trainIn{from{transform:translateX(-100%);opacity:0}60%{opacity:1}to{transform:none;opacity:1}}
 @keyframes trainEng{from{transform:translateX(-48px);opacity:0}to{transform:none;opacity:1}}
+/* 스크롤 내리면 '새벽민턴' 글자는 접히고 AM 로고만 남음 (core.js .app-body 스크롤 감지) */
+.hdr-title{display:inline-block;max-width:8em;overflow:hidden;white-space:nowrap;transition:max-width .3s ease,opacity .2s ease}
+.app-header.hdr-compact .hdr-title{max-width:0;opacity:0}
+.app-header.hdr-compact .app-header-logo{gap:0}
+.app-header.hdr-compact .hdr-logo{height:22px}
+@media (prefers-reduced-motion: reduce){.hdr-title,.hdr-logo{transition:none}}
