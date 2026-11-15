@@ -188,7 +188,7 @@ async function renderDashboard(){
     _partnerMap[pkey].games++;if(won)_partnerMap[pkey].wins++;
   });
   const _partnerList=_partnerSort(Object.values(_partnerMap).filter(p=>p.games>0));
-  const bestPartner=_partnerBest(_partnerList);   // 3경기 이상 + 승−패 +1 이상 중 1위(2026-11-16)
+  const bestPartner=_partnerList[0]||null;   // 승−패 점수 1위(2026-11-16 사용자: 3경기·+1점 조건 없앰)
 
   // CI 등급/게이지
   const ciVal=Math.round(ci);
@@ -265,7 +265,7 @@ async function renderDashboard(){
             bestPartner.wins+'승 '+(bestPartner.games-bestPartner.wins)+'패<br>'+
             Math.round(bestPartner.wins/bestPartner.games*100)+'%'+
           '</div>'
-        :'<div style="font-size:.78rem;color:var(--text-muted);padding:4px 0;">'+(_partnerList.length?'아직 없음':'기록 없음')+'</div>')+
+        :'<div style="font-size:.78rem;color:var(--text-muted);padding:4px 0;">기록 없음</div>')+
       '</div>'+
       // 3열: 득실차(위) + 최근전적(아래)
       '<div class="ov-col3" style="display:flex;flex-direction:column;">'+
@@ -1083,15 +1083,13 @@ function updatePartnerTabLabel(){
 }
 /* 베스트 파트너(2026-11-16 사용자 결정, 후생동TV·새벽민턴 공통)
    점수 = 같이 이긴 수 − 같이 진 수. 점수 높은 순 → 같으면 승률 → 같이 친 경기 수.
-   홈 '베스트 파트너' 칸 = 3경기 이상 + 점수 +1 이상 중 1위(없으면 '아직 없음'). 3판 미만 흐림·'탐색 중'은 없앰.
+   홈 '베스트 파트너' 칸 = 점수 1위(3경기·+1점 조건은 사용자 요청으로 없앰). 3판 미만 흐림·'탐색 중'도 없음.
    고리 = 승률(70%↑ 초록 / 50~69% 노랑 / 50% 미만 빨강). 궁합 점수(보정 승률)는 쓰지 않음 */
-const PARTNER_MIN_G=3;
 function _partnerScore(p){ return p.wins-(p.games-p.wins); }
 function _partnerSort(list){
   const wr=p=>p.games?p.wins/p.games:0;
   return [...list].sort((a,b)=>_partnerScore(b)-_partnerScore(a)||wr(b)-wr(a)||b.games-a.games);
 }
-function _partnerBest(sorted){ return (sorted||[]).find(p=>p.games>=PARTNER_MIN_G&&_partnerScore(p)>=1)||null; }
 const _psTxt=p=>{ const v=_partnerScore(p); return (v>0?'+':'')+v; };
 function _partnerRingHtml(p){
   const wr=p.games?p.wins/p.games:0;
@@ -1122,7 +1120,7 @@ function partnerHelp(){
     <div style="color:var(--text-muted);margin-bottom:10px;">예) 7승 2패 → <b style="color:var(--text);">+5</b> · 4승 0패 → <b style="color:var(--text);">+4</b> · 0승 3패 → <b style="color:var(--text);">−3</b></div>
     <ul style="margin:0;padding-left:18px;">
       <li>점수가 높은 순서로 줄을 세워요. 점수가 같으면 승률이 높은 사람, 그다음 같이 많이 친 사람이 앞이에요.</li>
-      <li>홈 '베스트 파트너'는 <b>3경기 이상</b> 같이 치고 점수가 <b>+1 이상</b>인 사람 중 1위예요. 없으면 '아직 없음'으로 나와요.</li>
+      <li>홈 '베스트 파트너'는 이 순서의 1위예요.</li>
       <li>사진 둘레 고리는 승률이에요. 70% 이상 초록, 50~69% 노랑, 50% 미만 빨강.</li>
       <li>이번 시즌 경기만 세요.</li>
     </ul></div>`;
