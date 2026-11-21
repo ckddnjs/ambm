@@ -704,3 +704,28 @@ body.light-mode .hdr-logo{filter:none}
 .aw-shelf{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--border);border-radius:14px;overflow:hidden}
 .aw-shelf-cell:nth-child(n+4){border-top:1px solid var(--border)}
 .aw-shelf-cell:not(:nth-child(3n+1)){border-left:1px solid var(--border)}
+/* 시상 카드 토스풍 (11/21 2안) */
+.aw-body{padding-top:12px}
+.aw-t-date{font-size:.74rem;color:var(--text-muted);font-weight:700}
+.aw-t-big{font-size:1.45rem;font-weight:900;letter-spacing:-.5px;line-height:1.3;margin:2px 0 12px;word-break:keep-all;color:var(--text)}
+.aw-t-big span{color:var(--primary)}
+.aw-t-list{display:flex;flex-direction:column;gap:2px}
+.aw-t-row{display:flex;align-items:center;gap:12px;padding:7px 2px}
+.aw-t-n{font-family:'Black Han Sans',sans-serif;font-size:1.25rem;width:22px;text-align:center;color:var(--text-dim);flex-shrink:0}
+.aw-t-row.f .aw-t-n{color:var(--primary)}
+.aw-t-row .aw-av{width:36px;height:36px;margin:0 3px}
+.aw-t-row .aw-av.big{width:42px;height:42px;margin:0;box-shadow:none}
+.aw-t-nm{font-weight:700;font-size:.95rem;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aw-t-r{margin-left:auto;text-align:right;font-size:.78rem;color:var(--text-muted);line-height:1.35;font-variant-numeric:tabular-nums;flex-shrink:0}
+.aw-t-r b{color:var(--text);font-weight:700}
+.aw-tk{font-weight:500;color:var(--text-muted);font-size:.7rem;margin-left:4px}
+.aw-t-more{font-size:.78rem;color:var(--text-muted);padding:4px 2px 0 92px;line-height:1.6;word-break:keep-all}
+.aw-t-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.aw-t-pair.one{grid-template-columns:1fr}
+.aw-t-box{background:rgba(127,140,160,.13);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.aw-t-e{font-size:1.6rem;line-height:1}
+.aw-t-k{font-size:.72rem;font-weight:700;color:var(--text-muted)}
+.aw-t-q{font-size:.78rem;line-height:1.45;word-break:keep-all;color:var(--text);flex:1}
+.aw-t-ns{display:flex;flex-wrap:wrap;gap:2px 8px;font-size:.8rem;font-weight:800;color:var(--text);border-top:1px dashed var(--border);padding-top:6px}
+.aw-t-btn{display:block;width:100%;margin-top:12px;padding:11px 0;border:none;border-radius:12px;background:rgba(77,159,255,.14);color:var(--primary);font-family:inherit;font-size:.84rem;font-weight:700;cursor:pointer}
+body.light-mode .aw-t-btn{background:rgba(29,111,216,.10)}

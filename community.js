@@ -518,21 +518,43 @@ function _awardTalkHTML(kind,items,seed){
   return `<div class="aw-talk"><div class="aw-face">${face}</div><div class="aw-bubble">${list[(kind==="cheer"?(seed>>>4)+7:seed)%list.length]}<div class="aw-who">${names}</div></div></div>`;
 }
 
+/* 토스풍 본문 (11/21 2안): 큰 문장 → 1~3등 리스트 → 나머지 한 줄 → 평화·힘내요 둥근 칸 */
+function _awardTossHTML(date,awards,seed){
+  const rec=((window._awardRec||{})[date])||{};
+  const cnt=Object.keys(rec).length;
+  const dt=date?new Date(date+'T00:00:00'):null;
+  const head=dt?`${dt.getMonth()+1}월 ${dt.getDate()}일 ${'일월화수목금토'[dt.getDay()]}요일 새벽${cnt?` · ${cnt}명`:''}`:'';
+  const groups=_awardGroups(awards);
+  const rankG=groups.filter(g=>_awardKind(g.group)==='rank');
+  const main=rankG[0]?rankG[0].items:[];
+  const firsts=main.filter((a,i)=>_awardRankNo(a,i)==='1');
+  const hero=firsts.length?firsts:main.slice(0,1);
+  const cock=a=>+a.cock?`<small class="aw-tk">콕 ${+a.cock}</small>`:'';
+  let h=`<div class="aw-t-date">${escHtml(head)}</div>`;
+  if(hero.length) h+=`<div class="aw-t-big">오늘의 1등은<br><span>${hero.map(a=>escHtml(a.name)).join(' · ')}</span> 님이에요 🎉</div>`;
+  const top=main.slice(0,3), rest=main.slice(3);
+  if(top.length) h+=`<div class="aw-t-list">${top.map((a,i)=>{
+    const no=_awardRankNo(a,i), r=rec[a.name], f=no==='1';
+    return `<div class="aw-t-row${f?' f':''}"><span class="aw-t-n">${escHtml(no)}</span>${_awardAvatar(a.name,f)}<span class="aw-t-nm">${escHtml(a.name)}${cock(a)}</span>${r?`<span class="aw-t-r"><b>${r.w}승 ${r.l}패</b><br>득실 ${r.d>0?'+':''}${r.d}</span>`:''}</div>`;
+  }).join('')}</div>`;
+  const restTxt=rest.map((a,i)=>`${escHtml(_awardRankNo(a,i+3))}등 ${escHtml(a.name)}${+a.cock?` (콕 ${+a.cock})`:''}`);
+  rankG.slice(1).forEach(g=>g.items.forEach(a=>restTxt.push(`${escHtml(g.group)} ${escHtml(a.name)}`)));
+  if(restTxt.length) h+=`<div class="aw-t-more">${restTxt.join(' · ')}</div>`;
+  const boxes=groups.filter(g=>_awardKind(g.group)!=='rank').map(g=>{
+    const kind=_awardKind(g.group), list=AWARD_QUIPS[kind];
+    const q=list[(kind==='cheer'?(seed>>>4)+7:seed)%list.length];
+    return `<div class="aw-t-box"><span class="aw-t-e">${kind==='peace'?'🕊️':'😤'}</span><span class="aw-t-k">${escHtml(g.group)}</span><span class="aw-t-q">${q}</span><span class="aw-t-ns">${g.items.map(a=>`<span>${escHtml(a.name)}${cock(a)}</span>`).join('')}</span></div>`;
+  });
+  if(boxes.length) h+=`<div class="aw-t-pair${boxes.length===1?' one':''}">${boxes.join('')}</div>`;
+  return h;
+}
+
 function awardPostHTML(p){
   const {date,awards}=_awardParse(p);
   const isAdmin=ME.role==='admin';
   const seed=_awardSeed(date||p.id);
   const total=awards.reduce((s,a)=>s+(+a.cock||0),0);
-  let rankUsed=false;
-  const secs=_awardGroups(awards).map(g=>{
-    const kind=_awardKind(g.group);
-    let inner;
-    if(kind==='rank'&&!rankUsed){rankUsed=true;inner=_awardPodiumHTML(g.items,date);}
-    else if(kind==='rank') inner=`<div class="aw-minis">${g.items.map((a,i)=>`<span class="aw-mini"><b>${escHtml(_awardRankNo(a,i))}</b>${escHtml(a.name)}</span>`).join('')}</div>`;
-    else inner=_awardTalkHTML(kind,g.items,seed);
-    const icon=kind==='rank'?'<span class="aw-trb" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 6h2.5a.5.5 0 0 1 .5.5V8a3 3 0 0 1-3 3"/><path d="M7 6H4.5a.5.5 0 0 0-.5.5V8a3 3 0 0 0 3 3"/><path d="M12 14v4M8.5 20h7"/></svg></span>':'';
-    return `<div class="aw-sec"><div class="aw-sec-h">${icon}${escHtml(g.group||'시상')}</div>${inner}</div>`;
-  }).join('');
+  const secs=awards.length?_awardTossHTML(date,awards,seed):'';
   const open=p.id===window._awardLatestId;
   const first=awards[0];
   const peek=first?`${first.prize?escHtml(first.prize)+' ':''}${escHtml(first.name)}${awards.length>1?` 외 ${awards.length-1}명`:''}`:'';
@@ -552,7 +574,7 @@ function awardPostHTML(p){
     <div class="aw-body">
     ${secs||'<div style="font-size:.8rem;color:var(--text-muted);padding:8px 0;">수상자 없음</div>'}
     ${total?`<div class="aw-total">콕 총 ${total}개 · 현장 지급</div>`:''}
-    ${date&&typeof openDateSummaryPage==='function'?`<button class="aw-all" onclick="event.stopPropagation();openDateSummaryPage('${escHtml(date)}')">전체 경기 보기 ›</button>`:''}
+    ${date&&typeof openDateSummaryPage==='function'?`<button class="aw-t-btn" onclick="event.stopPropagation();openDateSummaryPage('${escHtml(date)}')">전체 경기 보기</button>`:''}
     </div>
   </div>`;
 }
