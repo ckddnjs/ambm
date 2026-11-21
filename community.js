@@ -540,12 +540,16 @@ function _awardTossHTML(date,awards,seed){
   const restTxt=rest.map((a,i)=>`${escHtml(_awardRankNo(a,i+3))}등 ${escHtml(a.name)}${+a.cock?` (콕 ${+a.cock})`:''}`);
   rankG.slice(1).forEach(g=>g.items.forEach(a=>restTxt.push(`${escHtml(g.group)} ${escHtml(a.name)}`)));
   if(restTxt.length) h+=`<div class="aw-t-more">${restTxt.join(' · ')}</div>`;
-  const boxes=groups.filter(g=>_awardKind(g.group)!=='rank').map(g=>{
+  /* 평화상·힘내요상 (11/21 4안): 1~3등과 같은 줄 모양으로 이어서 — 소제목 → 멘트 한 줄 → 등수·프사·이름·전적 줄 */
+  groups.filter(g=>_awardKind(g.group)!=='rank').forEach(g=>{
     const kind=_awardKind(g.group), list=AWARD_QUIPS[kind];
     const q=list[(kind==='cheer'?(seed>>>4)+7:seed)%list.length];
-    return `<div class="aw-t-box"><span class="aw-t-e">${kind==='peace'?'🕊️':'😤'}</span><span class="aw-t-k">${escHtml(g.group)}</span><span class="aw-t-q">${q}</span><span class="aw-t-ns">${g.items.map(a=>`<span>${escHtml(a.name)}${cock(a)}</span>`).join('')}</span></div>`;
+    h+=`<div class="aw-t-h"><span>${kind==='peace'?'🕊️':'😤'}</span>${escHtml(g.group)}</div><div class="aw-t-q">${q}</div>`;
+    h+=g.items.map(a=>{
+      const m=String(a.prize||'').match(/\d+/), r=rec[a.name];
+      return `<div class="aw-t-row sm"><span class="aw-t-n">${m?`${m[0]}<small>등</small>`:''}</span>${_awardAvatar(a.name)}<span class="aw-t-nm">${escHtml(a.name)}${cock(a)}</span>${r?`<span class="aw-t-r"><b>${r.w}승 ${r.l}패</b><br>득실 ${r.d>0?'+':''}${r.d}</span>`:''}</div>`;
+    }).join('');
   });
-  if(boxes.length) h+=`<div class="aw-t-pair${boxes.length===1?' one':''}">${boxes.join('')}</div>`;
   return h;
 }
 
