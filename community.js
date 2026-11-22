@@ -558,7 +558,7 @@ function _awardTossHTML(date,awards,seed){
 
 /* ══════════════════════════════════════════════
    팀전 결과 — 소식탭 'team' 게시글 (2026-11-22, 시안 1안 토스풍)
-   body = JSON {v:1,date,players,games,teams:[{name,wins,pts}] (0=승리팀),
+   body = JSON {v:1|2,date,players,games,unit:'round'(v2),teams:[{name,wins,pts,games,members}] (0=승리팀),
                 rounds:[[승리팀 승,상대 승],...], mvp:[{name,team,w,l,d}], best:{name,team,w,l,d}}
    집계는 등록 시점 스냅샷(경기 수정 시 글도 다시 써야 함). 등록은 관리자(SQL/추후 버튼).
 ══════════════════════════════════════════════ */
@@ -574,9 +574,18 @@ function teamPostHTML(p){
   const head=dt?`${dt.getMonth()+1}월 ${dt.getDate()}일 ${'일월화수목금토'[dt.getDay()]}요일 새벽${o.players?` · ${+o.players}명`:''}${o.games?` · ${+o.games}경기`:''}`:'';
   const rec=r=>`<span class="aw-t-r"><b>${+r.w}승 ${+r.l}패</b><br>득실 ${r.d>0?'+':''}${+r.d}</span>`;
   const canX=!!o.date&&Array.isArray(W.members)&&W.members.length>0;
-  const rounds=(o.rounds||[]).map((r,i)=>canX
-    ?`<button type="button" class="tm-rd${r[0]>r[1]?' w':''}" aria-expanded="false" onclick="event.stopPropagation();_teamRound('${p.id}',${i+1},this)">${i+1}R<b>${+r[0]}:${+r[1]}</b></button>`
-    :`<div class="tm-rd${r[0]>r[1]?' w':''}">${i+1}R<b>${+r[0]}:${+r[1]}</b></div>`).join('');
+  // rounds: v1 = [[승리팀 경기승,상대 경기승]] / v2 = [{pts:[승리팀 득점,상대 득점],games:[..]}] — 라운드 승 = 총득점(같으면 경기승) (2026-11-22)
+  const short=t=>String(t.name||'').replace(/^팀/,'');
+  const rounds=(o.rounds||[]).map((r,i)=>{
+    const v2=r&&!Array.isArray(r), a=v2?r.pts:r, g=v2?(r.games||[0,0]):r;
+    const win0=a[0]!==a[1]?a[0]>a[1]:g[0]>g[1];
+    const inner=`${i+1}R<b>${+a[0]}:${+a[1]}</b>${v2?`<small>${escHtml(short(win0?W:L))} 승</small>`:''}`;
+    return canX
+      ?`<button type="button" class="tm-rd${win0?' w':' l'}" aria-expanded="false" onclick="event.stopPropagation();_teamRound('${p.id}',${i+1},this)">${inner}</button>`
+      :`<div class="tm-rd${win0?' w':' l'}">${inner}</div>`;
+  }).join('');
+  const unit=o.unit==='round'?'라운드 승':'';
+  const sub=unit?`<div class="tm-sub">${unit}${W.games!=null?` · 경기 ${+W.games}:${+L.games}`:''}</div>`:'';
   const mvp=(o.mvp||[]).map((m,i)=>`<div class="aw-t-row${i===0?' f':''}"><span class="aw-t-n">${i+1}</span>${_awardAvatar(m.name,i===0)}<span class="aw-t-nm">${escHtml(m.name)}<small class="tm-tn">${escHtml(m.team)}</small></span>${rec(m)}</div>`).join('');
   const best=o.best?`<div class="aw-t-more tm-best">${escHtml(o.best.team)} 최고 · ${escHtml(o.best.name)} ${+o.best.w}승 ${+o.best.l}패 ${o.best.d>0?'+':''}${+o.best.d}</div>`:'';
   return `<div class="comm-post aw-card${open?' aw-open':''}" id="post-${p.id}">
@@ -591,7 +600,7 @@ function teamPostHTML(p){
     </div>
     <div class="aw-body">
       <div class="aw-t-date">${escHtml(head)}</div>
-      <div class="aw-t-big">오늘 팀전은<br><span>${escHtml(W.name)}</span>${_teamJosa(W.name)} 이겼어요 🎉<br>${+W.wins} : ${+L.wins}</div>
+      <div class="aw-t-big">오늘 팀전은<br><span>${escHtml(W.name)}</span>${_teamJosa(W.name)} 이겼어요 🎉<br>${+W.wins} : ${+L.wins}</div>${sub}
       ${rounds?`<div class="tm-rds">${rounds}</div><div class="tm-x" id="tmx-${p.id}" hidden></div>`:''}
       ${mvp?`<div class="aw-t-h">오늘의 MVP</div><div class="aw-t-list">${mvp}</div>`:''}
       ${best}

@@ -765,3 +765,9 @@ button.tm-rd:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
 .tm-roh small{font-weight:500;color:var(--text-dim);margin-left:5px;font-size:.72rem}
 .tm-rol{display:flex;flex-wrap:wrap;gap:4px 8px;font-size:.8rem;color:var(--text-muted)}
 .tm-rol .cap{color:var(--text);font-weight:700}
+
+/* 팀전 라운드 승 기준 (2026-11-22) */
+.tm-sub{font-size:.78rem;color:var(--text-muted);margin:-6px 0 12px;font-weight:700}
+.tm-rd small{display:block;font-size:.64rem;margin-top:1px;color:var(--text-dim)}
+.tm-rd.w small{color:var(--primary)}
+.tm-rd.l b{color:var(--text)}
