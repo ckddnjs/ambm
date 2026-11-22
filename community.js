@@ -573,7 +573,10 @@ function teamPostHTML(p){
   const dt=o.date?new Date(o.date+'T00:00:00'):null;
   const head=dt?`${dt.getMonth()+1}월 ${dt.getDate()}일 ${'일월화수목금토'[dt.getDay()]}요일 새벽${o.players?` · ${+o.players}명`:''}${o.games?` · ${+o.games}경기`:''}`:'';
   const rec=r=>`<span class="aw-t-r"><b>${+r.w}승 ${+r.l}패</b><br>득실 ${r.d>0?'+':''}${+r.d}</span>`;
-  const rounds=(o.rounds||[]).map((r,i)=>`<div class="tm-rd${r[0]>r[1]?' w':''}">${i+1}R<b>${+r[0]}:${+r[1]}</b></div>`).join('');
+  const canX=!!o.date&&Array.isArray(W.members)&&W.members.length>0;
+  const rounds=(o.rounds||[]).map((r,i)=>canX
+    ?`<button type="button" class="tm-rd${r[0]>r[1]?' w':''}" aria-expanded="false" onclick="event.stopPropagation();_teamRound('${p.id}',${i+1},this)">${i+1}R<b>${+r[0]}:${+r[1]}</b></button>`
+    :`<div class="tm-rd${r[0]>r[1]?' w':''}">${i+1}R<b>${+r[0]}:${+r[1]}</b></div>`).join('');
   const mvp=(o.mvp||[]).map((m,i)=>`<div class="aw-t-row${i===0?' f':''}"><span class="aw-t-n">${i+1}</span>${_awardAvatar(m.name,i===0)}<span class="aw-t-nm">${escHtml(m.name)}<small class="tm-tn">${escHtml(m.team)}</small></span>${rec(m)}</div>`).join('');
   const best=o.best?`<div class="aw-t-more tm-best">${escHtml(o.best.team)} 최고 · ${escHtml(o.best.name)} ${+o.best.w}승 ${+o.best.l}패 ${o.best.d>0?'+':''}${+o.best.d}</div>`:'';
   return `<div class="comm-post aw-card${open?' aw-open':''}" id="post-${p.id}">
@@ -589,12 +592,45 @@ function teamPostHTML(p){
     <div class="aw-body">
       <div class="aw-t-date">${escHtml(head)}</div>
       <div class="aw-t-big">오늘 팀전은<br><span>${escHtml(W.name)}</span>${_teamJosa(W.name)} 이겼어요 🎉<br>${+W.wins} : ${+L.wins}</div>
-      ${rounds?`<div class="tm-rds">${rounds}</div>`:''}
+      ${rounds?`<div class="tm-rds">${rounds}</div><div class="tm-x" id="tmx-${p.id}" hidden></div>`:''}
       ${mvp?`<div class="aw-t-h">오늘의 MVP</div><div class="aw-t-list">${mvp}</div>`:''}
       ${best}
       ${o.date&&typeof openDateSummaryPage==='function'?`<button class="aw-t-btn" onclick="event.stopPropagation();openDateSummaryPage('${escHtml(o.date)}')">전체 경기 보기</button>`:''}
     </div>
   </div>`;
+}
+
+/* 라운드 칸을 누르면 그 라운드 경기를 펼친다 (2026-11-22). 경기는 DB에서 그날 승인 경기를 받아 보여줘서
+   점수를 고치면 같이 바뀐다. 왼쪽 = 글의 승리팀(teams[0]) 고정 — 점수판 사진은 라운드마다 좌우가 바뀌므로. */
+window._teamGames=window._teamGames||{};
+async function _teamRound(pid,r,btn){
+  const box=document.getElementById('tmx-'+pid); if(!box) return;
+  const post=(window._commCache.all||[]).concat(window._commCache.team||[]).find(x=>x.id===pid);
+  const o=post&&_teamParse(post); if(!o) return;
+  const wasOn=btn.classList.contains('on');
+  btn.parentElement.querySelectorAll('.tm-rd').forEach(b=>{b.classList.remove('on');b.setAttribute('aria-expanded','false');});
+  if(wasOn){box.hidden=true;box.innerHTML='';return;}
+  btn.classList.add('on');btn.setAttribute('aria-expanded','true');
+  box.hidden=false;
+  let ms=window._teamGames[o.date];
+  if(!ms){
+    box.innerHTML='<div class="tm-xm">불러오는 중…</div>';
+    const{data,error}=await sb.from('matches').select('round_no,court_no,a1_name,a2_name,b1_name,b2_name,score_a,score_b').eq('match_date',o.date).eq('status','approved');
+    if(error){box.innerHTML='<div class="tm-xm">불러오기 실패 — 다시 눌러 주세요</div>';btn.classList.remove('on');return;}
+    ms=window._teamGames[o.date]=data||[];
+  }
+  if(!btn.classList.contains('on')) return;   // 기다리는 사이 다른 칸을 누름
+  const left=new Set(o.teams[0].members||[]);
+  const rows=ms.filter(m=>m.round_no===r).sort((a,b)=>(a.court_no||0)-(b.court_no||0));
+  if(!rows.length){box.innerHTML='<div class="tm-xm">이 라운드의 경기 정보가 없어요</div>';return;}
+  box.innerHTML=rows.map(m=>{
+    const aL=left.has(m.a1_name)||left.has(m.a2_name);
+    const L=aL?[m.a1_name,m.a2_name,m.score_a]:[m.b1_name,m.b2_name,m.score_b];
+    const R=aL?[m.b1_name,m.b2_name,m.score_b]:[m.a1_name,m.a2_name,m.score_a];
+    const lw=L[2]>R[2];
+    const nm=(t,w)=>`<span class="tm-xn${w?' w':''}">${escHtml([t[0],t[1]].filter(Boolean).join('·'))}</span>`;
+    return `<div class="tm-xr"><span class="tm-xc">${m.court_no?m.court_no+'코트':''}</span>${nm(L,lw)}<span class="tm-xs"><b class="${lw?'w':''}">${+L[2]}</b> : <b class="${lw?'':'w'}">${+R[2]}</b></span>${nm(R,!lw)}</div>`;
+  }).join('')+`<div class="tm-xh"><span>${escHtml(o.teams[0].name)}</span><span>${escHtml(o.teams[1].name)}</span></div>`;
 }
 
 function awardPostHTML(p){

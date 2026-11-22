@@ -739,3 +739,20 @@ body.light-mode .aw-t-btn{background:rgba(29,111,216,.10)}
 .tm-rd.w b{color:var(--primary)}
 .aw-t-nm .tm-tn{display:block;font-size:.72rem;font-weight:400;color:var(--text-dim)}
 .aw-t-more.tm-best{padding-left:2px}
+
+/* 팀전 라운드 펼치기 (2026-11-22) */
+button.tm-rd{border:1px solid transparent;font-family:inherit;cursor:pointer}
+button.tm-rd:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
+.tm-rd.on{border-color:var(--primary);background:rgba(77,159,255,.10)}
+.tm-x{background:var(--surface2);border-radius:10px;padding:8px 10px 6px;margin:0 0 6px}
+.tm-xr{display:grid;grid-template-columns:34px 1fr auto 1fr;align-items:center;gap:6px;padding:5px 0;font-size:.8rem;border-bottom:1px solid var(--border)}
+.tm-xr:last-of-type{border-bottom:none}
+.tm-xc{font-size:.68rem;color:var(--text-dim)}
+.tm-xn{color:var(--text-muted);word-break:keep-all;line-height:1.35}
+.tm-xn.w{color:var(--text);font-weight:700}
+.tm-xr .tm-xn:last-child{text-align:right}
+.tm-xs{font-variant-numeric:tabular-nums;color:var(--text-dim);white-space:nowrap}
+.tm-xs b{font-weight:700;color:var(--text-muted)}
+.tm-xs b.w{color:var(--primary)}
+.tm-xh{display:flex;justify-content:space-between;font-size:.66rem;color:var(--text-dim);padding:4px 0 0 40px}
+.tm-xm{font-size:.78rem;color:var(--text-muted);padding:4px 0}
