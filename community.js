@@ -579,7 +579,8 @@ function teamPostHTML(p){
   const rounds=(o.rounds||[]).map((r,i)=>{
     const v2=r&&!Array.isArray(r), a=v2?r.pts:r, g=v2?(r.games||[0,0]):r;
     const win0=a[0]!==a[1]?a[0]>a[1]:g[0]>g[1];
-    const inner=`${i+1}R<b>${+a[0]}:${+a[1]}</b>${v2?`<small>${escHtml(short(win0?W:L))} 승</small>`:''}`;
+    // 칸 = 경기 승수(3:1), 아래 = 라운드 가져간 팀과 득실 차 (2026-11-22 사용자 지시)
+    const inner=v2?`${i+1}R<b>${+g[0]}:${+g[1]}</b><small>${escHtml(short(win0?W:L))} +${Math.abs(a[0]-a[1])}</small>`:`${i+1}R<b>${+a[0]}:${+a[1]}</b>`;
     return canX
       ?`<button type="button" class="tm-rd${win0?' w':' l'}" aria-expanded="false" onclick="event.stopPropagation();_teamRound('${p.id}',${i+1},this)">${inner}</button>`
       :`<div class="tm-rd${win0?' w':' l'}">${inner}</div>`;
