@@ -95,6 +95,8 @@ function _commPaint(el,posts){
   // 시상 글은 가장 최근 날짜 1개만 펼치고 나머지는 접는다
   const _aw=posts.filter(p=>p.category==='award');
   window._awardLatestId=_aw.length?_aw.reduce((m,p)=>((_awardParse(p).date||p.created_at)>(_awardParse(m).date||m.created_at)?p:m)).id:null;
+  const _tm=posts.filter(p=>p.category==='team');
+  window._teamLatestId=_tm.length?_tm.reduce((m,p)=>(p.created_at>m.created_at?p:m)).id:null;
   el.innerHTML=riseBlockHTML()+posts.map(p=>commPostHTML(p)).join('');
 }
 async function renderCommunityPage(){
@@ -140,11 +142,12 @@ async function renderCommunityPage(){
   if(!same) _commPaint(el,posts||[]);   // 같으면 다시 그리지 않음 (펼친 카드 유지)
 }
 
-const _catLabel={'general':'일반','info':'정보','rules':'규칙','award':'시상'};
+const _catLabel={'general':'일반','info':'정보','rules':'규칙','award':'시상','team':'팀전'};
 const _catColor={'general':'var(--primary)','info':'var(--info)','rules':'var(--accent)','award':'var(--text-muted)'};
 
 function commPostHTML(p){
   if(p.category==='award') return awardPostHTML(p);
+  if(p.category==='team') return teamPostHTML(p);
   const isAdmin=ME.role==='admin';
   const isMyPost=p.author_id===ME?.id&&(ME?.role==='writer'||ME?.role==='admin');
   const canEdit=isAdmin||isMyPost;
@@ -551,6 +554,47 @@ function _awardTossHTML(date,awards,seed){
     }).join('');
   });
   return h;
+}
+
+/* ══════════════════════════════════════════════
+   팀전 결과 — 소식탭 'team' 게시글 (2026-11-22, 시안 1안 토스풍)
+   body = JSON {v:1,date,players,games,teams:[{name,wins,pts}] (0=승리팀),
+                rounds:[[승리팀 승,상대 승],...], mvp:[{name,team,w,l,d}], best:{name,team,w,l,d}}
+   집계는 등록 시점 스냅샷(경기 수정 시 글도 다시 써야 함). 등록은 관리자(SQL/추후 버튼).
+══════════════════════════════════════════════ */
+function _teamParse(p){try{const o=JSON.parse(p.body||'{}');return o&&Array.isArray(o.teams)&&o.teams.length===2?o:null;}catch(e){return null;}}
+function _teamJosa(n){const c=(n||'').charCodeAt((n||'').length-1)-0xAC00;return c>=0&&c<11172&&c%28?'이':'가';}
+function teamPostHTML(p){
+  const o=_teamParse(p);
+  if(!o) return '';
+  const isAdmin=ME.role==='admin';
+  const open=p.id===window._teamLatestId;
+  const [W,L]=o.teams;
+  const dt=o.date?new Date(o.date+'T00:00:00'):null;
+  const head=dt?`${dt.getMonth()+1}월 ${dt.getDate()}일 ${'일월화수목금토'[dt.getDay()]}요일 새벽${o.players?` · ${+o.players}명`:''}${o.games?` · ${+o.games}경기`:''}`:'';
+  const rec=r=>`<span class="aw-t-r"><b>${+r.w}승 ${+r.l}패</b><br>득실 ${r.d>0?'+':''}${+r.d}</span>`;
+  const rounds=(o.rounds||[]).map((r,i)=>`<div class="tm-rd${r[0]>r[1]?' w':''}">${i+1}R<b>${+r[0]}:${+r[1]}</b></div>`).join('');
+  const mvp=(o.mvp||[]).map((m,i)=>`<div class="aw-t-row${i===0?' f':''}"><span class="aw-t-n">${i+1}</span>${_awardAvatar(m.name,i===0)}<span class="aw-t-nm">${escHtml(m.name)}<small class="tm-tn">${escHtml(m.team)}</small></span>${rec(m)}</div>`).join('');
+  const best=o.best?`<div class="aw-t-more tm-best">${escHtml(o.best.team)} 최고 · ${escHtml(o.best.name)} ${+o.best.w}승 ${+o.best.l}패 ${o.best.d>0?'+':''}${+o.best.d}</div>`:'';
+  return `<div class="comm-post aw-card${open?' aw-open':''}" id="post-${p.id}">
+    <div class="comm-post-header aw-toggle" onclick="this.parentElement.classList.toggle('aw-open')">
+      <div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1;">
+        <span class="aw-chip tm-chip">팀전</span>
+        <span class="comm-post-title">${escHtml(p.title)}</span>
+        <span class="aw-peek">${escHtml(W.name)} ${+W.wins}:${+L.wins}</span>
+      </div>
+      ${isAdmin?`<div class="comm-post-meta"><button onclick="event.stopPropagation();deletePost('${p.id}')" style="background:none;border:none;color:var(--danger);font-size:.78rem;cursor:pointer;padding:0 4px;" aria-label="삭제"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg></button></div>`:''}
+      <span class="aw-chev" aria-hidden="true">›</span>
+    </div>
+    <div class="aw-body">
+      <div class="aw-t-date">${escHtml(head)}</div>
+      <div class="aw-t-big">오늘 팀전은<br><span>${escHtml(W.name)}</span>${_teamJosa(W.name)} 이겼어요 🎉<br>${+W.wins} : ${+L.wins}</div>
+      ${rounds?`<div class="tm-rds">${rounds}</div>`:''}
+      ${mvp?`<div class="aw-t-h">오늘의 MVP</div><div class="aw-t-list">${mvp}</div>`:''}
+      ${best}
+      ${o.date&&typeof openDateSummaryPage==='function'?`<button class="aw-t-btn" onclick="event.stopPropagation();openDateSummaryPage('${escHtml(o.date)}')">전체 경기 보기</button>`:''}
+    </div>
+  </div>`;
 }
 
 function awardPostHTML(p){

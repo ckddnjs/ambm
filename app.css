@@ -730,3 +730,12 @@ body.light-mode .hdr-logo{filter:none}
 .aw-t-row.sm .aw-t-nm{font-size:.88rem}
 .aw-t-btn{display:block;width:100%;margin-top:12px;padding:11px 0;border:none;border-radius:12px;background:rgba(77,159,255,.14);color:var(--primary);font-family:inherit;font-size:.84rem;font-weight:700;cursor:pointer}
 body.light-mode .aw-t-btn{background:rgba(29,111,216,.10)}
+
+/* 팀전 결과 카드 (2026-11-22) — 시상 카드(aw-t-*) 재사용 + 라운드 칸 */
+.tm-chip{border-color:var(--primary);color:var(--primary)}
+.tm-rds{display:flex;gap:5px;margin:0 0 6px}
+.tm-rd{flex:1;background:var(--surface2);border-radius:8px;padding:6px 0;text-align:center;font-size:.72rem;color:var(--text-muted)}
+.tm-rd b{display:block;font-size:.95rem;color:var(--text);font-variant-numeric:tabular-nums}
+.tm-rd.w b{color:var(--primary)}
+.aw-t-nm .tm-tn{display:block;font-size:.72rem;font-weight:400;color:var(--text-dim)}
+.aw-t-more.tm-best{padding-left:2px}
