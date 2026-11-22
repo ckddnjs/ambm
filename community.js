@@ -754,10 +754,17 @@ function markCommSeen(){
   _commBadgeSet(0);
 }
 async function refreshCommBadge(){
-  if(typeof currentPage!=='undefined'&&currentPage==='community'){_commBadgeSet(0);return;}
-  const since=_commSeenGet()||new Date(Date.now()-7*864e5).toISOString();
-  const{count,error}=await sb.from('community_posts').select('id',{count:'exact',head:true}).gt('created_at',since);
+  const onComm=()=>typeof currentPage!=='undefined'&&currentPage==='community';
+  if(onComm()){_commBadgeSet(0);return;}
+  const seen=_commSeenGet();
+  const since=seen||new Date(Date.now()-7*864e5).toISOString();
+  // 내가 쓴 글은 '새 글'로 세지 않는다 (2026-11-22)
+  let q=sb.from('community_posts').select('id',{count:'exact',head:true}).gt('created_at',since);
+  if(ME?.id) q=q.or(`author_id.is.null,author_id.neq.${ME.id}`);
+  const{count,error}=await q;
   if(error) return;
+  // ⚠️ 응답 기다리는 사이 소식탭을 열었으면(본 시각 갱신됨) 옛 기준 숫자를 다시 띄우지 않는다
+  if(onComm()||_commSeenGet()!==seen){_commBadgeSet(0);return;}
   _commBadgeSet(count||0);
 }
 document.addEventListener('visibilitychange',()=>{
