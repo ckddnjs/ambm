@@ -595,9 +595,20 @@ function teamPostHTML(p){
       ${rounds?`<div class="tm-rds">${rounds}</div><div class="tm-x" id="tmx-${p.id}" hidden></div>`:''}
       ${mvp?`<div class="aw-t-h">오늘의 MVP</div><div class="aw-t-list">${mvp}</div>`:''}
       ${best}
+      ${_teamRosterHTML(o.teams)}
       ${o.date&&typeof openDateSummaryPage==='function'?`<button class="aw-t-btn" onclick="event.stopPropagation();openDateSummaryPage('${escHtml(o.date)}')">전체 경기 보기</button>`:''}
     </div>
   </div>`;
+}
+/* 팀 명단: 팀장(팀 이름 '팀OO'의 OO로 끝나는 사람)을 맨 앞, 나머지는 가나다순 */
+function _teamRosterHTML(teams){
+  if(!teams.every(t=>Array.isArray(t.members)&&t.members.length)) return '';
+  const col=(t,i)=>{
+    const key=String(t.name||'').replace(/^팀/,'');
+    const ms=[...t.members].sort((a,b)=>(b.endsWith(key)?1:0)-(a.endsWith(key)?1:0)||a.localeCompare(b,'ko'));
+    return `<div class="tm-ro${i===0?' w':''}"><div class="tm-roh">${escHtml(t.name)}<small>${ms.length}명</small></div><div class="tm-rol">${ms.map(n=>`<span${key&&n.endsWith(key)?' class="cap"':''}>${escHtml(n)}</span>`).join('')}</div></div>`;
+  };
+  return `<div class="aw-t-h">팀 명단</div><div class="tm-ros">${teams.map(col).join('')}</div>`;
 }
 
 /* 라운드 칸을 누르면 그 라운드 경기를 펼친다 (2026-11-22). 경기는 DB에서 그날 승인 경기를 받아 보여줘서

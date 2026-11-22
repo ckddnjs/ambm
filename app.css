@@ -756,3 +756,12 @@ button.tm-rd:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
 .tm-xs b.w{color:var(--primary)}
 .tm-xh{display:flex;justify-content:space-between;font-size:.66rem;color:var(--text-dim);padding:4px 0 0 40px}
 .tm-xm{font-size:.78rem;color:var(--text-muted);padding:4px 0}
+
+/* 팀전 명단 (2026-11-22) */
+.tm-ros{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 6px}
+.tm-ro{background:var(--surface2);border-radius:10px;padding:8px 10px;min-width:0}
+.tm-roh{font-size:.8rem;font-weight:800;color:var(--text);margin-bottom:6px}
+.tm-ro.w .tm-roh{color:var(--primary)}
+.tm-roh small{font-weight:500;color:var(--text-dim);margin-left:5px;font-size:.72rem}
+.tm-rol{display:flex;flex-wrap:wrap;gap:4px 8px;font-size:.8rem;color:var(--text-muted)}
+.tm-rol .cap{color:var(--text);font-weight:700}
