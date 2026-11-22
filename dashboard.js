@@ -40,8 +40,6 @@ async function renderDashboard(){
     ({data:prof}=await sb.from('profiles').select(PROFILE_COLS).eq('id',ME.id).single());
     if(prof) ME={...ME,...prof}; // email은 profiles에서 못 읽으므로 기존 값(세션) 유지
   }
-  const _mcpBanner=document.getElementById('mcp-connect-banner');
-  if(_mcpBanner) _mcpBanner.style.display=(ME.id==='0b8e3098-b0be-43ee-9729-07702141b005'&&ME.name==='강창원')?'flex':'none';
   // 경기 캐시: 30초 이내면 재조회 생략
   const _now=Date.now();
   if(!window._matchCacheTime||_now-window._matchCacheTime>30000||!_allMatchesCache.length){
